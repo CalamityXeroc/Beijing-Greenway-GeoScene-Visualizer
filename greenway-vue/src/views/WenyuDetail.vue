@@ -1,560 +1,1805 @@
 <template>
+
   <div class="wenyu-page">
+
     <header class="header">
+
       <button @click="goBack" class="back-btn">
-        <i class="fas fa-arrow-left"></i> ∑µªÿ
+
+        <i class="fas fa-arrow-left"></i> ËøîÂõû
+
       </button>
+
       <div class="title-container">
-        <h1>±±æ©Œ¬”‹∫”±ıÀÆ¬Ãµ¿</h1>
-        <p><i class="fas fa-leaf"></i> —ÿ∫”∂¯––£¨ÃΩÀ˜≥« –¬Ã…´≥§¿»</p>
+
+        <h1>Âåó‰∫¨Ê∏©Ê¶ÜÊ≤≥Êª®Ê∞¥ÁªøÈÅì</h1>
+
+        <p><i class="fas fa-leaf"></i> ‰∫¨ÂüéÂåóÈÉ®Ê≤≥ÊµÅÊôØËßÇÔºåÁîüÊÄÅÂªäÈÅì</p>
+
       </div>
+
     </header>
 
+
+
     <div class="content">
+
+      <!-- Â∑¶‰æß‰ø°ÊÅØÊ†è -->
+
       <div ref="leftSidebar" class="left-sidebar">
-        <img
-          src="/49f1f0c245a64fb1970046d610d3f0a5.jpeg"
-          alt="Œ¬”‹∫”¬Ãµ¿æ∞π€"
+
+        <img 
+
+          src="https://via.placeholder.com/800x300?text=Ê∏©Ê¶ÜÊ≤≥Êª®Ê∞¥ÁªøÈÅì" 
+
+          alt="Ê∏©Ê¶ÜÊ≤≥ÁªøÈÅìÊôØËßÇ" 
+
           class="feature-image"
+
           @error="handleImageError"
+
         />
 
-        <div class="highlights">
-          <h3><i class="fas fa-star"></i> ¬Ãµ¿¡¡µ„</h3>
-          <ul>
-            <li>
-              <strong>◊‹≥§∂»£∫</strong>
-              <span>{{ greenwayInfo.total_length }}</span>
-            </li>
-            <li>
-              <strong>∏≤∏««¯”Ú£∫</strong>
-              <span>{{ greenwayInfo.coverage_area }}</span>
-            </li>
-            <li>
-              <strong>Ω®…Ë√Êª˝£∫</strong>
-              <span>{{ greenwayInfo.construction_area }}</span>
-            </li>
-            <li>
-              <strong>Ãÿ…´£∫</strong>
-              <span>{{ greenwayInfo.features }}</span>
-            </li>
-          </ul>
-        </div>
+        
 
         <div class="highlights">
-          <h3><i class="fas fa-info-circle"></i> ¬Ãµ¿ºÚΩÈ</h3>
-          <p class="description">{{ greenwayInfo.description }}</p>
-          <div class="badges">
-            <span class="badge badge-green"><i class="fas fa-tree"></i> …˙Ã¨æ∞π€</span>
-            <span class="badge badge-blue"><i class="fas fa-water"></i> ±ıÀÆ–›œ–</span>
-            <span class="badge badge-purple"><i class="fas fa-bicycle"></i> ∆Ô––Ω°…Ì</span>
-          </div>
+
+          <h3><i class="fas fa-star"></i>ÁªøÈÅì‰∫ÆÁÇπ</h3>
+
+          <ul>
+
+            <li>
+
+              <strong>ÊÄªÈïøÂ∫¶Ôºö</strong>
+
+              <span>{{ greenwayInfo.total_length }}</span>
+
+            </li>
+
+            <li>
+
+              <strong>Ë¶ÜÁõñÂå∫ÂüüÔºö</strong>
+
+              <span>{{ greenwayInfo.coverage_area }}</span>
+
+            </li>
+
+            <li>
+
+              <strong>Âª∫ËÆæÈù¢ÁßØÔºö</strong>
+
+              <span>{{ greenwayInfo.construction_area }}</span>
+
+            </li>
+
+            <li>
+
+              <strong>ÁâπËâ≤Ôºö</strong>
+
+              <span>{{ greenwayInfo.features }}</span>
+
+            </li>
+
+          </ul>
+
         </div>
+
+
+
+        <div class="highlights">
+
+          <h3><i class="fas fa-info-circle"></i>ÁªøÈÅìÁÆÄ‰ªã</h3>
+
+          <p class="description">
+
+            {{ greenwayInfo.description }}
+
+          </p>
+
+          <div class="badges">
+
+            <span class="badge badge-green">
+
+              <i class="fas fa-tree"></i> ÁîüÊÄÅÊôØËßÇ
+
+            </span>
+
+            <span class="badge badge-blue">
+
+              <i class="fas fa-medal"></i> Â••ËøêÊñáÂåñ
+
+            </span>
+
+            <span class="badge badge-purple">
+
+              <i class="fas fa-running"></i> ËøêÂä®ÂÅ•Ë∫´
+
+            </span>
+
+          </div>
+
+        </div>
+
+        
+
+        <!-- ÂÖ®ÊôØÊµèËßàÊåâÈíÆ -->
 
         <button class="panorama-btn" @click="showPanorama = true">
+
           <i class="fas fa-street-view"></i>
-          <span>360»´æ∞‰Ø¿¿</span>
+
+          <span>360¬∞ÂÖ®ÊôØÊµèËßà</span>
+
         </button>
+
       </div>
 
+
+
+      <!-- Âè≥‰æßÂú∞ÂõæÂå∫Âüü -->
+
       <div class="right-map">
+
         <MapViewer
+
           ref="mapViewer"
+
           :center="mapConfig.center"
+
           :zoom="mapConfig.zoom"
+
           :layers="layers"
+
           :interactive="false"
+
           height="100%"
+
           @map-ready="onMapReady"
-          :restrict-navigation="true"
-        />
+
+        :restrict-navigation="true" />
+
       </div>
+
     </div>
 
     <section class="detail-comments-section">
-      <DesktopCommentsPanel greenway-name="±±æ©Œ¬”‹∫”±ıÀÆ¬Ãµ¿" />
+
+      <DesktopCommentsPanel greenway-name="Âåó‰∫¨Ê∏©Ê¶ÜÊ≤≥Êª®Ê∞¥ÁªøÈÅì" />
+
     </section>
 
+    <!-- Â§©Ê∞îÂç°ÁâáÔºàÂõ∫ÂÆöÂÆö‰ΩçÔºåÂèØÊãñÂä®Ôºâ -->
+
     <WeatherCard
+
       v-if="weatherLocation"
+
       :longitude="weatherLocation.lon"
+
       :latitude="weatherLocation.lat"
-      location-label="Œ¬”‹∫”±ıÀÆ¬Ãµ¿"
+
+      location-label="Ê∏©Ê¶ÜÊ≤≥Êª®Ê∞¥ÁªøÈÅì"
+
       @weather-loaded="onWeatherLoaded"
+
     />
+
+
+
+    <!-- ÁôæÂ∫¶ÂÖ®ÊôØÊü•ÁúãÂô® -->
 
     <BaiduPanoramaViewer
+
       :visible="showPanorama"
+
       :panorama-points="panoramaPoints"
+
       :initial-point="0"
+
       :baidu-map-key="baiduMapKey"
+
       @close="showPanorama = false"
+
       @point-change="onPointChange"
+
     />
+
   </div>
+
 </template>
 
+
+
 <script setup>
+
 import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
+
 import { useRouter } from 'vue-router'
+
 import MapViewer from '@/components/MapViewer.vue'
+
 import WeatherCard from '@/components/WeatherCard.vue'
+
 import BaiduPanoramaViewer from '@/components/BaiduPanoramaViewer.vue'
+
 import DesktopCommentsPanel from '@/components/DesktopCommentsPanel.vue'
+
 import { loadGreenwayDataByName, buildGreenwayInfo } from '@/utils/greenwayHelper'
 
+
+
 const router = useRouter()
+
+
+
+// Âú∞ÂõæÁªÑ‰ª∂ÂºïÁî®
+
 const mapViewer = ref(null)
+
 const leftSidebar = ref(null)
+
+
+
+// ÂÖ®ÊôØÊü•ÁúãÂô®Áä∂ÊÄÅ
+
 const showPanorama = ref(false)
+
+
+
+// ÁôæÂ∫¶Âú∞ÂõæAPIÂØÜÈí•
+
 const baiduMapKey = import.meta.env.VITE_BAIDU_MAP_KEY || ''
 
+
+
+
+
 let cleanupSidebarWheel = null
+
 let prevBodyOverflowY = ''
+
 let prevHtmlOverflowY = ''
+
 const WHEEL_EDGE_EPSILON = 2
 
+
+
+// Ê∏©Ê¶ÜÊ≤≥ÁªøÈÅìÂÖ®ÊôØÁÇπ‰ΩçÈÖçÁΩÆÔºàÁúüÂÆûÂùêÊ†áÔºâ
+
 const panoramaPoints = ref([
+
   {
-    name: 'Œ¬”‹∫”∂´»Îø⁄',
-    description: 'Œ¬”‹∫”π´‘∞∂´≤‡»Îø⁄£¨æ∞π€ø™¿´',
-    lng: 116.5303,
-    lat: 40.0544
+
+    name: 'Ê∏©Ê¶ÜÊ≤≥ÂçóÂõ≠‰∏ªÂÖ•Âè£',
+
+    description: 'Â••ÊûóÂåπÂÖãÊ£ÆÊûóÂÖ¨Âõ≠ÂçóÈó®ÔºåÊ†áÂøóÊÄßÊôØËßÇ',
+
+    lng: 116.420,
+
+    lat: 40.0050
+
   },
+
   {
-    name: '±ıÀÆ…˙Ã¨∂Œ',
-    description: 'Ω¸ÀÆ≤Ωµ¿£¨π€æ∞”Î∆Ô––ÃÂ—ÈºÊæﬂ',
-    lng: 116.5198,
-    lat: 40.0612
+
+    name: 'Â••Êµ∑ÊπñÊôØÂå∫',
+
+    description: 'ÂÖ¨Âõ≠ÂÜÖÊúÄÂ§ßÊπñÊ≥äÔºåÊ≥¢ÂÖâÁ≤ºÁ≤º',
+
+    lng: 116.3980,
+
+    lat: 40.0120
+
   },
+
   {
-    name: ' ™µÿπ€æ∞µ„',
-    description: ' ™µÿ…˙Ã¨«¯£¨  ∫œ¬˝–––›œ–',
-    lng: 116.5102,
-    lat: 40.0695
+
+    name: 'ÂåóÂõ≠ÊπøÂú∞',
+
+    description: 'ÁîüÊÄÅÊπøÂú∞ÔºåÈ∏üÁ±ªÊ†ñÊÅØÂ§©Â†Ç',
+
+    lng: 116.3965,
+
+    lat: 40.0250
+
   },
+
   {
-    name: '…≠¡÷’ªµ¿∂Œ',
-    description: '¡÷“Ò∏≤∏«£¨œƒºæ∆Ô–– Ê  ',
-    lng: 116.5006,
-    lat: 40.0641
+
+    name: 'ËßÇÊôØÂ±±È°∂',
+
+    description: 'Âà∂È´òÁÇπÔºå‰øØÁû∞ÂÖ¨Âõ≠ÂÖ®ÊôØ',
+
+    lng: 116.3955,
+
+    lat: 40.0180
+
+  },
+
+  {
+
+    name: 'Ê£ÆÊûóÊ≠•ÈÅì',
+
+    description: 'ÊûóËç´Â∞èÈÅìÔºåÁ©∫Ê∞îÊ∏ÖÊñ∞',
+
+    lng: 116.4000,
+
+    lat: 40.0150
+
   }
+
 ])
+
+
+
+// Âú∞ÂõæÈÖçÁΩÆ
 
 const mapConfig = reactive({
-  center: [116.5198, 40.0612],
-  zoom: 12
+
+  center: [116.42, 40.05],
+
+  zoom: 13
+
 })
+
+
+
+// Â§©Ê∞î‰ΩçÁΩÆ
 
 const weatherLocation = ref({
-  lon: 116.5198,
-  lat: 40.0612
+
+  lon: 116.42,  // Ê∏©Ê¶ÜÊ≤≥ÂÖ¨Âõ≠‰∏≠ÂøÉÂùêÊ†á
+
+  lat: 40.05
+
 })
+
+
+
+// ÂõæÂ±ÇÈÖçÁΩÆ
+
+// ÁªøÈÅìËØ¶ÁªÜ‰ø°ÊÅØ
 
 const greenwayInfo = ref({
-  total_length: 'º”‘ÿ÷–...',
-  coverage_area: 'º”‘ÿ÷–...',
-  construction_area: 'º”‘ÿ÷–...',
-  features: 'º”‘ÿ÷–...',
-  description: '’˝‘⁄ªÒ»°¬Ãµ¿ºÚΩÈ–≈œ¢...'
+
+  total_length: 'Âä†ËΩΩ‰∏≠...',
+
+  coverage_area: 'Âä†ËΩΩ‰∏≠...',
+
+  construction_area: 'Âä†ËΩΩ‰∏≠...',
+
+  features: 'Âä†ËΩΩ‰∏≠...',
+
+  description: 'Ê≠£Âú®Ëé∑ÂèñÁªøÈÅìÁÆÄ‰ªã‰ø°ÊÅØ...'
+
 })
 
+
+
 const layers = ref([
+
   {
+
     id: 'wenyu-greenway',
+
     type: 'geojson',
-    data: null,
+
+    data: null,  // Â∞ÜÈÄöËøáfetchÂä®ÊÄÅËÆæÁΩÆ
+
     visible: true,
+
     fitExtent: true,
+
     style: {
-      lineColor: '#1976D2',
+
+      lineColor: '#2196F3',
+
       lineWidth: 4
+
     }
+
   }
+
 ])
 
-const onMapReady = () => {
+
+
+// Âú∞ÂõæÂ∞±Áª™
+
+const onMapReady = (map) => {
+
+  console.log('[AosenDetail] Âú∞ÂõæÂ∑≤Â∞±Áª™')
+
+  
+
+  // Ëé∑ÂèñÂú∞Âõæ‰∏≠ÂøÉ‰Ωú‰∏∫Â§©Ê∞îÊü•ËØ¢‰ΩçÁΩÆÔºàÊõ¥Êñ∞Âà∞ÂÆûÈôÖÂú∞Âõæ‰∏≠ÂøÉÔºâ
+
   setTimeout(() => {
+
     if (mapViewer.value) {
+
       const mapMgr = mapViewer.value.getMapManager()
+
       const center = mapMgr.getCenter()
+
       weatherLocation.value = {
+
         lon: center[0],
+
         lat: center[1]
+
       }
+
+      console.log('[AosenDetail] Êõ¥Êñ∞Â§©Ê∞îÊü•ËØ¢‰ΩçÁΩÆ:', weatherLocation.value)
+
     }
-  }, 500)
+
+  }, 1000)
+
 }
 
-const onWeatherLoaded = () => {}
+
+
+// Â§©Ê∞îÂä†ËΩΩÂÆåÊàê
+
+const onWeatherLoaded = (weather) => {
+
+  console.log('[AosenDetail] Â§©Ê∞îÊï∞ÊçÆÂ∑≤Âä†ËΩΩ:', weather)
+
+}
+
+
+
+// ËøîÂõû‰∏ä‰∏ÄÈ°µ
 
 const goBack = () => {
+
   router.back()
+
 }
+
+
+
+// ÂõæÁâáÂä†ËΩΩÂ§±Ë¥•Â§ÑÁêÜ
 
 const handleImageError = (event) => {
-  event.target.src = 'https://via.placeholder.com/900x320?text=Œ¬”‹∫”¬Ãµ¿'
+
+  console.warn('[AosenDetail] ÂõæÁâáÂä†ËΩΩÂ§±Ë¥•')
+
+  event.target.src = 'https://via.placeholder.com/800x300?text=Ê∏©Ê¶ÜÊ≤≥Êª®Ê∞¥ÁªøÈÅì'
+
 }
 
-const onPointChange = () => {}
+
+
+// ÂÖ®ÊôØËßÇÊôØÁÇπÂàáÊç¢
+
+
 
 const setupSidebarWheelGuard = () => {
+
   const el = leftSidebar.value
+
   if (!el) return
 
+
+
   const onSidebarWheel = (e) => {
+
     if (showPanorama.value) return
 
+
+
     const target = e.target
+
     if (target instanceof Element && target.closest('.chatbot-panel, .panorama-modal, .weather-card')) {
+
       return
+
     }
+
+
 
     const maxScrollTop = el.scrollHeight - el.clientHeight
+
     if (maxScrollTop <= 0) {
+
       window.scrollBy({ top: e.deltaY, behavior: 'auto' })
+
       e.preventDefault()
+
       return
+
     }
+
+
 
     const isAtTop = el.scrollTop <= WHEEL_EDGE_EPSILON
+
     const isAtBottom = (maxScrollTop - el.scrollTop) <= WHEEL_EDGE_EPSILON
 
-    // ◊Û¿∏µΩ±ﬂΩÁ∫ÛºÃ–¯πˆ∂Ø ±£¨∞—πˆ¬÷◊™∑¢∏¯“≥√Ê£¨»∑±£ƒ‹πˆµΩ∆¿¬€«¯°£
+
+
     if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
+
       window.scrollBy({ top: e.deltaY, behavior: 'auto' })
+
       e.preventDefault()
+
       e.stopPropagation()
+
       return
+
     }
 
+
+
     const nextScrollTop = el.scrollTop + e.deltaY
+
     const clamped = Math.max(0, Math.min(maxScrollTop, nextScrollTop))
+
     const willScroll = clamped !== el.scrollTop
+
+
 
     if (!willScroll) return
 
+
+
     el.scrollTop = clamped
+
     e.preventDefault()
+
     e.stopPropagation()
+
   }
 
-  // º‡Ã˝π“‘⁄ window£®≤∂ªÒΩ◊∂Œ£©£¨±£÷§ Û±Í–¸Õ£‘⁄“≥√Ê»Œ“‚Œª÷√∂ºƒ‹¡¨–¯πˆ∂Ø°£
+
+
   window.addEventListener('wheel', onSidebarWheel, { passive: false, capture: true })
+
   cleanupSidebarWheel = () => {
+
     window.removeEventListener('wheel', onSidebarWheel, true)
+
     cleanupSidebarWheel = null
+
   }
+
 }
+
+
+
+// Âä†ËΩΩÁªøÈÅìÊï∞ÊçÆ
 
 const loadGreenwayData = async () => {
+
   try {
-    const greenwayData = await loadGreenwayDataByName('Œ¬”‹∫”', (data) => {
+
+    const greenwayData = await loadGreenwayDataByName('Ê∏©Ê¶ÜÊ≤≥', (data) => {
+
+      // Êõ¥Êñ∞ÁïåÈù¢ÊòæÁ§∫ÁöÑÂ±ûÊÄß
+
       const info = buildGreenwayInfo(data)
+
       Object.assign(greenwayInfo.value, info)
+
     })
 
+    
+
     if (greenwayData) {
+
+      // Êõ¥Êñ∞ÂõæÂ±ÇÊï∞ÊçÆ
+
       layers.value[0].data = greenwayData.geojson
+
     }
+
   } catch (err) {
-    console.error('[WenyuDetail] º”‘ÿ¬Ãµ¿ ˝æ› ß∞‹:', err)
+
+    console.error('[AosenDetail] Âä†ËΩΩÁªøÈÅìÊï∞ÊçÆÂ§±Ë¥•:', err)
+
   }
+
 }
+
+
 
 onMounted(async () => {
-  // ∂µµ◊£∫«Â¿Ìø…ƒ‹”…∆‰À˚“≥√Ê“≈¡Ùµƒπˆ∂ØÀ¯
+
+  // ÂÖúÂ∫ïÔºöÊ∏ÖÁêÜÂèØËÉΩÁî±ÂÖ∂‰ªñÈ°µÈù¢ÈÅóÁïôÁöÑÊªöÂä®ÈîÅ
+
   prevBodyOverflowY = document.body.style.overflowY
+
   prevHtmlOverflowY = document.documentElement.style.overflowY
+
   document.body.style.overflowY = 'auto'
+
   document.documentElement.style.overflowY = 'auto'
 
+
+
+
+
+  console.log('[AosenDetail] ÁªÑ‰ª∂Â∑≤ÊåÇËΩΩ')
+
   await loadGreenwayData()
+
   await nextTick()
+
   setupSidebarWheelGuard()
+
 })
+
+
 
 onBeforeUnmount(() => {
+
   cleanupSidebarWheel?.()
+
   document.body.style.overflowY = prevBodyOverflowY
+
   document.documentElement.style.overflowY = prevHtmlOverflowY
+
 })
+
 </script>
 
+
+
 <style scoped>
+
 .wenyu-page {
+
   width: 100%;
+
   min-height: 100vh;
-  background: linear-gradient(135deg, #e8f5e9 0%, #e3f2fd 50%, #f1f8e9 100%);
+
+  background: linear-gradient(135deg, #E8F5E9 0%, #E3F2FD 50%, #F1F8E9 100%);
+
+  padding-top: 0;
+
   margin: 0;
+
 }
+
+
 
 .header {
+
   position: absolute;
+
   top: 0;
+
   left: 0;
+
   right: 0;
+
   z-index: 1000;
+
   pointer-events: none;
+
   display: flex;
+
   justify-content: center;
+
   align-items: flex-start;
+
   padding-top: 1.5rem;
-  padding-left: 480px;
+
+  padding-left: 480px; /* Âú∞ÂõæÂå∫ÂüüÂ±Ö‰∏≠ */
+
   box-sizing: border-box;
+
 }
+
+
 
 .header h1,
+
 .header p,
-.back-btn {
-  pointer-events: auto;
-}
 
 .back-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  left: 1.5rem;
-  background: rgba(33, 150, 243, 0.1);
-  border: none;
-  padding: 0.45rem 0.9rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: #2196f3;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
+
+  pointer-events: auto;
+
 }
+
+
+
+.back-btn {
+
+  position: absolute;
+
+  top: 50%;
+
+  transform: translateY(-50%);
+
+  left: 1.5rem;
+
+  background: rgba(33, 150, 243, 0.1);
+
+  border: none;
+
+  padding: 0.4rem 0.8rem;
+
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  font-size: 0.9rem;
+
+  color: #2196F3;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 0.4rem;
+
+  transition: all 0.2s;
+
+}
+
+
 
 .back-btn:hover {
+
   background: rgba(33, 150, 243, 0.2);
+
+  transform: translateY(-50%) translateX(-2px);
+
 }
+
+
 
 .header h1 {
+
+  font-size: 2.2rem; margin: 0 0 0.2rem 0;
+
   margin: 0 0 0.2rem 0;
-  color: #1b5e20;
-  font-size: 2.2rem;
+
+  color: #1B5E20;
+
   font-weight: 700;
+
 }
+
+
 
 .header p {
-  margin: 0;
-  color: #1b5e20;
-  font-size: 0.9rem;
+
+  color: #1B5E20;
+
+  font-size: 0.85rem;
+
   font-weight: 500;
+
+  margin: 0;
+
 }
+
+
+
+.header i {
+
+  color: #1B5E20;
+
+  margin-right: 0.4rem;
+
+}
+
+
 
 .content {
+
   display: flex;
+
   min-height: 100vh;
+
+  gap: 0;
+
 }
+
+
+
+/* Â∑¶‰æß‰ø°ÊÅØÊ†è */
 
 .left-sidebar {
+
   width: 480px;
+
   flex-shrink: 0;
+
   background: rgba(255, 255, 255, 0.95);
+
   backdrop-filter: blur(10px);
+
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+
+    -webkit-overflow-scrolling: touch;
+
   touch-action: pan-y;
+
   height: 100vh;
+
   max-height: 100vh;
+
   overscroll-behavior: contain;
+
   position: relative;
+
   z-index: 2;
-  padding: 110px 1.5rem 1.5rem;
+
+  padding: 110px 1.5rem 1.5rem 1.5rem;
+
   display: flex;
+
   flex-direction: column;
-  gap: 1.2rem;
+
+  gap: 1.5rem;
+
   box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08);
+
   border-right: 1px solid rgba(76, 175, 80, 0.1);
+
 }
+
+
+
+/* Âè≥‰æßÂú∞ÂõæÂå∫Âüü */
 
 .right-map {
+
   flex: 1;
-  min-width: 0;
-  min-height: 0;
+
   position: relative;
+
   overflow: hidden;
+
 }
+
+
 
 .feature-image {
+
   width: 100%;
+
   height: 220px;
+
   object-fit: cover;
+
   border-radius: 12px;
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+
+  transition: transform 0.3s ease;
+
 }
+
+
+
+.feature-image:hover {
+
+  transform: scale(1.03);
+
+}
+
+
 
 .highlights {
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(76, 175, 80, 0.1);
+
+  background: rgba(255, 255, 255, 0.6);
+
+  backdrop-filter: blur(5px);
+
+  padding: 1.25rem;
+
   border-radius: 12px;
-  padding: 1.1rem;
+
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+
+  border: 1px solid rgba(76, 175, 80, 0.1);
+
 }
+
+
 
 .highlights h3 {
-  color: #2e7d32;
-  margin-bottom: 0.8rem;
-  font-size: 1.08rem;
+
+  color: #2E7D32;
+
+  margin-bottom: 1rem;
+
+  font-size: 1.1rem;
+
+  font-weight: 700;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 0.5rem;
+
 }
+
+
+
+.highlights h3::before {
+
+  content: '';
+
+  display: block;
+
+  width: 4px;
+
+  height: 1em;
+
+  background: linear-gradient(180deg, #4CAF50, #2196F3);
+
+  border-radius: 2px;
+
+}
+
+
 
 .highlights ul {
-  list-style: none;
+
+  list-style-type: none;
+
   padding: 0;
+
 }
+
+
 
 .highlights li {
-  margin: 0.65rem 0;
+
+  margin: 0.75rem 0;
+
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+
+  position: relative;
+
+  background: rgba(255, 255, 255, 0.5);
+
+  border-radius: 8px;
+
+  transition: all 0.2s ease;
+
 }
+
+
+
+.highlights li:hover {
+
+  transform: translateX(5px);
+
+  background: rgba(255, 255, 255, 0.8);
+
+}
+
+
+
+.highlights li::before {
+
+  content: "\f058";
+
+  font-family: "Font Awesome 6 Free";
+
+  font-weight: 900;
+
+  color: #4CAF50;
+
+  position: absolute;
+
+  left: 0.8rem;
+
+  opacity: 0.8;
+
+}
+
+
 
 .highlights li strong {
-  color: #1976d2;
+
+  color: #2196F3;
+
 }
+
+
+
+.highlights li span {
+
+  color: #666;
+
+}
+
+
 
 .description {
-  color: #374151;
+
   line-height: 1.8;
-  margin-bottom: 0.8rem;
+
+  color: #666;
+
+  margin-bottom: 1rem;
+
 }
+
+
 
 .badges {
+
   display: flex;
+
+  gap: 0.75rem;
+
   flex-wrap: wrap;
-  gap: 0.5rem;
+
 }
+
+
 
 .badge {
+
+  padding: 0.4rem 0.8rem;
+
+  border-radius: 20px;
+
+  font-size: 0.9rem;
+
   display: inline-flex;
+
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 600;
+
+  gap: 0.35rem;
+
 }
 
-.badge-green {
-  background: #e8f5e9;
-  color: #2e7d32;
-}
 
-.badge-blue {
-  background: #e3f2fd;
-  color: #1976d2;
-}
 
-.badge-purple {
-  background: #f3e5f5;
-  color: #7b1fa2;
-}
+/* ÂÖ®ÊôØÊµèËßàÊåâÈíÆ */
 
 .panorama-btn {
+
+  width: 100%;
+
+  padding: 1rem 1.5rem;
+
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+
   border: none;
+
   border-radius: 10px;
-  background: linear-gradient(135deg, #43a047, #2e7d32);
-  color: #fff;
-  padding: 0.85rem 1rem;
-  font-size: 0.95rem;
+
+  color: white;
+
+  font-size: 1.05rem;
+
   font-weight: 600;
+
   cursor: pointer;
+
   display: flex;
+
   align-items: center;
+
   justify-content: center;
-  gap: 0.5rem;
+
+  gap: 0.75rem;
+
+  transition: all 0.3s ease;
+
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+
 }
 
-@media (max-width: 1100px) {
-  .header {
-    position: static;
-    padding: 1rem;
-    justify-content: flex-start;
-    pointer-events: auto;
+
+
+.panorama-btn:hover {
+
+  transform: translateY(-2px);
+
+  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
+
+  background: linear-gradient(135deg, #45a049, #388e3c);
+
+}
+
+
+
+.panorama-btn:active {
+
+  transform: translateY(-1px);
+
+}
+
+
+
+.panorama-btn i {
+
+  font-size: 1.3rem;
+
+  animation: pulse 2s ease-in-out infinite;
+
+}
+
+
+
+@keyframes pulse {
+
+  0%, 100% {
+
+    transform: scale(1);
+
   }
 
-  .back-btn {
-    position: static;
-    transform: none;
+  50% {
+
+    transform: scale(1.1);
+
   }
+
+}
+
+
+
+.badge-green {
+
+  background: rgba(76, 175, 80, 0.1);
+
+  color: #4CAF50;
+
+}
+
+
+
+.badge-blue {
+
+  background: rgba(33, 150, 243, 0.1);
+
+  color: #2196F3;
+
+}
+
+
+
+.badge-purple {
+
+  background: rgba(103, 58, 183, 0.1);
+
+  color: #673AB7;
+
+}
+
+
+
+/* ÂìçÂ∫îÂºè */
+
+
+
+@media (max-width: 1200px) {
+
+  .header { padding-left: 0; }
 
   .content {
+
     flex-direction: column;
-    min-height: auto;
+
+    height: auto;
+
   }
+
+
 
   .left-sidebar {
+
     width: 100%;
-    max-height: none;
-    overflow-y: auto;
-    padding: 1rem;
+
+    height: auto;
+
   }
+
+
 
   .right-map {
-    height: 55vh;
-    min-height: 420px;
+
+    height: 60vh;
+
   }
+
+
+
+  .header h1 {
+
+    font-size: 1.3rem;
+
+  margin: 0 0 0.2rem 0;}
+
 }
+
+
+
+
+
+@media (max-width: 768px) {
+
+  .header {
+
+  position: absolute;
+
+  top: 0;
+
+  left: 0;
+
+  right: 0;
+
+  z-index: 1000;
+
+  pointer-events: none;
+
+  display: flex;
+
+  justify-content: center;
+
+  align-items: flex-start;
+
+  padding-top: 1.5rem;
+
+  padding-left: 480px; /* Âú∞ÂõæÂå∫ÂüüÂ±Ö‰∏≠ */
+
+  box-sizing: border-box;
+
+}
+
+
+
+  .back-btn {
+
+    left: 1rem;
+
+    padding: 0.4rem 0.8rem;
+
+    font-size: 0.85rem;
+
+  }
+
+
+
+  .left-sidebar {
+
+    padding: 1rem;
+
+  }
+
+
+
+  .feature-image {
+
+    height: 180px;
+
+  }
+
+
+
+  .right-map {
+
+    height: 50vh;
+
+  }
+
+}
+
+
+
+.title-container {
+
+  background: transparent;
+
+  padding: 0.8rem 2rem;
+
+  text-align: center;
+
+  pointer-events: auto;
+
+  text-shadow: 0 1px 4px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 255, 255, 0.8);
+
+}
+
+
+
+.title-container:hover {
+
+  transform: translateY(-2px);
+
+}
+
+
+
+/* Night mode styles */
+
+[data-theme="night"] .wenyu-page {
+
+  background: var(--bg-primary, #1a1a1a);
+
+}
+
+
+
+[data-theme="night"] .header h1,
+
+[data-theme="night"] .header p,
+
+[data-theme="night"] .header i {
+
+  color: var(--text-primary, #e0e0e0);
+
+}
+
+
+
+[data-theme="night"] .back-btn {
+
+  background: rgba(255, 255, 255, 0.1);
+
+  color: var(--text-secondary, #b0b0b0);
+
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
+}
+
+
+
+[data-theme="night"] .back-btn:hover {
+
+  background: rgba(255, 255, 255, 0.15);
+
+}
+
+
+
+[data-theme="night"] .left-sidebar {
+
+  background: var(--card-bg, rgba(30, 30, 30, 0.9));
+
+  border-right-color: rgba(255, 255, 255, 0.1);
+
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
+
+}
+
+
+
+[data-theme="night"] .placeholder-image {
+
+  background: var(--bg-secondary, #2a2a2a);
+
+}
+
+
+
+[data-theme="night"] .placeholder-text {
+
+  color: var(--text-secondary, #b0b0b0);
+
+}
+
+
+
+[data-theme="night"] .placeholder-text i {
+
+  opacity: 0.5;
+
+}
+
+
+
+[data-theme="night"] .highlights {
+
+  background: var(--card-bg, rgba(30, 30, 30, 0.7));
+
+  border-color: rgba(255, 255, 255, 0.1);
+
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+
+}
+
+
+
+[data-theme="night"] .highlights h3 {
+
+  color: var(--text-primary, #e0e0e0);
+
+}
+
+
+
+[data-theme="night"] .highlights h3::before {
+
+  background: linear-gradient(180deg, #66bb6a, #42a5f5);
+
+}
+
+
+
+[data-theme="night"] .highlights li {
+
+  background: rgba(255, 255, 255, 0.08);
+
+}
+
+
+
+[data-theme="night"] .highlights li:hover {
+
+  background: rgba(255, 255, 255, 0.12);
+
+}
+
+
+
+[data-theme="night"] .highlights li::before {
+
+  color: #66bb6a;
+
+}
+
+
+
+[data-theme="night"] .highlights li strong {
+
+  color: #42a5f5;
+
+}
+
+
+
+[data-theme="night"] .highlights li span {
+
+  color: var(--text-secondary, #b0b0b0);
+
+}
+
+
+
+[data-theme="night"] .description {
+
+  color: var(--text-secondary, #b0b0b0);
+
+}
+
+
+
+[data-theme="night"] .badge-green {
+
+  background: rgba(102, 187, 106, 0.15);
+
+  color: #66bb6a;
+
+}
+
+
+
+[data-theme="night"] .badge-blue {
+
+  background: rgba(66, 165, 245, 0.15);
+
+  color: #42a5f5;
+
+}
+
+
+
+[data-theme="night"] .badge-purple {
+
+  background: rgba(171, 71, 188, 0.15);
+
+  color: #ab47bc;
+
+}
+
+
+
+[data-theme="night"] .panorama-btn {
+
+  background: linear-gradient(135deg, #66bb6a, #2e7d32);
+
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+}
+
+
+
+[data-theme="night"] .panorama-btn:hover {
+
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+
+  background: linear-gradient(135deg, #2e7d32, #1b5e20);
+
+}
+
+
+
+[data-theme="night"] .title-container {
+
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.8);
+
+}
+
+
+
+[data-theme="night"] .right-map {
+
+  background: var(--bg-primary-dark, #0a0a0a);
+
+}
+
+
+
+[data-theme="night"] .feature-image {
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+
+}
+
+
+
 </style>
+
+
+
+<!-- ÂÖ®Â±Ä‰∏ªÈ¢òÊ†∑Âºè - Â§ÑÁêÜscopedÊ†∑Âºè‰∏≠Êó†Ê≥ïÂ∫îÁî®ÁöÑÂÖ®Â±ÄÈÄâÊã©Âô® -->
 
 <style>
+
 [data-theme="night"] .wenyu-page {
-  background: var(--bg-primary, #1a1a1a) !important;
+
+  background: var(--bg-primary, #1a1a1a);
+
 }
+
+
 
 [data-theme="night"] .wenyu-page .header h1,
+
 [data-theme="night"] .wenyu-page .header p,
+
 [data-theme="night"] .wenyu-page .header i {
-  color: var(--text-primary, #e8e8e8) !important;
+
+  color: var(--text-primary, #e0e0e0);
+
 }
+
+
 
 [data-theme="night"] .wenyu-page .back-btn {
-  background: rgba(255, 255, 255, 0.12) !important;
-  color: var(--text-secondary, #b0b0b0) !important;
+
+  background: rgba(255, 255, 255, 0.1);
+
+  color: var(--text-secondary, #b0b0b0);
+
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
 }
+
+
+
+[data-theme="night"] .wenyu-page .back-btn:hover {
+
+  background: rgba(255, 255, 255, 0.15);
+
+}
+
+
 
 [data-theme="night"] .wenyu-page .left-sidebar {
-  background: var(--bg-secondary, #252525) !important;
-  border-right-color: rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.45) !important;
+
+  background: var(--card-bg, rgba(30, 30, 30, 0.9));
+
+  border-right-color: rgba(255, 255, 255, 0.1);
+
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
+
 }
+
+
+
+[data-theme="night"] .wenyu-page .placeholder-image {
+
+  background: var(--bg-secondary, #2a2a2a);
+
+}
+
+
+
+[data-theme="night"] .wenyu-page .placeholder-text {
+
+  color: var(--text-secondary, #b0b0b0);
+
+}
+
+
+
+[data-theme="night"] .wenyu-page .placeholder-text i {
+
+  opacity: 0.5;
+
+}
+
+
 
 [data-theme="night"] .wenyu-page .highlights {
-  background: var(--card-bg, rgba(30, 30, 30, 0.85)) !important;
-  border-color: var(--card-border, rgba(255, 255, 255, 0.1)) !important;
+
+  background: var(--card-bg, rgba(30, 30, 30, 0.7));
+
+  border-color: rgba(255, 255, 255, 0.1);
+
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+
 }
+
+
 
 [data-theme="night"] .wenyu-page .highlights h3 {
-  color: var(--text-primary, #e8e8e8) !important;
+
+  color: var(--text-primary, #e0e0e0);
+
 }
+
+
+
+[data-theme="night"] .wenyu-page .highlights h3::before {
+
+  background: linear-gradient(180deg, #66bb6a, #42a5f5);
+
+}
+
+
+
+[data-theme="night"] .wenyu-page .highlights li {
+
+  background: rgba(255, 255, 255, 0.08);
+
+}
+
+
+
+[data-theme="night"] .wenyu-page .highlights li:hover {
+
+  background: rgba(255, 255, 255, 0.12);
+
+}
+
+
+
+[data-theme="night"] .wenyu-page .highlights li::before {
+
+  color: #66bb6a;
+
+}
+
+
 
 [data-theme="night"] .wenyu-page .highlights li strong {
-  color: var(--theme-blue, #42a5f5) !important;
+
+  color: #42a5f5;
+
 }
 
-[data-theme="night"] .wenyu-page .highlights li span,
-[data-theme="night"] .wenyu-page .description {
-  color: var(--text-secondary, #b0b0b0) !important;
+
+
+[data-theme="night"] .wenyu-page .highlights li span {
+
+  color: var(--text-secondary, #b0b0b0);
+
 }
+
+
+
+[data-theme="night"] .wenyu-page .description {
+
+  color: var(--text-secondary, #b0b0b0);
+
+}
+
+
 
 [data-theme="night"] .wenyu-page .badge-green {
-  background: var(--bg-tertiary, #2a2a2a) !important;
-  color: #66bb6a !important;
+
+  background: rgba(102, 187, 106, 0.15);
+
+  color: #66bb6a;
+
 }
+
+
 
 [data-theme="night"] .wenyu-page .badge-blue {
-  background: var(--bg-tertiary, #2a2a2a) !important;
-  color: #42a5f5 !important;
+
+  background: rgba(66, 165, 245, 0.15);
+
+  color: #42a5f5;
+
 }
+
+
 
 [data-theme="night"] .wenyu-page .badge-purple {
-  background: var(--bg-tertiary, #2a2a2a) !important;
-  color: #a78bfa !important;
+
+  background: rgba(171, 71, 188, 0.15);
+
+  color: #ab47bc;
+
 }
 
-[data-theme="night"] .wenyu-page .right-map {
-  background: #0f1115 !important;
+
+
+[data-theme="night"] .wenyu-page .panorama-btn {
+
+  background: linear-gradient(135deg, #66bb6a, #2e7d32);
+
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+
 }
+
+
+
+[data-theme="night"] .wenyu-page .panorama-btn:hover {
+
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+
+  background: linear-gradient(135deg, #2e7d32, #1b5e20);
+
+}
+
+
+
+[data-theme="night"] .wenyu-page .title-container {
+
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.8);
+
+}
+
+
+
+[data-theme="night"] .wenyu-page .right-map {
+
+  background: var(--bg-primary-dark, #0a0a0a);
+
+}
+
+
+
+[data-theme="night"] .wenyu-page .feature-image {
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+
+}
+
 </style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
