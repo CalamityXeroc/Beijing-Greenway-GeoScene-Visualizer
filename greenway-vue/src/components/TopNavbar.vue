@@ -303,6 +303,20 @@
           </button>
         </div>
       </div>
+
+      <!-- 路径规划 -->
+      <div class="nav-item">
+        <button class="nav-btn" :class="{ active: showPathPlanning }"
+                @click="emit('toggle-path-planning')">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="5" cy="5" r="2"/>
+            <circle cx="19" cy="19" r="2"/>
+            <path d="M5 12h4l3 6 5-12 3 6h4"/>
+          </svg>
+          路径规划
+        </button>
+      </div>
     </div>
 
     <!-- 右：登录入口 -->
@@ -406,8 +420,11 @@ import { useGlobalTheme } from '@/utils/useTheme'
 
 const props = defineProps({
   toolbarRef: { type: Object, default: null },
-  layerConfig: { type: Array, default: () => [] }
+  layerConfig: { type: Array, default: () => [] },
+  showPathPlanning: { type: Boolean, default: false }
 })
+
+const emit = defineEmits(['toggle-path-planning'])
 
 const { theme: globalTheme } = useGlobalTheme()
 const isNight = computed(() => globalTheme.value === 'night')

@@ -211,31 +211,15 @@ onMounted(async () => {
   })
   view = mapManager.getView()
 
-  // 立即使用直连底图，避免探测导致加载延迟
-  lastBaseLayerChange = Date.now()
   const baseLayer = layerManager.createGaodeLayer(props.baseLayerStyle, { useProxy: false })
   installBaseLayer(baseLayer)
-  console.log('[MapViewer] 已装载直连高德底图，后台探测代理...')
-  
-  // 后台异步探测代理可用性，如果可用则自动切换
-  setTimeout(async () => {
-    const proxyReady = await canUseTileProxy(props.baseLayerStyle, 1)
-    if (proxyReady && mapManager && layerManager) {
-      lastBaseLayerChange = Date.now()
-      const proxyLayer = layerManager.createGaodeLayer(props.baseLayerStyle, { useProxy: true })
-      replaceBaseLayer(proxyLayer)
-      console.info('[MapViewer] 后端底图代理可用，已切换为代理模式')
-      stopTileProxyRecovery()
-    } else if (!proxyReady) {
-      console.warn('[MapViewer] 底图代理不可用，保持直连高德；启动后台恢复')
-      startTileProxyRecovery(props.baseLayerStyle)
-    }
-  }, 1000)
+  console.log("[MapViewer] 已装载直连高德底图")
 
   mapManager.setMapContainer(mapContainer.value)
 
   const isNight = globalTheme.value === 'night'
   mapContainer.value.classList.toggle('night-mode', isNight)
+  if (isNight) applyNightEffect()
 
   if (props.layers && props.layers.length > 0) {
     await syncLayers(props.layers)
@@ -245,6 +229,16 @@ onMounted(async () => {
   emit('map-ready', map)
   console.log('[MapViewer] 地图组件初始化完成（GeoScene）')
 })
+
+
+// 通过 GeoScene API 对底图应用夜间滤镜（CSS选择器对Canvas渲染无效）
+const NIGHT_FILTER = 'grayscale(100%) invert(100%) sepia(100%) hue-rotate(190deg) saturate(400%) brightness(90%) contrast(85%)'
+const applyNightEffect = () => {
+  const baseRecord = loadedLayers.get('base')
+  if (baseRecord?.layer) {
+    baseRecord.layer.effect = globalTheme.value === 'night' ? NIGHT_FILTER : ''
+  }
+}
 
 watch(
   () => props.layers,
@@ -260,6 +254,7 @@ watch(
   (newTheme) => {
     if (!mapContainer.value) return
     mapContainer.value.classList.toggle('night-mode', newTheme === 'night')
+    applyNightEffect()
   }
 )
 

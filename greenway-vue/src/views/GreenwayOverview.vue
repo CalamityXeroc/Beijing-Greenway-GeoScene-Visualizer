@@ -10,7 +10,9 @@
     
     <!-- 导航栏：sticky 吸顶，不参与页面滚动但始终可见 -->
     <div class="navbar-sticky">
-      <TopNavbar :toolbarRef="toolbarRef" :layerConfig="layerConfig"/>
+      <TopNavbar :toolbarRef="toolbarRef" :layerConfig="layerConfig"
+                :showPathPlanning="showPathPlanning"
+                @toggle-path-planning="showPathPlanning = !showPathPlanning"/>
     </div>
 
     <!-- 地图容器：精确占满视口剩余高度，滚动后变为普通内容区 -->
@@ -24,6 +26,13 @@
         @map-ready="onMapReady"
         @feature-click="onFeatureClick"
         @feature-hover="onFeatureHover"
+        @map-click="onMapClick"
+      />
+      <PathPlanning
+        v-if="showPathPlanning && mapManager && mapViewer"
+        :mapManager="mapManager"
+        :layerManager="mapViewer.getLayerManager()"
+        @close="showPathPlanning = false"
       />
     </div>
 
@@ -184,6 +193,8 @@ import { useRouter } from 'vue-router'
 import MapViewer from '@/components/MapViewer.vue'
 import MapToolbar from '@/components/MapToolbarGeoScene.vue'
 import TopNavbar from '@/components/TopNavbar.vue'
+import PathPlanning from '@/components/PathPlanning.vue'
+import { getRouteStore } from '@/stores/route.js'
 
 const router = useRouter()
 const toolbarRef = ref(null)
@@ -234,7 +245,7 @@ const layerConfig = ref([
     fitExtent: false,  // 不自动适配，使用我们设置的初始视图
     style: {
       lineColor: '#4CAF50',
-      lineWidth: 5  // 加粗绿道线条
+      lineWidth: 4  // 绿道线条
     },
     info: {
       name: '温榆河绿道',
@@ -253,7 +264,7 @@ const layerConfig = ref([
     fitExtent: false,
     style: {
       lineColor: '#4CAF50',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '环二环城市绿道',
@@ -272,7 +283,7 @@ const layerConfig = ref([
     fitExtent: false,
     style: {
       lineColor: '#4CAF50',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '亮马河绿道',
@@ -292,7 +303,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#4CAF50',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '常营半马绿道',
@@ -312,7 +323,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#4CAF50',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '昌平42绿道',
@@ -332,7 +343,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#4CAF50',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '丽都商圈绿道',
@@ -352,7 +363,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#4CAF50',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '北运河绿道',
@@ -372,7 +383,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#4CAF50',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '南沙绿道',
@@ -392,7 +403,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#4CAF50',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '奥林匹克森林公园绿道',
@@ -412,7 +423,7 @@ const layerConfig = ref([
     defer: false,
     style: {
       lineColor: '#4CAF50',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '营城建都绿道',
@@ -432,7 +443,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#4CAF50',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '三山五园绿道',
@@ -452,7 +463,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#4CAF50',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '朝阳绿道',
@@ -472,7 +483,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#29B6F6',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '北翼山水绿道',
@@ -492,7 +503,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#26C6DA',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '东翼大河绿道',
@@ -512,7 +523,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#78C850',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '郊野休闲环绿道',
@@ -532,7 +543,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#42A5F5',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '南沙绿道',
@@ -552,7 +563,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#7E57C2',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '西翼山水绿道',
@@ -572,7 +583,7 @@ const layerConfig = ref([
     defer: true,
     style: {
       lineColor: '#EF5350',
-      lineWidth: 5
+      lineWidth: 4
     },
     info: {
       name: '中心城滨水绿道',
@@ -696,6 +707,9 @@ const stopDrag = () => {
   document.removeEventListener('mouseup', stopDrag)
 }
 
+const routeStore = getRouteStore()
+const showPathPlanning = ref(false)
+
 const mapViewer = ref(null)
 const mapManager = shallowRef(null)
 
@@ -715,6 +729,12 @@ const onMapReady = (map) => {
       }
     })
   }
+}
+
+// 路径规划地图点击 → 转发给 routeStore
+const onMapClick = ({ coordinate }) => {
+  if (!coordinate || !routeStore.state.activeInput) return
+  routeStore.handleMapClick({ lng: coordinate[0], lat: coordinate[1] })
 }
 
 // 当前悬停的要素

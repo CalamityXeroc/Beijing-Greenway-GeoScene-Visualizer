@@ -8,6 +8,7 @@ import aiRouter from './routes/ai.js';
 import adminAiStatsRouter from './routes/adminAiStats.js';
 import commentsRouter from './routes/comments.js';
 import adminCommentsRouter from './routes/adminComments.js';
+import gaodeRouter from './routes/gaode.js';
 
 dotenv.config({ path: '.env.local' });
 
@@ -50,6 +51,9 @@ app.use('/api/admin/comments', adminCommentsRouter);
 // 文档兼容别名路由
 app.use('/api/comment', commentsRouter);
 app.use('/api/admin/comment', adminCommentsRouter);
+
+// 挂载高德地图 API 代理路由
+app.use('/api/gaode', gaodeRouter);
 
 // 健康检查
 app.get('/health', async (req, res) => {

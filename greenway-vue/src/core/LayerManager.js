@@ -140,7 +140,7 @@ class LayerManager {
   getDefaultStyle(config = {}) {
     const {
       strokeColor = '#2196F3',
-      strokeWidth = 3,
+      strokeWidth = 2,
       fillColor = 'rgba(33, 150, 243, 0.1)',
       pointRadius = 6,
       pointFillColor = '#2196F3'
