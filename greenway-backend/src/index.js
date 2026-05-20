@@ -309,16 +309,19 @@ app.use((err, req, res, next) => {
 });
 
 // ===== 高德地图瓦片代理（解决 CORS 问题，使地图截图可包含底图） =====
-app.get('/api/tiles/gaode', async (req, res) => {
-  const { x, y, z, style = 8 } = req.query;
+const proxyGaodeTile = async (req, res, params) => {
+  const { x, y, z, style = 8 } = params;
   if (!x || !y || !z) return res.status(400).json({ error: 'Missing x/y/z' });
+
   const server = (parseInt(x) + parseInt(y)) % 4 + 1;
   const tileUrl = `https://webrd0${server}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=${style}&x=${x}&y=${y}&z=${z}`;
+
   try {
     const response = await fetch(tileUrl, {
       headers: { 'Referer': 'https://www.amap.com/', 'User-Agent': 'Mozilla/5.0' }
     });
     if (!response.ok) return res.status(response.status).send();
+
     const buffer = await response.arrayBuffer();
     const ct = response.headers.get('content-type') || 'image/jpeg';
     res.set('Access-Control-Allow-Origin', '*');
@@ -329,6 +332,18 @@ app.get('/api/tiles/gaode', async (req, res) => {
     console.error('[瓦片代理] 错误:', e.message);
     res.status(502).send();
   }
+};
+
+// 新版路由（GeoScene WebTileLayer）：/api/tiles/gaode/:style/:level/:col/:row
+app.get('/api/tiles/gaode/:style/:level/:col/:row', async (req, res) => {
+  const { style, level, col, row } = req.params;
+  return proxyGaodeTile(req, res, { x: col, y: row, z: level, style });
+});
+
+// 兼容旧版路由（OpenLayers 查询参数）：/api/tiles/gaode?x=&y=&z=&style=
+app.get('/api/tiles/gaode', async (req, res) => {
+  const { x, y, z, style = 8 } = req.query;
+  return proxyGaodeTile(req, res, { x, y, z, style });
 });
 
 // 获取本机IP用于显示 - 优先选择非169.254开头的地址（真实网络接口）

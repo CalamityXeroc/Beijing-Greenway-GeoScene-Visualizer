@@ -24,6 +24,7 @@
     "@capacitor/network": "^6.0.0",
     "@capacitor/splash-screen": "^6.0.4",
     "@capacitor/status-bar": "^6.0.0",
+    "@geoscene/core": "^4.33.19",
     "@photo-sphere-viewer/core": "^5.14.0",
     "@photo-sphere-viewer/markers-plugin": "^5.14.0",
     "@photo-sphere-viewer/virtual-tour-plugin": "^5.14.0",

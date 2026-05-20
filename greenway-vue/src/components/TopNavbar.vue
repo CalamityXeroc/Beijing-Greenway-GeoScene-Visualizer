@@ -402,11 +402,15 @@
 import { ref, computed } from 'vue'
 import { useUserAuth } from '@/stores/userAuth'
 import { useAdminAuth } from '@/stores/adminAuth'
+import { useGlobalTheme } from '@/utils/useTheme'
 
 const props = defineProps({
   toolbarRef: { type: Object, default: null },
   layerConfig: { type: Array, default: () => [] }
 })
+
+const { theme: globalTheme } = useGlobalTheme()
+const isNight = computed(() => globalTheme.value === 'night')
 
 // 过滤掉所有绿道路线图层，只保留北京市界/面等底图图层
 const GREENWAY_IDS = [

@@ -1,50 +1,98 @@
 /**
- * LayerManager - 图层管理器
- * 参考 OLTB 的图层管理模式，统一管理矢量图层和瓦片图层
+ * LayerManager - 图层管理器（GeoScene 实现）
  */
 
-import TileLayer from 'ol/layer/Tile'
-import VectorLayer from 'ol/layer/Vector'
-import VectorImageLayer from 'ol/layer/VectorImage'
-import XYZ from 'ol/source/XYZ'
-import VectorSource from 'ol/source/Vector'
-import GeoJSON from 'ol/format/GeoJSON'
-import { Style, Stroke, Fill, Circle } from 'ol/style'
+import WebTileLayer from '@geoscene/core/layers/WebTileLayer.js'
+import GeoJSONLayer from '@geoscene/core/layers/GeoJSONLayer.js'
+import GraphicsLayer from '@geoscene/core/layers/GraphicsLayer.js'
 import { markRaw } from 'vue'
 
 class LayerManager {
   constructor() {
-    // 使用 Object.defineProperty 防止这些属性被响应式包装
     Object.defineProperty(this, 'baseLayers', { value: new Map(), writable: false, enumerable: false })
     Object.defineProperty(this, 'overlayLayers', { value: new Map(), writable: false, enumerable: false })
   }
 
-  /**
-   * 创建高德底图图层
-   * @param {string} style - 地图样式 (7=街道图, 8=文字标注)
-   */
-  createGaodeLayer(style = 8) {
-    // style=8: 日间标准地图
-    // style=7: 夜间地图（高德官方）
-    // 如果使用 CSS 滤镜模拟，可保持使用 style=8
-    const url = `https://webrd0{1-4}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=${style}&x={x}&y={y}&z={z}`
+  createGaodeLayer(style = 8, options = {}) {
+    const useProxy = options.useProxy !== false
+    const subDomains = ['1', '2', '3', '4']
     
-    const layer = new TileLayer({
-      className: 'gaode-base-layer', // 添加特定类名以便单独应用 CSS 滤镜
-      source: new XYZ({
-        url: url,
-        crossOrigin: 'anonymous'
-      }),
-      zIndex: 0
+    const layer = new WebTileLayer({
+      id: 'gaode-base-layer',
+      title: '高德底图',
+      urlTemplate: useProxy
+        ? `/api/tiles/gaode/${style}/{level}/{col}/{row}`
+        : `https://webrd0{subDomain}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=${style}&x={col}&y={row}&z={level}`,
+      subDomains: subDomains,
+      visible: true,
+      copyright: 'Gaode Maps'
     })
 
+    layer._zIndex = 0
+    layer._interactive = false
+    layer._useProxy = useProxy
     return layer
   }
 
-  /**
-   * 创建矢量图层（从 GeoJSON）- 性能优化版本
-   * @param {Object} options - 配置选项
-   */
+  _detectGeometryType(config = {}, data) {
+    if (data?.features?.length) {
+      const rawType = data.features[0]?.geometry?.type || ''
+      if (rawType.includes('Point')) return 'point'
+      if (rawType.includes('Polygon')) return 'polygon'
+      return 'polyline'
+    }
+
+    if (config.fillColor) return 'polygon'
+    if (config.pointColor || config.pointFillColor || config.pointRadius) return 'point'
+    return 'polyline'
+  }
+
+  _createSimpleRenderer(config = {}, geometryType = 'polyline') {
+    if (geometryType === 'point') {
+      return {
+        type: 'simple',
+        symbol: {
+          type: 'simple-marker',
+          color: config.pointFillColor || config.pointColor || '#2196F3',
+          size: Math.max((config.pointRadius || 6) * 2, 6),
+          outline: {
+            color: '#ffffff',
+            width: 2
+          }
+        }
+      }
+    }
+
+    if (geometryType === 'polygon') {
+      return {
+        type: 'simple',
+        symbol: {
+          type: 'simple-fill',
+          color: config.fillColor || 'rgba(33, 150, 243, 0.1)',
+          outline: {
+            color: config.strokeColor || config.lineColor || '#2196F3',
+            width: config.strokeWidth || config.lineWidth || 2
+          }
+        }
+      }
+    }
+
+    return {
+      type: 'simple',
+      symbol: {
+        type: 'simple-line',
+        color: config.lineColor || config.strokeColor || '#2196F3',
+        width: config.lineWidth || config.strokeWidth || 3,
+        cap: 'round',
+        join: 'round'
+      }
+    }
+  }
+
+  createStyleFunction(config = {}, data) {
+    return this._createSimpleRenderer(config, this._detectGeometryType(config, data))
+  }
+
   createVectorLayerFromGeoJSON(options = {}) {
     const {
       url,
@@ -52,82 +100,43 @@ class LayerManager {
       style = this.getDefaultStyle(),
       zIndex = 10,
       visible = true,
-      renderAsImage = true,
-      interactive = true // 默认为可交互
+      interactive = true
     } = options
 
-    const source = new VectorSource({
-      url: url,
-      format: new GeoJSON({
-        featureProjection: 'EPSG:3857'
-      }),
-      features: data ? new GeoJSON().readFeatures(data, {
-        featureProjection: 'EPSG:3857'
-      }) : undefined,
-      // 性能优化：使用RTree空间索引加速要素查询
-      useSpatialIndex: true
-    })
-
-    const LayerClass = renderAsImage ? VectorImageLayer : VectorLayer
-
-    const commonOptions = {
-      source: source,
-      style: style,
-      zIndex: zIndex,
-      visible: visible,
-      declutter: false,
-      // 将 interactive 属性传递给图层对象，供 MapViewer 过滤使用
-      properties: {
-        interactive: options.interactive !== false
-      }
+    let layerUrl = url
+    if (!layerUrl && data) {
+      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
+      layerUrl = URL.createObjectURL(blob)
     }
 
-    const layer = new LayerClass(
-      renderAsImage
-        ? {
-            ...commonOptions,
-            imageRatio: 1, // 降低 imageRatio 减少内存占用
-          }
-        : {
-            ...commonOptions,
-            renderMode: 'vector',
-            updateWhileAnimating: false, // 禁用动画时更新，提高性能
-            updateWhileInteracting: false, // 禁用交互时更新，提高性能
-            renderBuffer: 50 // 减少渲染缓冲区
-          }
-    )
+    const renderer = this.createStyleFunction(style, data)
+    const layer = new GeoJSONLayer({
+      url: layerUrl,
+      renderer,
+      visible,
+      outFields: ['*']
+    })
 
+    if (!url && data) {
+      layer._objectUrl = layerUrl
+    }
+
+    layer._zIndex = zIndex
+    layer._interactive = interactive !== false
     return layer
   }
 
-  /**
-   * 创建矢量图层（从要素数组）
-   * @param {Array} features - 要素数组
-   * @param {Object} options - 配置选项
-   */
-  createVectorLayerFromFeatures(features, options = {}) {
-    const {
-      style = this.getDefaultStyle(),
-      zIndex = 10,
-      visible = true
-    } = options
-
-    const source = new VectorSource({
-      features: features
+  createVectorLayerFromFeatures(_features, options = {}) {
+    const { zIndex = 10, visible = true, interactive = true } = options
+    const layer = new GraphicsLayer({
+      visible,
+      listMode: 'hide'
     })
-
-    return new VectorLayer({
-      source: source,
-      style: style,
-      zIndex: zIndex,
-      visible: visible
-    })
+    layer._zIndex = zIndex
+    layer._interactive = interactive !== false
+    return layer
   }
 
-  /**
-   * 获取默认样式
-   * @param {Object} config - 样式配置
-   */
   getDefaultStyle(config = {}) {
     const {
       strokeColor = '#2196F3',
@@ -137,143 +146,26 @@ class LayerManager {
       pointFillColor = '#2196F3'
     } = config
 
-    return new Style({
-      stroke: new Stroke({
-        color: strokeColor,
-        width: strokeWidth
-      }),
-      fill: new Fill({
-        color: fillColor
-      }),
-      image: new Circle({
-        radius: pointRadius,
-        fill: new Fill({
-          color: pointFillColor
-        }),
-        stroke: new Stroke({
-          color: '#ffffff',
-          width: 2
-        })
-      })
-    })
-  }
-
-  /**
-   * 创建动态样式函数（带缓存优化）
-   * @param {Object} config - 样式配置
-   */
-  createStyleFunction(config = {}) {
-    // 为静态配置创建缓存样式
-    const staticStyle = this.getDefaultStyle({
-      strokeColor: config.lineColor || '#2196F3',
-      strokeWidth: config.lineWidth || 3,
-      fillColor: config.fillColor || 'rgba(33, 150, 243, 0.1)',
-      pointRadius: config.pointRadius || 6,
-      pointFillColor: config.pointColor || '#2196F3'
-    })
-    
-    return (feature) => {
-      const properties = feature.getProperties()
-      
-      // 检查 feature 是否有颜色属性（来自后端绿道数据）
-      if (properties.color) {
-        const geometry = feature.getGeometry()
-        const geometryType = geometry.getType()
-        
-        let style = {}
-        
-        if (geometryType === 'LineString' || geometryType === 'MultiLineString') {
-          style = {
-            strokeColor: properties.color,
-            strokeWidth: config.lineWidth || 3
-          }
-        } else if (geometryType === 'Polygon' || geometryType === 'MultiPolygon') {
-          style = {
-            strokeColor: properties.color,
-            strokeWidth: config.strokeWidth || 2,
-            fillColor: `${properties.color}33`  // 使用 color 配置填充色
-          }
-        } else if (geometryType === 'Point' || geometryType === 'MultiPoint') {
-          style = {
-            pointRadius: config.pointRadius || 6,
-            pointFillColor: properties.color
-          }
-        }
-        
-        return this.getDefaultStyle(style)
-      }
-      
-      // 如果feature没有自定义样式属性，直接返回缓存的静态样式
-      if (!properties.width) {
-        return staticStyle
-      }
-      
-      // 只有feature有自定义属性时才动态创建样式
-      const geometry = feature.getGeometry()
-      const geometryType = geometry.getType()
-
-      let style = {}
-
-      if (geometryType === 'LineString' || geometryType === 'MultiLineString') {
-        style = {
-          strokeColor: config.lineColor || properties.color || '#2196F3',
-          strokeWidth: config.lineWidth || properties.width || 3
-        }
-      } else if (geometryType === 'Polygon' || geometryType === 'MultiPolygon') {
-        style = {
-          strokeColor: config.strokeColor || '#2196F3',
-          strokeWidth: config.strokeWidth || 2,
-          fillColor: config.fillColor || 'rgba(33, 150, 243, 0.1)'
-        }
-      } else if (geometryType === 'Point' || geometryType === 'MultiPoint') {
-        style = {
-          pointRadius: config.pointRadius || 6,
-          pointFillColor: config.pointColor || '#2196F3'
-        }
-      }
-
-      return this.getDefaultStyle(style)
+    return {
+      strokeColor,
+      strokeWidth,
+      fillColor,
+      pointRadius,
+      pointFillColor
     }
   }
 
-  /**
-   * 创建高亮样式
-   * @param {string} color - 高亮颜色
-   */
   getHighlightStyle(color = '#FF9800') {
-    return new Style({
-      stroke: new Stroke({
-        color: color,
-        width: 5
-      }),
-      fill: new Fill({
-        color: `${color}33` // 添加透明度
-      }),
-      image: new Circle({
-        radius: 8,
-        fill: new Fill({
-          color: color
-        }),
-        stroke: new Stroke({
-          color: '#ffffff',
-          width: 3
-        })
-      })
-    })
+    return {
+      lineColor: color,
+      lineWidth: 5
+    }
   }
 
-  /**
-   * 从 URL 加载 GeoJSON 数据
-   * @param {string} url - GeoJSON 文件 URL
-   * @param {Function} callback - 加载完成回调
-   */
   async loadGeoJSON(url) {
     try {
       const response = await fetch(url)
-      const geojson = await response.json()
-      return new GeoJSON().readFeatures(geojson, {
-        featureProjection: 'EPSG:3857'
-      })
+      return await response.json()
     } catch (error) {
       console.error('[LayerManager] 加载 GeoJSON 失败:', error)
       throw error
@@ -281,12 +173,10 @@ class LayerManager {
   }
 }
 
-// 单例模式
 let instance = null
 
 export function getLayerManager() {
   if (!instance) {
-    // 使用 markRaw 防止整个 LayerManager 实例被 Vue 响应式包装
     instance = markRaw(new LayerManager())
   }
   return instance

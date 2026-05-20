@@ -179,11 +179,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, shallowRef, markRaw } from 'vue'
 import { useRouter } from 'vue-router'
-import { Style, Stroke } from 'ol/style'
 import MapViewer from '@/components/MapViewer.vue'
-import MapToolbar from '@/components/MapToolbar.vue'
+import MapToolbar from '@/components/MapToolbarGeoScene.vue'
 import TopNavbar from '@/components/TopNavbar.vue'
 
 const router = useRouter()
@@ -698,7 +697,7 @@ const stopDrag = () => {
 }
 
 const mapViewer = ref(null)
-const mapManager = ref(null)
+const mapManager = shallowRef(null)
 
 // 地图就绪
 const onMapReady = (map) => {
@@ -707,12 +706,12 @@ const onMapReady = (map) => {
   isLoading.value = false
   // 获取 MapManager 实例
   if (mapViewer.value) {
-    mapManager.value = mapViewer.value.getMapManager()
-    // 记录每个图层的默认样式，方便恢复
+    mapManager.value = markRaw(mapViewer.value.getMapManager())
+    // 记录每个图层的默认渲染器，方便恢复
     layerConfig.value.forEach(layer => {
       const layerInstance = mapManager.value?.getLayer(layer.id)
-      if (layerInstance && !layerDefaultStyles.has(layer.id)) {
-        layerDefaultStyles.set(layer.id, layerInstance.getStyle())
+      if (layerInstance && !layerDefaultRenderers.has(layer.id)) {
+        layerDefaultRenderers.set(layer.id, layerInstance.renderer || null)
       }
     })
   }
@@ -724,49 +723,28 @@ const hoveredFeature = ref(null)
 const selectedLayer = ref(null)
 const selectedLayerId = ref(null)
 
-// 高亮样式缓存，避免重复创建
-const highlightStyleCache = new Map()
-const layerDefaultStyles = new Map()
+// 高亮渲染器缓存，避免重复创建
+const highlightRendererCache = new Map()
+const layerDefaultRenderers = new Map()
 
 const getHighlightStyle = (color, width, isHover) => {
   const key = `${color}-${width}-${isHover}`
   
-  if (!highlightStyleCache.has(key)) {
-    highlightStyleCache.set(key, [
-      // 外层阴影（模拟发光效果）
-      new Style({
-        stroke: new Stroke({
-          color: isHover ? 'rgba(255, 215, 0, 0.4)' : 'rgba(255, 107, 53, 0.4)',
-          width: width + 6,
-          lineCap: 'round',
-          lineJoin: 'round'
-        }),
-        zIndex: 1
-      }),
-      // 中层阴影
-      new Style({
-        stroke: new Stroke({
-          color: isHover ? 'rgba(255, 215, 0, 0.6)' : 'rgba(255, 107, 53, 0.6)',
-          width: width + 3,
-          lineCap: 'round',
-          lineJoin: 'round'
-        }),
-        zIndex: 2
-      }),
-      // 主线条
-      new Style({
-        stroke: new Stroke({
-          color: color,
-          width: width,
-          lineCap: 'round',
-          lineJoin: 'round'
-        }),
-        zIndex: 3
-      })
-    ])
+  if (!highlightRendererCache.has(key)) {
+    highlightRendererCache.set(key, {
+      type: 'simple',
+      symbol: {
+        type: 'simple-line',
+        color,
+        width,
+        style: isHover ? 'short-dash' : 'solid',
+        cap: 'round',
+        join: 'round'
+      }
+    })
   }
   
-  return highlightStyleCache.get(key)
+  return highlightRendererCache.get(key)
 }
 
 // 高亮整个图层的所有要素 - 直接切换图层样式
@@ -780,13 +758,13 @@ const highlightLayer = (layerId, color, width, isHover = false) => {
   const layer = mapManager.getLayer(layerId)
   if (!layer) return
 
-  if (!layerDefaultStyles.has(layerId)) {
-    layerDefaultStyles.set(layerId, layer.getStyle())
+  if (!layerDefaultRenderers.has(layerId)) {
+    layerDefaultRenderers.set(layerId, layer.renderer || null)
   }
   
   const highlightStyle = getHighlightStyle(color, width, isHover)
-  if (layer.getStyle() !== highlightStyle) {
-    layer.setStyle(highlightStyle)
+  if (layer.renderer !== highlightStyle) {
+    layer.renderer = highlightStyle
   }
 }
 
@@ -801,11 +779,11 @@ const clearLayerHighlight = (layerId) => {
   const layer = mapManager.getLayer(layerId)
   if (!layer) return
 
-  const defaultStyle = layerDefaultStyles.get(layerId)
-  if (defaultStyle) {
-    layer.setStyle(defaultStyle)
+  const defaultRenderer = layerDefaultRenderers.get(layerId)
+  if (defaultRenderer) {
+    layer.renderer = defaultRenderer
   } else {
-    layer.setStyle(undefined)
+    layer.renderer = null
   }
 }
 
