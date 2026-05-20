@@ -119,3 +119,18 @@ Desktop.ini
 $RECYCLE.BIN/
 .AppleDouble
 .LSOverride
+
+# 测试脚本（不上传）
+quick-test.js
+test-route.py
+test-tile-route.js
+
+# 开发文档（不上传）
+功能开发文档_绿道路径规划与导航.md
+部署指南.md
+
+# 临时文件
+tmp_*.geojson
+tmp_*.sql
+tmp_*.txt
+*.tmp

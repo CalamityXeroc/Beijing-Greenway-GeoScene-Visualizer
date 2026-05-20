@@ -3,11 +3,11 @@
 ![Vue](https://img.shields.io/badge/Vue-3.4.0-brightgreen.svg)
 ![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue.svg)
-![OpenLayers](https://img.shields.io/badge/OpenLayers-8.2-blue.svg)
+![OpenLayers](https://img.shields.io/badge/GeoScene-4.33-blue.svg)
 ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek%20V3.2-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-A modern WebGIS platform for exploring Beijing's greenway network, built with Vue 3 + OpenLayers + PostgreSQL/PostGIS.
+A modern WebGIS platform for exploring Beijing's greenway network, built with Vue 3 + GeoScene JS SDK + Amap + PostgreSQL/PostGIS.
 
 **[English](./README.md) | [中文](./README_zh-CN.md)**
 
@@ -39,10 +39,10 @@ A modern WebGIS platform for exploring Beijing's greenway network, built with Vu
 
 ##  Project Overview
 
-Interactive visualization of **17 major Beijing greenways** featuring a fullscreen landing page, an interactive OpenLayers map, GIS tools, real-time weather, panoramic street view, admin panel, user auth, and a Capacitor-based mobile app.
+Interactive visualization of **17 major Beijing greenways** featuring a fullscreen landing page, an interactive GeoScene map with Amap basemap tiles, path planning & navigation, GIS tools, real-time weather, panoramic street view, admin panel, user auth, and a Capacitor-based mobile app.
 
 -  17 complete greenway routes
--  Vue 3 + OpenLayers 8 frontend
+-  Vue 3 + GeoScene JS SDK + Amap tiles frontend
 -  Node.js + Express REST API backend
 -  PostgreSQL + PostGIS geospatial database
 -  Fullpage landing page with debounced mouse-wheel scroll (6 sections)
@@ -96,7 +96,8 @@ npm run dev       # http://localhost:5173
 | Feature | Description |
 |---------|-------------|
 |  **Landing Page** | Fullpage debounced mouse-wheel scroll, 6 animated sections, 0.6s transition |
-|  **Interactive Map** | OpenLayers multi-layer rendering with custom dark tile theme |
+|  **Interactive Map** | GeoScene multi-layer rendering with Amap tile basemap |
+|  **Path Planning** | Walking/cycling route planning via Amap Directions API, draggable panel |
 |  **GIS Toolkit** | Draw (with RGB color picker), measure, import GeoJSON, toggle base layers |
 |  **Map Export** | Export current map view as PNG image |
 |  **17 Greenways** | Individual detail pages with attributes & street panorama |
@@ -123,6 +124,7 @@ npm run dev       # http://localhost:5173
        routes/
           ai.js            # DeepSeek chat API + chat_logs INSERT
           adminAiStats.js  # Admin AI analytics (word cloud & trends)
+          gaode.js         # Amap API proxy (directions / search / geocode)
     scripts/
        add-chat-logs-table.js  # DB migration: chat_logs table
        ...                     # DB init & GeoJSON import utilities
@@ -140,11 +142,18 @@ npm run dev       # http://localhost:5173
               aistats/AiChatStats.vue  # AI chat analytics dashboard
        components/
           TopNavbar.vue            # Navigation bar + layer dropdown
-          MapViewer.vue            # OpenLayers map wrapper
-          MapToolbar.vue           # GIS tools (draw/measure/layers)
+          MapViewer.vue            # GeoScene map wrapper with Amap basemap
+          MapToolbarGeoScene.vue   # GIS tools (draw/measure/layers)
+          PathPlanning.vue         # Route planning panel (walking/cycling)
           WeatherCard.vue          # Draggable weather widget
           PanoramaViewer.vue       # Street panorama viewer
           AIChatbot.vue             # AI floating window (map pages only)
+       services/
+          gaodeApi.js              # Amap API proxy calls (directions/search)
+       stores/
+          route.js                 # Route planning reactive state
+       utils/
+          coordinateTransform.js   # WGS84 ↔ GCJ02 conversion
        stores/
           adminAuth.js             # Pinia store (JWT, localStorage)
           userAuth.js              # Public user auth
@@ -227,6 +236,9 @@ POST /api/ai/chat               # AI conversation (DeepSeek V3.2)
 DELETE /api/ai/context/:id      # clear conversation history
 POST /api/comments              # create a comment (sensitive-word check + optional rating)
 GET /api/comments               # query comments by greenway
+GET /api/gaode/search            # Amap POI search (proxy)
+GET /api/gaode/walking           # Amap walking directions (proxy)
+GET /api/gaode/bicycling         # Amap cycling directions (proxy)
 
 # Admin routes (Bearer JWT required)
 GET /api/admin/ai-stats?days=7  # word cloud + daily trend (7/14/30d)
@@ -285,6 +297,7 @@ DB_PASSWORD=your_password
 PORT=3001
 JWT_SECRET=your_jwt_secret
 DEEPSEEK_API_KEY=your_deepseek_api_key
+GAODE_KEY=your_amap_web_service_key
 ```
 
 **Frontend (`greenway-vue/.env.local`)**
@@ -323,7 +336,7 @@ VITE_API_BASE=http://localhost:3001
 | Layer | Technology |
 |-------|-----------|
 | Frontend framework | Vue 3.4 + Vite 5 + Pinia |
-| Map engine | OpenLayers 8.2 |
+| Map engine | GeoScene JS SDK 4.33 + Amap tiles |
 | Charts / Word cloud | ECharts 6 + echarts-wordcloud + vue-echarts |
 | AI model | DeepSeek V3.2 (REST API) |
 | Chinese NLP | segment (pure-JS tokenizer) |

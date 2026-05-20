@@ -3,11 +3,11 @@
 ![Vue](https://img.shields.io/badge/Vue-3.4.0-brightgreen.svg)
 ![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue.svg)
-![OpenLayers](https://img.shields.io/badge/OpenLayers-8.2-blue.svg)
+![OpenLayers](https://img.shields.io/badge/GeoScene-4.33-blue.svg)
 ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek%20V3.2-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-基于 Vue 3 + OpenLayers + PostgreSQL/PostGIS 的现代 WebGIS 平台，交互式探索北京绿道网络。
+基于 Vue 3 + GeoScene JS SDK + 高德地图 + PostgreSQL/PostGIS 的现代 WebGIS 平台，交互式探索北京绿道网络。
 
 **[English](./README.md) | [中文](./README_zh-CN.md)**
 
@@ -39,10 +39,10 @@
 
 ##  项目简介
 
-交互式可视化 **17 条北京主要绿道**，集成全屏落地页、OpenLayers 交互地图、GIS 工具集、实时天气、全景街景、管理后台、用户认证及 Capacitor 移动端应用。
+交互式可视化 **17 条北京主要绿道**，集成全屏落地页、GeoScene 交互地图（高德底图）、路径规划导航、GIS 工具集、实时天气、全景街景、管理后台、用户认证及 Capacitor 移动端应用。
 
 -  17 条完整绿道路线
--  Vue 3 + OpenLayers 8 前端
+-  Vue 3 + GeoScene JS SDK + 高德底图 前端
 -  Node.js + Express REST API 后端
 -  PostgreSQL + PostGIS 地理数据库
 -  全屏落地页，防抖鼠标滚轮六屏切换（0.6s 过渡动画）
@@ -96,7 +96,8 @@ npm run dev       # http://localhost:5173
 | 功能 | 描述 |
 |------|------|
 |  **落地页** | 防抖鼠标滚轮六屏全屏切换，0.6s 平滑过渡动画 |
-|  **交互式地图** | OpenLayers 多图层高性能渲染，自定义深色瓦片 |
+|  **交互式地图** | GeoScene 多图层渲染 + 高德底图 |
+|  **路径规划** | 步行/骑行路径规划（高德导航API），可拖动规划面板 |
 |  **GIS 工具集** | 绘图（支持 RGB 调色板）、测量、导入 GeoJSON、基础图层切换 |
 |  **地图导出** | 将当前地图视图导出为 PNG 图片 |
 |  **17 条绿道** | 每条均有独立详情页、属性信息和全景街景 |
@@ -123,6 +124,7 @@ npm run dev       # http://localhost:5173
        routes/
           ai.js            # DeepSeek 对话 API + 对话日志入库
           adminAiStats.js  # 管理员 AI 分析（词云 & 趋势）
+          gaode.js         # 高德API代理（路径规划/搜索/逆地理）
     scripts/
        add-chat-logs-table.js  # 数据库迁移脚本
        ...                     # 数据库初始化与导入工具
@@ -140,11 +142,18 @@ npm run dev       # http://localhost:5173
               aistats/AiChatStats.vue  # AI 对话分析看板
        components/
           TopNavbar.vue            # 顶部导航 + 图层下拉菜单
-          MapViewer.vue            # OpenLayers 地图封装
-          MapToolbar.vue           # GIS 工具（绘图/测量/图层）
+          MapViewer.vue            # GeoScene 地图封装（高德底图）
+          MapToolbarGeoScene.vue   # GIS 工具（绘图/测量/图层）
+          PathPlanning.vue         # 路径规划面板（步行/骑行）
           WeatherCard.vue          # 可拖动天气组件
           PanoramaViewer.vue       # 全景街景查看器
           AIChatbot.vue             # AI 浮窗（仅地图页显示）
+       services/
+          gaodeApi.js              # 高德API代理调用
+       stores/
+          route.js                 # 路径规划响应式状态
+       utils/
+          coordinateTransform.js   # WGS84 ↔ GCJ02 坐标转换
        stores/
           adminAuth.js             # 管理员 Auth（JWT，localStorage）
           userAuth.js              # 前台用户 Auth
@@ -227,6 +236,9 @@ POST /api/ai/chat               # AI 对话（DeepSeek V3.2）
 DELETE /api/ai/context/:id      # 清除对话历史
 POST /api/comments              # 发布评论（含敏感词检测、可选评分）
 GET /api/comments               # 按绿道查询评论
+GET /api/gaode/search            # 高德POI搜索（代理）
+GET /api/gaode/walking           # 高德步行路径规划（代理）
+GET /api/gaode/bicycling         # 高德骑行路径规划（代理）
 
 # 管理员接口（需 Bearer JWT）
 GET /api/admin/ai-stats?days=7  # 词云 + 每日趋势，支持 7/14/30 天
@@ -275,6 +287,7 @@ DB_PASSWORD=your_password
 PORT=3001
 JWT_SECRET=your_jwt_secret
 DEEPSEEK_API_KEY=your_deepseek_api_key
+GAODE_KEY=your_amap_web_service_key
 ```
 
 **前端（`greenway-vue/.env.local`）**
@@ -313,7 +326,8 @@ VITE_API_BASE=http://localhost:3001
 | 层级 | 技术 |
 |------|------|
 | 前端框架 | Vue 3.4 + Vite 5 + Pinia |
-| 地图引擎 | OpenLayers 8.2 |
+| 地图引擎 | GeoScene JS SDK 4.33 + 高德底图 |
+| 路径规划 | 高德地图 Web服务 API（步行/骑行/搜索） |
 | 图表 / 词云 | ECharts 6 + echarts-wordcloud + vue-echarts |
 | AI 模型 | DeepSeek V3.2（REST API） |
 | 中文分词 | segment（纯 JS 分词库） |
