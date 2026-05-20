@@ -134,3 +134,13 @@ tmp_*.geojson
 tmp_*.sql
 tmp_*.txt
 *.tmp
+
+# 大型文件和SDK（不上传）
+geoscene-maps-sdk-kotlin-61-200.8.0/
+geoscene_maps_package_61.200.8.0.4674/
+greenway-vue/资料/
+绿道资料/
+BST-greenway.apk
+greenway-vue.apk
+*.apk
+*.aar
