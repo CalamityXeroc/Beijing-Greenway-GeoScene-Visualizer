@@ -278,6 +278,12 @@ const routes = [
         name: 'AdminComments',
         component: () => import('@/views/admin/comments/AdminComments.vue'),
         meta: { title: '评论管理', requiresAdmin: true }
+      },
+      {
+        path: 'route-stats',
+        name: 'AdminRouteStats',
+        component: () => import('@/views/admin/RouteStats.vue'),
+        meta: { title: '路径规划统计', requiresAdmin: true }
       }
     ]
   },

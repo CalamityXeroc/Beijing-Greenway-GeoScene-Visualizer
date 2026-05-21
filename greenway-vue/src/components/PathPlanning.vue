@@ -179,13 +179,37 @@
       </div>
     </div>
   </div>
+
+  <!-- 登录提示弹窗 -->
+  <Teleport to="body">
+    <div v-if="showLoginModal" class="login-modal-overlay" @click.self="showLoginModal = false">
+      <div class="login-modal">
+        <div class="login-modal-icon">
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#4CAF50"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <h3 class="login-modal-title">请先登录</h3>
+        <p class="login-modal-text">登录后可使用路径规划功能</p>
+        <div class="login-modal-actions">
+          <button class="login-modal-btn cancel" @click="showLoginModal = false">取消</button>
+          <button class="login-modal-btn confirm" @click="goToLogin">去登录</button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { getRouteStore } from '@/stores/route.js'
+import { useUserAuth } from '@/stores/userAuth'
 import { wgs84ToGcj02 } from '@/utils/coordinateTransform.js'
 import { reverseGeocode } from '@/services/gaodeApi.js'
+import { saveRouteRecord } from '@/services/routeApi.js'
 import Graphic from '@geoscene/core/Graphic.js'
 import Polyline from '@geoscene/core/geometry/Polyline.js'
 import Point from '@geoscene/core/geometry/Point.js'
@@ -193,14 +217,25 @@ import GraphicsLayer from '@geoscene/core/layers/GraphicsLayer.js'
 import Extent from '@geoscene/core/geometry/Extent.js'
 import { markRaw } from 'vue'
 
+const router = useRouter()
+const userAuth = useUserAuth()
+const showLoginModal = ref(false)
+
 const emit = defineEmits(['close'])
 
 const {
   state, hasRequired, waypointCount,
   setOrigin, setDestination, addWaypoint, removeWaypoint,
-  setTravelMode, setActiveInput, clearRoute,
-  handleMapClick, debouncedSearch, planRoute, clearResults
+  setTravelMode, setActiveInput,
+  handleMapClick, debouncedSearch, planRoute, clearResults,
+  clearRoute: _storeClearRoute
 } = getRouteStore()
+
+// 本地包装：同时清理状态和地图上的路线图层
+function clearRoute() {
+  _storeClearRoute()
+  clearRouteGraphics()
+}
 
 const props = defineProps({
   mapManager: { type: Object, required: true },
@@ -437,14 +472,63 @@ function drawRoute(route, origin, destination, waypoints) {
 }
 
 async function doPlanRoute() {
-  await planRoute((route, origin, destination, waypoints) => {
+  if (!userAuth.isLoggedIn.value) {
+    showLoginModal.value = true
+    return
+  }
+  await planRoute(async (route, origin, destination, waypoints) => {
     drawRoute(route, origin, destination, waypoints)
+    // 自动保存路径规划记录
+    try {
+      const path = route.paths?.[0] || {}
+      await saveRouteRecord({
+        user_id: userAuth.currentUser.value?.id,
+        origin,
+        destination,
+        waypoints: waypoints || [],
+        travel_mode: state.travelMode,
+        distance: parseInt(path.distance) || 0,
+        duration: parseInt(path.duration) || 0
+      })
+    } catch (e) {
+      console.warn('[路径规划] 记录保存失败:', e.message)
+    }
   })
+}
+
+function goToLogin() {
+  showLoginModal.value = false
+  router.push('/login?redirect=/map')
 }
 
 // 当 activeInput 变化时，更新光标样式
 watch(activeInput, (val) => {
   document.body.style.cursor = val ? 'crosshair' : ''
+})
+
+// 起/终点变化时立即在地图上显示标记
+watch([() => state.origin, () => state.destination], ([o, d]) => {
+  initRouteLayer()
+  // 清除旧的起终点标记（保留路线折线）
+  if (routeLayer) {
+    const existing = [...routeLayer.graphics]
+    existing.forEach(g => {
+      const sym = g.symbol
+      if (sym?.type === 'simple-marker' || sym?.type === 'text') routeLayer.remove(g)
+    })
+  }
+  if (o?.lng && o?.lat) {
+    routeLayer.add(new Graphic({
+      geometry: new Point({ longitude: o.lng, latitude: o.lat, spatialReference: { wkid: 4326 } }),
+      symbol: { type: 'simple-marker', color: '#4CAF50', size: 12, outline: { color: '#fff', width: 2 } }
+    }))
+  }
+  if (d?.lng && d?.lat) {
+    routeLayer.add(new Graphic({
+      geometry: new Point({ longitude: d.lng, latitude: d.lat, spatialReference: { wkid: 4326 } }),
+      symbol: { type: 'simple-marker', color: '#F44336', size: 12, outline: { color: '#fff', width: 2 } }
+    }))
+  }
 })
 
 onBeforeUnmount(() => {
@@ -669,4 +753,24 @@ onBeforeUnmount(() => {
 }
 .action-btn:hover { background: rgba(0,0,0,0.04); }
 .action-btn-retry:hover { border-color: #2196F3; color: #2196F3; background: rgba(33,150,243,0.06); }
+.login-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center; z-index: 9999;
+}
+.login-modal {
+  background: var(--card-bg, #fff); border-radius: 16px; padding: 32px 36px;
+  text-align: center; max-width: 380px; width: 90%;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+}
+.login-modal-icon { margin-bottom: 12px; }
+.login-modal-title { font-size: 1.1rem; font-weight: 700; color: var(--text-primary, #2c3e50); margin: 0 0 8px; }
+.login-modal-text { font-size: 0.85rem; color: var(--text-secondary, #555); margin: 0 0 24px; }
+.login-modal-actions { display: flex; gap: 12px; justify-content: center; }
+.login-modal-btn {
+  padding: 10px 28px; border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.15s; border: none;
+}
+.login-modal-btn.cancel { background: var(--bg-secondary, #f5f5f5); color: var(--text-secondary, #555); }
+.login-modal-btn.cancel:hover { background: var(--bg-tertiary, #eee); }
+.login-modal-btn.confirm { background: linear-gradient(135deg, #4CAF50, #66BB6A); color: #fff; box-shadow: 0 4px 12px rgba(76,175,80,0.3); }
+.login-modal-btn.confirm:hover { background: linear-gradient(135deg, #388E3C, #4CAF50); }
 </style>

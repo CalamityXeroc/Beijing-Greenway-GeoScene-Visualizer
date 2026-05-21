@@ -27,7 +27,7 @@ export function useTheme() {
     initialized = true
     // 检查 localStorage 中是否有用户的主题选择
     const userPref = localStorage.getItem('appTheme')
-    const isLocked = sessionStorage.getItem('appThemeLock') === 'locked'
+    const lockTime = parseInt(sessionStorage.getItem('appThemeLockTime') || '0'); const isLocked = Date.now() - lockTime < 12 * 60 * 60 * 1000
 
     let initialMode
     if (userPref && isLocked) {
@@ -72,7 +72,7 @@ export function useTheme() {
     // 如果是用户手动切换
     if (isManual) {
       localStorage.setItem('appTheme', validMode)
-      sessionStorage.setItem('appThemeLock', 'locked')  // 锁定只在当前会话生效，下次打开新页面恢复自动检测
+      sessionStorage.setItem('appThemeLockTime', Date.now().toString())  // 锁定只在当前会话生效，下次打开新页面恢复自动检测
       isAutoMode.value = false
       stopAutoSwitch()
       console.log(`[useTheme] 用户手动切换主题为: ${validMode}, 已停止自动切换`)
@@ -102,7 +102,7 @@ export function useTheme() {
 
     autoThemeTimer = setInterval(() => {
       // 检查是否被用户锁定
-      if (sessionStorage.getItem('appThemeLock') === 'locked') {
+      const lockTime2 = parseInt(sessionStorage.getItem('appThemeLockTime') || '0'); if (Date.now() - lockTime2 < 12 * 60 * 60 * 1000) {
         console.log('[useTheme] 自动切换已被用户锁定，停止检查')
         stopAutoSwitch()
         return
@@ -134,7 +134,7 @@ export function useTheme() {
    */
   function resetToAutoMode() {
     localStorage.removeItem('appTheme')
-    sessionStorage.removeItem('appThemeLock')
+    sessionStorage.removeItem('appThemeLockTime')
     isAutoMode.value = true
     startAutoSwitch()
     const initialMode = isBeiJingDayTime() ? 'day' : 'night'

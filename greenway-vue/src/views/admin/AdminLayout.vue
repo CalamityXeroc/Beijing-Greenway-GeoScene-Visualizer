@@ -125,6 +125,12 @@ const navItems = [
     icon: `<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
            <circle cx="8" cy="10" r="1"/><circle cx="12" cy="10" r="1"/><circle cx="16" cy="10" r="1"/>`
   },
+  {
+    path: '/admin/route-stats',
+    label: '路径规划统计',
+    icon: `<circle cx="5" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>
+           <path d="M5 12h4l3 6 5-12 3 6h4"/>`
+  },
 ]
 
 const currentTitle = computed(() => {
