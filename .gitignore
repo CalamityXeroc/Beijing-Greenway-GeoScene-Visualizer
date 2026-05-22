@@ -144,3 +144,5 @@ BST-greenway.apk
 greenway-vue.apk
 *.apk
 *.aar
+tmp_*
+*.sql
