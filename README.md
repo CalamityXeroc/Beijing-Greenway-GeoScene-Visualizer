@@ -47,6 +47,7 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  PostgreSQL + PostGIS geospatial database
 -  Fullpage landing page with debounced mouse-wheel scroll (6 sections)
 -  Layer control integrated into top navigation bar
+-  **Greenway Heatmap Layer**: Real-time heatmap overlay with three-factor weighted index (clicks × 0.2 + routes × 0.5 + comments × 0.3), toggleable in layer panel
 -  Admin panel with JWT authentication (localStorage, persists across tabs)
 -  Admin login state reflected in frontend navbar
 -  RGB color picker for all drawing tools (point / line / polygon)
@@ -105,6 +106,7 @@ npm run dev       # http://localhost:5173
 |  **AI Assistant** | Map/detail-only floating chatbot (DeepSeek-V4-Flash), conversations logged to DB |
 |  **AI Chat Analytics** | Admin: word cloud + daily trend + recent messages, dual day/night theme |
 |  **Day/Night Theme** | Full-site theme auto-switches by Beijing time; admin panel fully themed |
+|  **Heatmap Analytics** | Admin dashboard with ECharts: heat ranking, trend, comment stats, weight pie, detail table |
 |  **Admin Panel** | JWT auth (localStorage), dashboard, user management, logs |
 |  **Comment System** | Detail-page comments with optional rating and like interactions |
 |  **Comment Management** | Admin review panel with filtering, status actions, and batch updates |
@@ -199,6 +201,8 @@ npm run dev       # http://localhost:5173
 | `/admin/logs` | AdminLogs | System logs *(auth required)* |
 | `/admin/ai-stats` | AiChatStats | AI chat analytics *(auth required)* |
 | `/admin/comments` | AdminComments | Comment management *(auth required)* |
+| `/admin/heatmap` | HeatAdmin | Heatmap analytics *(auth required)* |
+| `/admin/route-stats` | RouteStats | Route planning stats *(auth required)* |
 | `/mobile/*` | MobileLayout | Mobile app (Capacitor) |
 
 ---
@@ -239,6 +243,9 @@ GET /api/comments               # query comments by greenway
 GET /api/gaode/search            # Amap POI search (proxy)
 GET /api/gaode/walking           # Amap walking directions (proxy)
 GET /api/gaode/bicycling         # Amap cycling directions (proxy)
+POST /api/heatmap/click          # record greenway click (heatmap tracking)
+GET /api/heatmap/data            # heatmap points with centroids & weighted index
+GET /api/heatmap/points          # dense-sampled heatmap points along greenway lines
 
 # Admin routes (Bearer JWT required)
 GET /api/admin/ai-stats?days=7  # word cloud + daily trend (7/14/30d)
@@ -246,6 +253,13 @@ GET /api/admin/ai-stats/recent  # recent raw messages
 GET /api/admin/comments         # comment list with filters/pagination
 PATCH /api/admin/comments/:id/status      # update single comment status
 PATCH /api/admin/comments/batch/status    # batch status updates
+GET /api/admin/heatmap/overview          # heatmap summary stats (clicks, routes, comments)
+GET /api/admin/heatmap/trend?days=30     # daily heat trend (click/route/comment breakdown)
+GET /api/admin/heatmap/rank?limit=20     # greenway heat ranking
+GET /api/admin/heatmap/compare           # click vs route vs comment comparison
+GET /api/admin/heatmap/comment-stats     # comment overview (total/today/avg rating/top)
+GET /api/admin/heatmap/comment-rank      # greenway comment count ranking
+GET /api/admin/heatmap/comment-trend     # daily comment trend
 ```
 
 ```bash
@@ -283,6 +297,26 @@ CREATE TABLE chat_logs (
 - **Geometry:** `MultiLineString` preserves independent segments
 - **CRS:** SRID 4326 (WGS 84)
 - **Spatial API:** PostGIS `ST_AsGeoJSON()` for GeoJSON serialization
+
+```sql
+-- Heatmap tracking tables
+CREATE TABLE greenway_heatmap (
+  id              SERIAL PRIMARY KEY,
+  greenway_name   VARCHAR(255) NOT NULL UNIQUE,
+  click_count     INTEGER DEFAULT 0,
+  route_count     INTEGER DEFAULT 0,
+  comment_count   INTEGER DEFAULT 0,
+  heat_index      FLOAT DEFAULT 0,
+  last_updated    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE greenway_clicks (
+  id              SERIAL PRIMARY KEY,
+  greenway_name   VARCHAR(255) NOT NULL,
+  user_id         INTEGER,
+  clicked_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
 ---
 

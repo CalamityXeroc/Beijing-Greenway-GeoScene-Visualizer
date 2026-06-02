@@ -47,6 +47,7 @@
 -  PostgreSQL + PostGIS 地理数据库
 -  全屏落地页，防抖鼠标滚轮六屏切换（0.6s 过渡动画）
 -  图层控制集成到顶部导航栏下拉菜单
+-  **绿道热度热力图**：实时热力图层，三因子加权指数（点击×0.2 + 规划×0.5 + 评论×0.3），图层面板可控开关
 -  管理后台 JWT 认证（localStorage 持久化，仅主动注销才清除）
 -  前台导航栏显示管理员登录状态
 -  绘图工具 RGB 调色板（点 / 线 / 面均支持自定义颜色）
@@ -105,6 +106,7 @@ npm run dev       # http://localhost:5173
 |  **AI 助手** | 地图页浮窗，DeepSeek-V4-Flash 驱动，对话写入数据库 |
 |  **AI 对话分析** | 管理员：词云 + 折线图 + 最近提问，昼夜主题自动切换 |
 |  **昼夜主题** | 全站昼夜配色，按北京时间自动切换；管理后台双主题完整适配 |
+|  **热度分析看板** | 管理后台 ECharts 图表：热度排名、趋势分析、评论统计、权重饼图、明细表格 |
 |  **管理后台** | JWT 认证（localStorage 持久化）、数据概览、用户管理、系统日志 |
 |  **评论系统** | 绿道详情页评论发布，支持可选评分与点赞交互 |
 |  **评论管理系统** | 管理端支持评论筛选、状态处理、批量审核/下架 |
@@ -199,6 +201,8 @@ npm run dev       # http://localhost:5173
 | `/admin/logs` | AdminLogs | 系统日志 *（需登录）* |
 | `/admin/ai-stats` | AiChatStats | AI 对话分析 *（需登录）* |
 | `/admin/comments` | AdminComments | 评论管理 *（需登录）* |
+| `/admin/heatmap` | HeatAdmin | 热度分析看板 *（需登录）* |
+| `/admin/route-stats` | RouteStats | 路径规划统计 *（需登录）* |
 | `/mobile/*` | MobileLayout | 移动端布局（Capacitor） |
 
 ---
@@ -239,6 +243,9 @@ GET /api/comments               # 按绿道查询评论
 GET /api/gaode/search            # 高德POI搜索（代理）
 GET /api/gaode/walking           # 高德步行路径规划（代理）
 GET /api/gaode/bicycling         # 高德骑行路径规划（代理）
+POST /api/heatmap/click          # 记录绿道点击（热度埋点）
+GET /api/heatmap/data            # 热度数据（含质心坐标与加权指数）
+GET /api/heatmap/points          # 沿绿道线密集采样的热力点
 
 # 管理员接口（需 Bearer JWT）
 GET /api/admin/ai-stats?days=7  # 词云 + 每日趋势，支持 7/14/30 天
@@ -246,6 +253,13 @@ GET /api/admin/ai-stats/recent  # 最近原始提问记录
 GET /api/admin/comments         # 评论列表（支持筛选/分页）
 PATCH /api/admin/comments/:id/status      # 单条评论状态更新
 PATCH /api/admin/comments/batch/status    # 批量评论状态更新
+GET /api/admin/heatmap/overview          # 热度概览（今日点击/规划/评论、热度最高绿道）
+GET /api/admin/heatmap/trend?days=30     # 每日热度趋势（含点击/规划/评论拆分）
+GET /api/admin/heatmap/rank?limit=20     # 绿道热度排名
+GET /api/admin/heatmap/compare           # 点击量 vs 规划量 vs 评论量三维对比
+GET /api/admin/heatmap/comment-stats     # 评论总览（总数/今日/均分/最多绿道）
+GET /api/admin/heatmap/comment-rank      # 绿道评论数量排名
+GET /api/admin/heatmap/comment-trend     # 每日评论趋势
 ```
 
 ```bash
@@ -273,6 +287,26 @@ CREATE TABLE greenways (
 - **几何类型：** `MultiLineString`，保留独立线段，避免错误连接
 - **坐标系：** SRID 4326（WGS 84 标准）
 - **数据序列化：** PostGIS `ST_AsGeoJSON()` 输出 GeoJSON 格式
+
+```sql
+-- 热度热力图追踪表
+CREATE TABLE greenway_heatmap (
+  id              SERIAL PRIMARY KEY,
+  greenway_name   VARCHAR(255) NOT NULL UNIQUE,
+  click_count     INTEGER DEFAULT 0,
+  route_count     INTEGER DEFAULT 0,
+  comment_count   INTEGER DEFAULT 0,
+  heat_index      FLOAT DEFAULT 0,
+  last_updated    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE greenway_clicks (
+  id              SERIAL PRIMARY KEY,
+  greenway_name   VARCHAR(255) NOT NULL,
+  user_id         INTEGER,
+  clicked_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
 ---
 
