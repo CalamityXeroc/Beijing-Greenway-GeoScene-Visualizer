@@ -4,7 +4,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue.svg)
 ![OpenLayers](https://img.shields.io/badge/GeoScene-4.33-blue.svg)
-![DeepSeek](https://img.shields.io/badge/AI-DeepSeek%20V3.2-purple.svg)
+![DeepSeek](https://img.shields.io/badge/AI-DeepSeek%20V4-Flash-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 基于 Vue 3 + GeoScene JS SDK + 高德地图 + PostgreSQL/PostGIS 的现代 WebGIS 平台，交互式探索北京绿道网络。
@@ -57,7 +57,7 @@
 -  管理后台评论管理（`/admin/comments`）：支持筛选、单条处理与批量处理
 -  评论敏感词拦截：命中敏感词直接禁止发布并提示
 - 全站昼夜主题（按北京时间自动切换），管理后台双主题完整适配
--  **AI 助手（绿道小助手）**：基于 DeepSeek V3.2，，支持路线推荐、操作指引、绿道知识问答，对话自动写入数据库
+-  **AI 助手（绿道小助手）**：基于 DeepSeek-V4-Flash，，支持路线推荐、操作指引、绿道知识问答，对话自动写入数据库
 -  **管理员 AI 对话分析：** 词云 + 每日趋势折线图 + 最近提问记录，支持昼夜主题自动切换（ECharts + echarts-wordcloud，中文分词使用 `segment` 库）
 -  Capacitor 移动端应用（试验阶段）
 
@@ -102,7 +102,7 @@ npm run dev       # http://localhost:5173
 |  **地图导出** | 将当前地图视图导出为 PNG 图片 |
 |  **17 条绿道** | 每条均有独立详情页、属性信息和全景街景 |
 |  **实时天气** | 可拖动天气组件（高德地图 API） |
-|  **AI 助手** | 地图页浮窗，DeepSeek V3.2 驱动，对话写入数据库 |
+|  **AI 助手** | 地图页浮窗，DeepSeek-V4-Flash 驱动，对话写入数据库 |
 |  **AI 对话分析** | 管理员：词云 + 折线图 + 最近提问，昼夜主题自动切换 |
 |  **昼夜主题** | 全站昼夜配色，按北京时间自动切换；管理后台双主题完整适配 |
 |  **管理后台** | JWT 认证（localStorage 持久化）、数据概览、用户管理、系统日志 |
@@ -232,7 +232,7 @@ npm run dev       # http://localhost:5173
 ```http
 GET /api/greenways              # 获取所有绿道列表
 GET /api/greenways?name=温榆河  # 按名称筛选，返回 GeoJSON FeatureCollection
-POST /api/ai/chat               # AI 对话（DeepSeek V3.2）
+POST /api/ai/chat               # AI 对话（DeepSeek-V4-Flash）
 DELETE /api/ai/context/:id      # 清除对话历史
 POST /api/comments              # 发布评论（含敏感词检测、可选评分）
 GET /api/comments               # 按绿道查询评论
@@ -329,7 +329,7 @@ VITE_API_BASE=http://localhost:3001
 | 地图引擎 | GeoScene JS SDK 4.33 + 高德底图 |
 | 路径规划 | 高德地图 Web服务 API（步行/骑行/搜索） |
 | 图表 / 词云 | ECharts 6 + echarts-wordcloud + vue-echarts |
-| AI 模型 | DeepSeek V3.2（REST API） |
+| AI 模型 | DeepSeek-V4-Flash（REST API） |
 | 中文分词 | segment（纯 JS 分词库） |
 | 后端 | Node.js 18+ + Express 4.18 |
 | 数据库 | PostgreSQL 14+ + PostGIS 3.3+ |

@@ -224,6 +224,21 @@
           </div>
           <div v-if="!filteredLayerConfig.length" class="dd-empty">暂无图层</div>
           <div class="dd-divider"/>
+          <div class="dropdown-section">专题图层</div>
+          <div class="dd-layer-item">
+            <label class="layer-check">
+              <input type="checkbox" :checked="showHeatmap"
+                     @change="emit('toggle-heatmap', $event.target.checked)"/>
+              <span class="checkmark"/>
+              <span>绿道热度</span>
+            </label>
+          </div>
+          <div class="dd-layer-legend">
+            <span class="legend-label">低</span>
+            <span class="legend-gradient"/>
+            <span class="legend-label">高</span>
+          </div>
+          <div class="dd-divider"/>
           <!-- 上传自定义 -->
           <div class="dropdown-section">自定义图层</div>
           <button class="dd-btn dd-btn--upload" @click="triggerUpload">
@@ -421,10 +436,11 @@ import { useGlobalTheme } from '@/utils/useTheme'
 const props = defineProps({
   toolbarRef: { type: Object, default: null },
   layerConfig: { type: Array, default: () => [] },
-  showPathPlanning: { type: Boolean, default: false }
+  showPathPlanning: { type: Boolean, default: false },
+  showHeatmap: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['toggle-path-planning'])
+const emit = defineEmits(['toggle-path-planning', 'toggle-heatmap'])
 
 const { theme: globalTheme } = useGlobalTheme()
 const isNight = computed(() => globalTheme.value === 'night')
@@ -798,4 +814,24 @@ function handleLogout() {
 }
 .dd-uname { font-size: 0.875rem; font-weight: 700; color: #111827; }
 .dd-usub  { font-size: 0.78rem; color: #9ca3af; }
+
+/* 热度图例 */
+.dd-layer-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 14px;
+}
+.legend-label {
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+.legend-gradient {
+  display: inline-block;
+  width: 80px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #00c800, #ffff00, #ff8c00, #ff0000);
+}
 </style>

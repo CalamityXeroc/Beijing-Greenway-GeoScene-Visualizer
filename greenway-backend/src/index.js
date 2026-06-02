@@ -10,6 +10,7 @@ import commentsRouter from './routes/comments.js';
 import adminCommentsRouter from './routes/adminComments.js';
 import gaodeRouter from './routes/gaode.js';
 import routeStatsRouter from './routes/routeStats.js';
+import heatmapRouter from './routes/heatmap.js';
 
 dotenv.config({ path: '.env.local' });
 
@@ -59,6 +60,10 @@ app.use('/api/gaode', gaodeRouter);
 // 挂载路径规划记录与统计路由
 app.use('/api/route', routeStatsRouter);
 
+// 挂载热度热力图路由
+app.use('/api/heatmap', heatmapRouter);
+app.use('/api/admin/heatmap', heatmapRouter);
+
 // 健康检查
 app.get('/health', async (req, res) => {
   try {
@@ -85,7 +90,7 @@ const greenwayColors = {
   '北翼山水绿道': '#29B6F6',
   '东翼大河绿道': '#26C6DA',
   '郊野休闲环绿道': '#78C850',
-  '三山五园': '#AB47BC',
+  '三山五园绿道': '#AB47BC',
   '西翼山水绿道': '#7E57C2',
   '中心城滨水绿道': '#EF5350'
 };
@@ -384,6 +389,52 @@ function getLocalIP() {
 }
 
 const localIP = getLocalIP();
+
+// ===== 定时任务：每5分钟更新热度指数 =====
+async function updateHeatIndex() {
+  try {
+    // 统计近7天各绿道的点击量和路径规划量，更新热度指数
+    await pool.query(`
+      WITH click_stats AS (
+        SELECT greenway_name, COUNT(*) as cnt
+        FROM greenway_clicks
+        WHERE clicked_at > NOW() - INTERVAL '7 days'
+        GROUP BY greenway_name
+      ),
+      route_stats AS (
+        SELECT j.greenway_name, COUNT(*) as cnt
+        FROM route_planning_records r,
+             jsonb_array_elements_text(r.related_greenways) j(greenway_name)
+        WHERE r.is_greenway_related = true
+          AND r.created_at > NOW() - INTERVAL '7 days'
+        GROUP BY j.greenway_name
+      ),
+      combined AS (
+        SELECT
+          COALESCE(c.greenway_name, r.greenway_name) as greenway_name,
+          COALESCE(c.cnt, 0) as click_cnt,
+          COALESCE(r.cnt, 0) as route_cnt
+        FROM click_stats c
+        FULL OUTER JOIN route_stats r ON c.greenway_name = r.greenway_name
+      )
+      UPDATE greenway_heatmap h
+      SET
+        click_count = COALESCE(c.click_cnt, h.click_count),
+        route_count = COALESCE(c.route_cnt, h.route_count),
+        heat_index = ROUND((COALESCE(c.click_cnt, 0) * 0.3 + COALESCE(c.route_cnt, 0) * 0.7)::numeric, 1),
+        last_updated = CURRENT_TIMESTAMP
+      FROM combined c
+      WHERE h.greenway_name = c.greenway_name
+    `);
+  } catch (e) {
+    console.error('[定时任务] 更新热度指数失败:', e.message);
+  }
+}
+
+// 启动后立即执行一次，然后每5分钟执行
+updateHeatIndex();
+setInterval(updateHeatIndex, 5 * 60 * 1000);
+console.log('[定时任务] 热度指数更新已启动 (每5分钟)');
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n${'='.repeat(60)}`);

@@ -4,7 +4,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue.svg)
 ![OpenLayers](https://img.shields.io/badge/GeoScene-4.33-blue.svg)
-![DeepSeek](https://img.shields.io/badge/AI-DeepSeek%20V3.2-purple.svg)
+![DeepSeek](https://img.shields.io/badge/AI-DeepSeek%20V4-Flash-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 A modern WebGIS platform for exploring Beijing's greenway network, built with Vue 3 + GeoScene JS SDK + Amap + PostgreSQL/PostGIS.
@@ -57,7 +57,7 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  Comment moderation console in admin panel (`/admin/comments`) with search and batch actions
 -  Sensitive-word interception for comments (blocked submissions are rejected with prompt)
 -  Full site day/night theme (auto-switches by Beijing time) + responsive design
--  **AI Assistant (绿道小助手)**: Powered by DeepSeek V3.2, supports route recommendations, tutorials, and Q&A; conversations logged to database
+-  **AI Assistant (绿道小助手)**: Powered by DeepSeek-V4-Flash, supports route recommendations, tutorials, and Q&A; conversations logged to database
 -  **Admin AI Chat Analytics**: Word cloud + daily trend chart + recent messages log, with day/night theme support (ECharts + echarts-wordcloud, Chinese NLP via `segment`)
 -  Capacitor-based mobile app (experimental)
 
@@ -102,7 +102,7 @@ npm run dev       # http://localhost:5173
 |  **Map Export** | Export current map view as PNG image |
 |  **17 Greenways** | Individual detail pages with attributes & street panorama |
 |  **Real-time Weather** | Draggable weather widget (Amap API) |
-|  **AI Assistant** | Map/detail-only floating chatbot (DeepSeek V3.2), conversations logged to DB |
+|  **AI Assistant** | Map/detail-only floating chatbot (DeepSeek-V4-Flash), conversations logged to DB |
 |  **AI Chat Analytics** | Admin: word cloud + daily trend + recent messages, dual day/night theme |
 |  **Day/Night Theme** | Full-site theme auto-switches by Beijing time; admin panel fully themed |
 |  **Admin Panel** | JWT auth (localStorage), dashboard, user management, logs |
@@ -232,7 +232,7 @@ npm run dev       # http://localhost:5173
 ```http
 GET /api/greenways              # all greenways (summary list)
 GET /api/greenways?name=温榆河  # filter by name → GeoJSON FeatureCollection
-POST /api/ai/chat               # AI conversation (DeepSeek V3.2)
+POST /api/ai/chat               # AI conversation (DeepSeek-V4-Flash)
 DELETE /api/ai/context/:id      # clear conversation history
 POST /api/comments              # create a comment (sensitive-word check + optional rating)
 GET /api/comments               # query comments by greenway
@@ -338,7 +338,7 @@ VITE_API_BASE=http://localhost:3001
 | Frontend framework | Vue 3.4 + Vite 5 + Pinia |
 | Map engine | GeoScene JS SDK 4.33 + Amap tiles |
 | Charts / Word cloud | ECharts 6 + echarts-wordcloud + vue-echarts |
-| AI model | DeepSeek V3.2 (REST API) |
+| AI model | DeepSeek-V4-Flash (REST API) |
 | Chinese NLP | segment (pure-JS tokenizer) |
 | Backend | Node.js 18+ + Express 4.18 |
 | Database | PostgreSQL 14+ + PostGIS 3.3+ |

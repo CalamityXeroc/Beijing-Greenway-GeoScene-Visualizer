@@ -26,7 +26,7 @@ A modern, interactive WebGIS platform for exploring Beijing's extensive greenway
 
 ### 🌈 Enhanced User Experience
 - **Collapsible Weather Widget**: Real-time weather information
-- **AI Chatbot Assistant**: Floating window **only on map and detail pages**, powered by DeepSeek V3.2, offering route recommendations, platform tutorials, and Q&A; conversations are automatically logged to the database
+- **AI Chatbot Assistant**: Floating window **only on map and detail pages**, powered by DeepSeek-V4-Flash, offering route recommendations, platform tutorials, and Q&A; conversations are automatically logged to the database
 - **Smooth Animations**: Polished transitions and hover effects
 - **Information Cards**: Greenway statistics and highlights
 - **Dark Mode Support**: Full night theme across all pages

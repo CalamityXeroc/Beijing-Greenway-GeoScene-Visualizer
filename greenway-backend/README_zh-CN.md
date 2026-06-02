@@ -13,7 +13,7 @@
 - ✅ RESTful API 绿道数据查询
 - ✅ GeoJSON 存储和空间查询
 - ✅ PostgreSQL/PostGIS 集成
-- ✅ **AI 助手服务**：基于 DeepSeek V3.2 的智能对话 API，支持对话历史管理；用户消息自动写入 `chat_logs` 表
+- ✅ **AI 助手服务**：基于 DeepSeek-V4-Flash 的智能对话 API，支持对话历史管理；用户消息自动写入 `chat_logs` 表
 - ✅ **管理员 AI 对话分析**：词云 + 每日趋势 + 最近提问记录，中文分词使用 `segment` 库
 - ✅ 环境配置管理
 - ✅ 开发和生产就绪

@@ -192,7 +192,7 @@ const routes = [
     path: '/sanshan',
     name: 'SanshanDetail',
     component: () => import('@/views/SanshanDetail.vue'),
-    meta: { title: '三山五园绿道详情', greenwayName: '三山五园' }
+    meta: { title: '三山五园绿道详情', greenwayName: '三山五园绿道' }
   },
   {
     path: '/chaoyang',
@@ -284,6 +284,12 @@ const routes = [
         name: 'AdminRouteStats',
         component: () => import('@/views/admin/RouteStats.vue'),
         meta: { title: '路径规划统计', requiresAdmin: true }
+      },
+      {
+        path: 'heatmap',
+        name: 'AdminHeatmap',
+        component: () => import('@/views/admin/HeatAdmin.vue'),
+        meta: { title: '绿道热度管理', requiresAdmin: true }
       }
     ]
   },

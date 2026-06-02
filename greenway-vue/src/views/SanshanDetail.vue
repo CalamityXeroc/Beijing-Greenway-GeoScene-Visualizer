@@ -556,7 +556,7 @@ const loadGreenwayData = async () => {
 
   try {
 
-    const greenwayData = await loadGreenwayDataByName('三山五园', (data) => {
+    const greenwayData = await loadGreenwayDataByName('三山五园绿道', (data) => {
 
       // 更新界面显示的属性
 

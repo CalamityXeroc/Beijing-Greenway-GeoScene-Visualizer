@@ -12,7 +12,9 @@
     <div class="navbar-sticky">
       <TopNavbar :toolbarRef="toolbarRef" :layerConfig="layerConfig"
                 :showPathPlanning="showPathPlanning"
-                @toggle-path-planning="showPathPlanning = !showPathPlanning"/>
+                :showHeatmap="showHeatmap"
+                @toggle-path-planning="showPathPlanning = !showPathPlanning"
+                @toggle-heatmap="toggleHeatmap($event)"/>
     </div>
 
     <!-- 地图容器：精确占满视口剩余高度，滚动后变为普通内容区 -->
@@ -195,8 +197,11 @@ import MapToolbar from '@/components/MapToolbarGeoScene.vue'
 import TopNavbar from '@/components/TopNavbar.vue'
 import PathPlanning from '@/components/PathPlanning.vue'
 import { getRouteStore } from '@/stores/route.js'
+import { recordGreenwayClick, fetchHeatmapData } from '@/services/heatmapApi.js'
+import { useUserAuth } from '@/stores/userAuth.js'
 
 const router = useRouter()
+const { isLoggedIn, currentUser } = useUserAuth()
 const toolbarRef = ref(null)
 const isLoading = ref(true)
 
@@ -707,6 +712,10 @@ const stopDrag = () => {
   document.removeEventListener('mouseup', stopDrag)
 }
 
+// 热力图状态
+const showHeatmap = ref(false)
+const heatmapLayerId = 'greenway-heatmap'
+
 const routeStore = getRouteStore()
 const showPathPlanning = ref(false)
 
@@ -838,6 +847,12 @@ const onFeatureClick = ({ featuresWithLayers, pixel }) => {
     popup.visible = true
 
     console.log('[GreenwayOverview] 显示弹窗:', popup)
+
+    // 记录点击（热力图埋点）
+    if (layerInfo.info?.name) {
+      const userId = currentUser.value?.id
+      recordGreenwayClick(layerInfo.info.name, userId)
+    }
   }
 }
 
@@ -889,10 +904,88 @@ const toggleLayer = (layerId, visible) => {
   const layer = layerConfig.value.find(l => l.id === layerId)
   if (layer) {
     layer.visible = visible
-    
+
     // 通知地图组件更新
     if (mapViewer.value) {
       mapViewer.value.setLayerVisibility(layerId, visible)
+    }
+  }
+}
+
+// 热力图开关
+const toggleHeatmap = async (visible) => {
+  showHeatmap.value = visible
+
+  if (!mapManager.value) return
+
+  if (visible) {
+    try {
+      const data = await fetchHeatmapData()
+      if (!data || data.length === 0) return
+
+      const [FeatureLayer, Graphic, Point, HeatmapRenderer] = await Promise.all([
+        import('@geoscene/core/layers/FeatureLayer.js').then(m => m.default || m),
+        import('@geoscene/core/Graphic.js').then(m => m.default || m),
+        import('@geoscene/core/geometry/Point.js').then(m => m.default || m),
+        import('@geoscene/core/renderers/HeatmapRenderer.js').then(m => m.default || m)
+      ])
+
+      // 如果图层已存在，先移除
+      if (mapManager.value.getLayer(heatmapLayerId)) {
+        mapManager.value.removeLayer(heatmapLayerId)
+      }
+
+      const maxHeat = Math.max(...data.map(d => d.heat_index), 1)
+
+      const graphics = data
+        .filter(item => item.center_lng && item.center_lat)
+        .map((item, i) => new Graphic({
+          geometry: new Point({
+            longitude: item.center_lng,
+            latitude: item.center_lat,
+            spatialReference: { wkid: 4326 }
+          }),
+          attributes: {
+            ObjectID: i + 1,
+            greenway_name: item.greenway_name,
+            heat_index: (item.heat_index / maxHeat) * 100
+          }
+        }))
+
+      const layer = new FeatureLayer({
+        id: heatmapLayerId,
+        title: '绿道热度',
+        source: graphics,
+        objectIdField: 'ObjectID',
+        fields: [
+          { name: 'ObjectID', type: 'oid' },
+          { name: 'greenway_name', type: 'string' },
+          { name: 'heat_index', type: 'double' }
+        ],
+        spatialReference: { wkid: 4326 },
+        renderer: new HeatmapRenderer({
+          field: 'heat_index',
+          colorStops: [
+            { ratio: 0, color: 'rgba(0, 200, 0, 0)' },
+            { ratio: 0.3, color: 'rgba(0, 200, 0, 0.7)' },
+            { ratio: 0.5, color: 'rgba(255, 255, 0, 0.8)' },
+            { ratio: 0.75, color: 'rgba(255, 140, 0, 0.9)' },
+            { ratio: 1, color: 'rgba(255, 0, 0, 1)' }
+          ],
+          radius: 30,
+          maxDensity: 0.03,
+          minDensity: 0
+        })
+      })
+
+      mapManager.value.addLayer(heatmapLayerId, layer)
+    } catch (e) {
+      console.error('[热力图] 创建图层失败:', e)
+      showHeatmap.value = false
+    }
+  } else {
+    if (mapManager.value.getLayer(heatmapLayerId)) {
+      mapManager.value.removeLayer(heatmapLayerId)
     }
   }
 }

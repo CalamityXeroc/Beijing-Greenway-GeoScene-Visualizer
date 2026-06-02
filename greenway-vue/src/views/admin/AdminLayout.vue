@@ -131,6 +131,15 @@ const navItems = [
     icon: `<circle cx="5" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>
            <path d="M5 12h4l3 6 5-12 3 6h4"/>`
   },
+  {
+    path: '/admin/heatmap',
+    label: '绿道热度管理',
+    icon: `<path d="M12 2 L2 7 L12 12 L22 7 L12 2Z"/>
+           <path d="M2 17 L12 22 L22 17"/>
+           <path d="M2 12 L12 17 L22 12"/>
+           <circle cx="8" cy="7" r="1.5" fill="#ff4d4f"/>
+           <circle cx="16" cy="17" r="1.5" fill="#ff4d4f"/>`
+  },
 ]
 
 const currentTitle = computed(() => {

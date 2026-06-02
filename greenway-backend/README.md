@@ -13,7 +13,7 @@ Backend service for Beijing Greenway GIS platform using Node.js + Express + Post
 - ✅ RESTful API for greenway data queries
 - ✅ GeoJSON storage and spatial queries
 - ✅ PostgreSQL/PostGIS integration
-- ✅ **AI Chatbot Service**: Powered by DeepSeek V3.2 with conversation history management; chat messages logged to `chat_logs` table
+- ✅ **AI Chatbot Service**: Powered by DeepSeek-V4-Flash with conversation history management; chat messages logged to `chat_logs` table
 - ✅ **Admin AI Analytics**: Word cloud + daily trend + recent messages via `/api/admin/ai-stats`; Chinese NLP tokenization using `segment` library
 - ✅ Environment configuration management
 - ✅ Development and production ready

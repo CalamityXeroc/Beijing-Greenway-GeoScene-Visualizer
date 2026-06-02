@@ -286,4 +286,32 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
   .stats-cards { grid-template-columns: repeat(2, 1fr); }
   .charts-row { flex-direction: column; }
 }
+
+/* 夜间模式覆盖 —— 确保使用中性灰黑而非绿色系 */
+[data-theme="night"] .page-title { color: #e8e8e8; }
+[data-theme="night"] .page-subtitle { color: #9ca3af; }
+[data-theme="night"] .stat-card {
+  background: #1e1e1e;
+  border-color: #333;
+}
+[data-theme="night"] .stat-value { color: #e8e8e8; }
+[data-theme="night"] .stat-label { color: #9ca3af; }
+[data-theme="night"] .chart-card {
+  background: #1e1e1e;
+  border-color: #333;
+}
+[data-theme="night"] .chart-title { color: #e8e8e8; }
+[data-theme="night"] .records-section {
+  background: #1e1e1e;
+  border-color: #333;
+}
+[data-theme="night"] .records-table th {
+  color: #9ca3af;
+  border-bottom-color: #3a3a3a;
+}
+[data-theme="night"] .records-table td {
+  color: #e5e7eb;
+  border-bottom-color: #2a2a2a;
+}
+[data-theme="night"] .empty-cell { color: #6b7280; }
 </style>
