@@ -65,3 +65,33 @@ export async function fetchHeatmapCompare() {
   if (json.code !== 0) throw new Error(json.message || '获取对比数据失败');
   return json.data;
 }
+
+export async function fetchCommentStats() {
+  const token = localStorage.getItem('greenway_admin_token');
+  const res = await fetch(`${API_BASE}/api/admin/heatmap/comment-stats`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const json = await res.json();
+  if (json.code !== 0) throw new Error(json.message || '获取评论统计失败');
+  return json.data;
+}
+
+export async function fetchCommentRank(limit = 10) {
+  const token = localStorage.getItem('greenway_admin_token');
+  const res = await fetch(`${API_BASE}/api/admin/heatmap/comment-rank?limit=${limit}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const json = await res.json();
+  if (json.code !== 0) throw new Error(json.message || '获取评论排名失败');
+  return json.data;
+}
+
+export async function fetchCommentTrend(days = 30) {
+  const token = localStorage.getItem('greenway_admin_token');
+  const res = await fetch(`${API_BASE}/api/admin/heatmap/comment-trend?days=${days}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const json = await res.json();
+  if (json.code !== 0) throw new Error(json.message || '获取评论趋势失败');
+  return json.data;
+}

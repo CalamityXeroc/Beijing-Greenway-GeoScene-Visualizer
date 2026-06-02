@@ -393,7 +393,8 @@ const localIP = getLocalIP();
 // ===== 定时任务：每5分钟更新热度指数 =====
 async function updateHeatIndex() {
   try {
-    // 统计近7天各绿道的点击量和路径规划量，更新热度指数
+    // 统计近7天各绿道的点击量、路径规划量、评论量，更新热度指数
+    // 公式: click*0.2 + route*0.5 + comment*0.3
     await pool.query(`
       WITH click_stats AS (
         SELECT greenway_name, COUNT(*) as cnt
@@ -409,19 +410,30 @@ async function updateHeatIndex() {
           AND r.created_at > NOW() - INTERVAL '7 days'
         GROUP BY j.greenway_name
       ),
+      comment_stats AS (
+        SELECT g.name as greenway_name, COUNT(*) as cnt
+        FROM greenway_comments c
+        JOIN greenways g ON g.id = c.greenway_id
+        WHERE c.status = 'visible'
+          AND c.created_at > NOW() - INTERVAL '7 days'
+        GROUP BY g.name
+      ),
       combined AS (
         SELECT
-          COALESCE(c.greenway_name, r.greenway_name) as greenway_name,
-          COALESCE(c.cnt, 0) as click_cnt,
-          COALESCE(r.cnt, 0) as route_cnt
-        FROM click_stats c
-        FULL OUTER JOIN route_stats r ON c.greenway_name = r.greenway_name
+          COALESCE(cs.greenway_name, COALESCE(r.greenway_name, cm.greenway_name)) as greenway_name,
+          COALESCE(cs.cnt, 0) as click_cnt,
+          COALESCE(r.cnt, 0) as route_cnt,
+          COALESCE(cm.cnt, 0) as comment_cnt
+        FROM click_stats cs
+        FULL OUTER JOIN route_stats r ON cs.greenway_name = r.greenway_name
+        FULL OUTER JOIN comment_stats cm ON COALESCE(cs.greenway_name, r.greenway_name) = cm.greenway_name
       )
       UPDATE greenway_heatmap h
       SET
         click_count = COALESCE(c.click_cnt, h.click_count),
         route_count = COALESCE(c.route_cnt, h.route_count),
-        heat_index = ROUND((COALESCE(c.click_cnt, 0) * 0.3 + COALESCE(c.route_cnt, 0) * 0.7)::numeric, 1),
+        comment_count = COALESCE(c.comment_cnt, h.comment_count),
+        heat_index = ROUND((COALESCE(c.click_cnt, 0) * 0.2 + COALESCE(c.route_cnt, 0) * 0.5 + COALESCE(c.comment_cnt, 0) * 0.3)::numeric, 1),
         last_updated = CURRENT_TIMESTAMP
       FROM combined c
       WHERE h.greenway_name = c.greenway_name
