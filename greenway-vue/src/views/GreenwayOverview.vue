@@ -197,7 +197,7 @@ import MapToolbar from '@/components/MapToolbarGeoScene.vue'
 import TopNavbar from '@/components/TopNavbar.vue'
 import PathPlanning from '@/components/PathPlanning.vue'
 import { getRouteStore } from '@/stores/route.js'
-import { recordGreenwayClick, fetchHeatmapData } from '@/services/heatmapApi.js'
+import { recordGreenwayClick, fetchHeatmapData, fetchHeatmapPoints } from '@/services/heatmapApi.js'
 import { useUserAuth } from '@/stores/userAuth.js'
 
 const router = useRouter()
@@ -930,7 +930,6 @@ const toggleHeatmap = async (visible) => {
         import('@geoscene/core/renderers/HeatmapRenderer.js').then(m => m.default || m)
       ])
 
-      // 如果图层已存在，先移除
       if (mapManager.value.getLayer(heatmapLayerId)) {
         mapManager.value.removeLayer(heatmapLayerId)
       }
@@ -972,8 +971,8 @@ const toggleHeatmap = async (visible) => {
             { ratio: 0.75, color: 'rgba(255, 140, 0, 0.9)' },
             { ratio: 1, color: 'rgba(255, 0, 0, 1)' }
           ],
-          radius: 30,
-          maxDensity: 0.03,
+          radius: 80,
+          maxDensity: 0.01,
           minDensity: 0
         })
       })

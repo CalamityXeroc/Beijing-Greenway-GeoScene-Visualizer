@@ -99,6 +99,55 @@ router.get('/data', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/heatmap/points
+ * 沿绿道LineString密集采样点，供热力图FeatureLayer使用
+ * 每条绿道采样~200个点，总共约3400个点
+ */
+router.get('/points', async (req, res) => {
+  try {
+    const result = await req.pool.query(`
+      WITH lines AS (
+        SELECT
+          h.greenway_name,
+          h.heat_index,
+          (ST_Dump(g.geometry)).geom as line
+        FROM greenway_heatmap h
+        JOIN greenways g ON g.name = h.greenway_name
+        WHERE g.geometry IS NOT NULL
+          AND h.heat_index IS NOT NULL
+      ),
+      sampled AS (
+        SELECT
+          greenway_name,
+          heat_index,
+          (ST_DumpPoints(ST_LineInterpolatePoints(line, 0.005))).geom as pt
+        FROM lines
+        WHERE ST_GeometryType(line) = 'ST_LineString'
+      )
+      SELECT
+        greenway_name,
+        heat_index,
+        ST_X(pt) as lng,
+        ST_Y(pt) as lat
+      FROM sampled
+      WHERE ST_GeometryType(pt) = 'ST_Point'
+    `);
+
+    const points = result.rows.map(r => ({
+      greenway_name: r.greenway_name,
+      heat_index: Math.round(parseFloat(r.heat_index) * 10) / 10,
+      lng: parseFloat(r.lng),
+      lat: parseFloat(r.lat)
+    }));
+
+    res.json({ code: 0, data: points, total: points.length });
+  } catch (e) {
+    console.error('[热力图] 获取采样点失败:', e.message);
+    res.status(500).json({ code: 1, message: e.message });
+  }
+});
+
 // ==================== 管理后台 API ====================
 
 /**

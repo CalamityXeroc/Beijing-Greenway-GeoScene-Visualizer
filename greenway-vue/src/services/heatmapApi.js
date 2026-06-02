@@ -11,6 +11,14 @@ export async function fetchHeatmapData() {
   return json.data;
 }
 
+/** 获取沿绿道线几何密集采样后的热力点（供热力图渲染） */
+export async function fetchHeatmapPoints() {
+  const res = await fetch(`${API_BASE}/api/heatmap/points`);
+  const json = await res.json();
+  if (json.code !== 0) throw new Error(json.message || '获取热力采样点失败');
+  return json.data;
+}
+
 export async function recordGreenwayClick(greenwayName, userId) {
   try {
     await fetch(`${API_BASE}/api/heatmap/click`, {
