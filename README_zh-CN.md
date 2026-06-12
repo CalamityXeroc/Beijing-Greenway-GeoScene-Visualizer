@@ -98,7 +98,7 @@ npm run dev       # http://localhost:5173
 |------|------|
 |  **落地页** | 防抖鼠标滚轮六屏全屏切换，0.6s 平滑过渡动画 |
 |  **交互式地图** | GeoScene 多图层渲染 + 高德底图 |
-|  **路径规划** | 步行/骑行路径规划（高德导航API），可拖动规划面板 |
+|  **路径规划** | 步行/骑行路径规划，本地 Dijkstra 最短路径算法（基于 PostGIS 中 OSM 路网数据），面板可拖动 |
 |  **GIS 工具集** | 绘图（支持 RGB 调色板）、测量、导入 GeoJSON、基础图层切换 |
 |  **地图导出** | 将当前地图视图导出为 PNG 图片 |
 |  **17 条绿道** | 每条均有独立详情页、属性信息和全景街景 |
@@ -127,6 +127,8 @@ npm run dev       # http://localhost:5173
           ai.js            # DeepSeek 对话 API + 对话日志入库
           adminAiStats.js  # 管理员 AI 分析（词云 & 趋势）
           gaode.js         # 高德API代理（路径规划/搜索/逆地理）
+          osrmRoute.js     # Dijkstra 最短路径规划（OSM 路网数据）
+          heatmap.js       # 热度热力图追踪与分析 API
     scripts/
        add-chat-logs-table.js  # 数据库迁移脚本
        ...                     # 数据库初始化与导入工具
@@ -152,6 +154,8 @@ npm run dev       # http://localhost:5173
           AIChatbot.vue             # AI 浮窗（仅地图页显示）
        services/
           gaodeApi.js              # 高德API代理调用
+          osrmApi.js               # Dijkstra 路径规划 API 客户端（步行/骑行）
+          heatmapApi.js            # 热度热力图分析 API 客户端
        stores/
           route.js                 # 路径规划响应式状态
        utils/
@@ -243,6 +247,7 @@ GET /api/comments               # 按绿道查询评论
 GET /api/gaode/search            # 高德POI搜索（代理）
 GET /api/gaode/walking           # 高德步行路径规划（代理）
 GET /api/gaode/bicycling         # 高德骑行路径规划（代理）
+POST /api/osrm/route             # Dijkstra 最短路径规划（步行/骑行，OSM 路网数据）
 POST /api/heatmap/click          # 记录绿道点击（热度埋点）
 GET /api/heatmap/data            # 热度数据（含质心坐标与加权指数）
 GET /api/heatmap/points          # 沿绿道线密集采样的热力点

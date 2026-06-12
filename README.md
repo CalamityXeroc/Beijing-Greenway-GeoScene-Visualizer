@@ -98,7 +98,7 @@ npm run dev       # http://localhost:5173
 |---------|-------------|
 |  **Landing Page** | Fullpage debounced mouse-wheel scroll, 6 animated sections, 0.6s transition |
 |  **Interactive Map** | GeoScene multi-layer rendering with Amap tile basemap |
-|  **Path Planning** | Walking/cycling route planning via Amap Directions API, draggable panel |
+|  **Path Planning** | Walking/cycling route planning via on-device Dijkstra shortest-path (OSM road network in PostGIS), draggable panel |
 |  **GIS Toolkit** | Draw (with RGB color picker), measure, import GeoJSON, toggle base layers |
 |  **Map Export** | Export current map view as PNG image |
 |  **17 Greenways** | Individual detail pages with attributes & street panorama |
@@ -127,6 +127,8 @@ npm run dev       # http://localhost:5173
           ai.js            # DeepSeek chat API + chat_logs INSERT
           adminAiStats.js  # Admin AI analytics (word cloud & trends)
           gaode.js         # Amap API proxy (directions / search / geocode)
+          osrmRoute.js     # Dijkstra shortest-path routing (OSM road network)
+          heatmap.js       # Heatmap tracking & analytics APIs
     scripts/
        add-chat-logs-table.js  # DB migration: chat_logs table
        ...                     # DB init & GeoJSON import utilities
@@ -152,6 +154,8 @@ npm run dev       # http://localhost:5173
           AIChatbot.vue             # AI floating window (map pages only)
        services/
           gaodeApi.js              # Amap API proxy calls (directions/search)
+          osrmApi.js               # Dijkstra routing API client (walking/cycling)
+          heatmapApi.js            # Heatmap analytics API client
        stores/
           route.js                 # Route planning reactive state
        utils/
@@ -243,6 +247,7 @@ GET /api/comments               # query comments by greenway
 GET /api/gaode/search            # Amap POI search (proxy)
 GET /api/gaode/walking           # Amap walking directions (proxy)
 GET /api/gaode/bicycling         # Amap cycling directions (proxy)
+POST /api/osrm/route             # Dijkstra shortest-path routing (walking/cycling, OSM road network)
 POST /api/heatmap/click          # record greenway click (heatmap tracking)
 GET /api/heatmap/data            # heatmap points with centroids & weighted index
 GET /api/heatmap/points          # dense-sampled heatmap points along greenway lines
