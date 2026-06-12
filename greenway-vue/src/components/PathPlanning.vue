@@ -207,7 +207,6 @@ import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { getRouteStore } from '@/stores/route.js'
 import { useUserAuth } from '@/stores/userAuth'
-import { wgs84ToGcj02 } from '@/utils/coordinateTransform.js'
 import { reverseGeocode } from '@/services/gaodeApi.js'
 import { saveRouteRecord } from '@/services/routeApi.js'
 import Graphic from '@geoscene/core/Graphic.js'
@@ -333,10 +332,11 @@ async function handleGPSLocate(target) {
         enableHighAccuracy: true, timeout: 10000, maximumAge: 0
       })
     })
-    const gcj = wgs84ToGcj02(pos.coords.longitude, pos.coords.latitude)
+    // OSRM 使用 WGS84，GPS 原生坐标直接可用，无需转 GCJ02
+    const { longitude: lng, latitude: lat } = pos.coords
     let address = ''
-    try { address = await reverseGeocode(gcj.lng, gcj.lat) } catch {}
-    const point = { lng: gcj.lng, lat: gcj.lat, address: address || '我的位置' }
+    try { address = await reverseGeocode(lng, lat) } catch {}
+    const point = { lng, lat, address: address || '我的位置' }
     if (target === 'origin') setOrigin(point)
     else setDestination(point)
     state.error = null
@@ -360,21 +360,22 @@ function parseStepsFromRoute(route) {
 }
 
 function parsePolylineFromRoute(route) {
+  // OSRM 直接返回 GeoJSON coordinates 数组，无需解析 polyline 字符串
+  const path = route?.paths?.[0]
+  if (path?.coordinates?.length) return path.coordinates
+  // 兼容旧格式：从 steps 中提取 step 级坐标
   const points = []
-  if (route?.paths?.[0]?.steps) {
-    for (const step of route.paths[0].steps) {
-      const polyline = step.polyline
-      if (polyline) {
-        const coords = polyline.split(';').map(p => {
+  if (path?.steps) {
+    for (const step of path.steps) {
+      if (step.coordinates?.length) {
+        points.push(...step.coordinates)
+      } else if (step.polyline) {
+        // 兼容高德 polyline 字符串
+        const coords = step.polyline.split(';').map(p => {
           const [lng, lat] = p.split(',').map(Number)
           return [lng, lat]
         })
         points.push(...coords)
-      } else {
-        const start = step.start_location?.split(',').map(Number)
-        const end = step.end_location?.split(',').map(Number)
-        if (start) points.push(start)
-        if (end) points.push(end)
       }
     }
   }

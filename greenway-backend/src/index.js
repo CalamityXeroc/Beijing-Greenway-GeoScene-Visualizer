@@ -11,6 +11,7 @@ import adminCommentsRouter from './routes/adminComments.js';
 import gaodeRouter from './routes/gaode.js';
 import routeStatsRouter from './routes/routeStats.js';
 import heatmapRouter from './routes/heatmap.js';
+import osrmRouter from './routes/osrmRoute.js';
 
 dotenv.config({ path: '.env.local' });
 
@@ -56,6 +57,9 @@ app.use('/api/admin/comment', adminCommentsRouter);
 
 // 挂载高德地图 API 代理路由
 app.use('/api/gaode', gaodeRouter);
+
+// 挂载 OSRM 路径规划代理路由
+app.use('/api/osrm', osrmRouter);
 
 // 挂载路径规划记录与统计路由
 app.use('/api/route', routeStatsRouter);
