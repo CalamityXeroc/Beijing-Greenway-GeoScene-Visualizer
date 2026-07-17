@@ -184,8 +184,19 @@
         <button @click="viewPopupDetail" class="popup-btn">
           <i class="fas fa-external-link-alt"></i> 查看详情
         </button>
+        <button @click="openFlyover" class="popup-btn flyover-btn">
+          🎬 3D 漫游
+        </button>
       </div>
     </div>
+
+    <!-- 3D 飞行漫游 -->
+    <GreenwayFlyover
+      :visible="showFlyover"
+      :greenwayName="flyoverName"
+      :greenwayColor="flyoverColor"
+      @close="showFlyover = false"
+    />
   </div>
 </template>
 
@@ -196,6 +207,7 @@ import MapViewer from '@/components/MapViewer.vue'
 import MapToolbar from '@/components/MapToolbarGeoScene.vue'
 import TopNavbar from '@/components/TopNavbar.vue'
 import PathPlanning from '@/components/PathPlanning.vue'
+import GreenwayFlyover from '@/components/GreenwayFlyover.vue'
 import { getRouteStore } from '@/stores/route.js'
 import { recordGreenwayClick, fetchHeatmapData, fetchHeatmapPoints } from '@/services/heatmapApi.js'
 import { useUserAuth } from '@/stores/userAuth.js'
@@ -751,6 +763,18 @@ const hoveredFeature = ref(null)
 // 当前选中（点击）的图层
 const selectedLayer = ref(null)
 const selectedLayerId = ref(null)
+
+// 3D 漫游状态
+const showFlyover = ref(false)
+const flyoverName = ref('')
+const flyoverColor = ref('#4CAF50')
+
+function openFlyover() {
+  if (!popup.data?.info) return
+  flyoverName.value = popup.data.info.name
+  flyoverColor.value = popup.data.style?.lineColor || '#4CAF50'
+  showFlyover.value = true
+}
 
 // 高亮渲染器缓存，避免重复创建
 const highlightRendererCache = new Map()
@@ -1370,6 +1394,14 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, #388E3C, #4CAF50);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
+}
+.flyover-btn {
+  margin-left: 8px;
+  background: linear-gradient(135deg, #1976D2, #2196F3);
+}
+.flyover-btn:hover {
+  background: linear-gradient(135deg, #1565C0, #1976D2);
+  box-shadow: 0 6px 16px rgba(33, 150, 243, 0.4);
 }
 
 /* 信息卡片区域 */

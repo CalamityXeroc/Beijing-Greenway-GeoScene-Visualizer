@@ -39,7 +39,7 @@ A modern WebGIS platform for exploring Beijing's greenway network, built with Vu
 
 ##  Project Overview
 
-Interactive visualization of **17 major Beijing greenways** featuring a fullscreen landing page, an interactive GeoScene map with Amap basemap tiles, path planning & navigation, GIS tools, real-time weather, panoramic street view, admin panel, user auth, and a Capacitor-based mobile app.
+Interactive visualization of **17 major Beijing greenways** featuring a fullscreen landing page, an interactive GeoScene map with Amap basemap tiles, path planning & navigation, **3D flyover tour**, GIS tools, real-time weather, panoramic street view, admin panel, user auth, and a Capacitor-based mobile app.
 
 -  17 complete greenway routes
 -  Vue 3 + GeoScene JS SDK + Amap tiles frontend
@@ -60,6 +60,7 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  Full site day/night theme (auto-switches by Beijing time) + responsive design
 -  **AI Assistant (绿道小助手)**: Powered by DeepSeek-V4-Flash, supports route recommendations, tutorials, and Q&A; conversations logged to database
 -  **Admin AI Chat Analytics**: Word cloud + daily trend chart + recent messages log, with day/night theme support (ECharts + echarts-wordcloud, Chinese NLP via `segment`)
+-  **3D Flyover Tour (3D 漫游)**: Immersive bird's-eye flight along greenway routes with GeoScene SceneView, satellite imagery basemap, auto-play camera animation, POI detection cards, and playback controls
 -  Capacitor-based mobile app (experimental)
 
 ---
@@ -99,6 +100,7 @@ npm run dev       # http://localhost:5173
 |  **Landing Page** | Fullpage debounced mouse-wheel scroll, 6 animated sections, 0.6s transition |
 |  **Interactive Map** | GeoScene multi-layer rendering with Amap tile basemap |
 |  **Path Planning** | Walking/cycling route planning via on-device Dijkstra shortest-path (OSM road network in PostGIS), draggable panel |
+|  **3D Flyover Tour** | Bird's-eye flight along greenways in GeoScene SceneView with satellite basemap, auto-play, POI cards, speed control |
 |  **GIS Toolkit** | Draw (with RGB color picker), measure, import GeoJSON, toggle base layers |
 |  **Map Export** | Export current map view as PNG image |
 |  **17 Greenways** | Individual detail pages with attributes & street panorama |
@@ -151,6 +153,7 @@ npm run dev       # http://localhost:5173
           PathPlanning.vue         # Route planning panel (walking/cycling)
           WeatherCard.vue          # Draggable weather widget
           PanoramaViewer.vue       # Street panorama viewer
+          GreenwayFlyover.vue      # 3D flyover tour (SceneView + satellite)
           AIChatbot.vue             # AI floating window (map pages only)
        services/
           gaodeApi.js              # Amap API proxy calls (directions/search)
@@ -248,6 +251,9 @@ GET /api/gaode/search            # Amap POI search (proxy)
 GET /api/gaode/walking           # Amap walking directions (proxy)
 GET /api/gaode/bicycling         # Amap cycling directions (proxy)
 POST /api/osrm/route             # Dijkstra shortest-path routing (walking/cycling, OSM road network)
+GET /api/greenways/:id/flyover    # 3D flyover waypoints for a greenway (sampled along route)
+GET /api/greenways/name/:name/flyover  # flyover waypoints by greenway name
+GET /api/tiles/gaode/:style/:level/:col/:row  # Amap tile proxy (style 6 = satellite, style 7 = vector)
 POST /api/heatmap/click          # record greenway click (heatmap tracking)
 GET /api/heatmap/data            # heatmap points with centroids & weighted index
 GET /api/heatmap/points          # dense-sampled heatmap points along greenway lines
@@ -375,7 +381,8 @@ VITE_API_BASE=http://localhost:3001
 | Layer | Technology |
 |-------|-----------|
 | Frontend framework | Vue 3.4 + Vite 5 + Pinia |
-| Map engine | GeoScene JS SDK 4.33 + Amap tiles |
+| Map engine | GeoScene JS SDK 4.33 (2D MapView + 3D SceneView) + Amap tiles |
+| 3D flyover | GeoScene SceneView + WebTileLayer (satellite) + Camera flyTo animation |
 | Charts / Word cloud | ECharts 6 + echarts-wordcloud + vue-echarts |
 | AI model | DeepSeek-V4-Flash (REST API) |
 | Chinese NLP | segment (pure-JS tokenizer) |

@@ -4,6 +4,8 @@
 
 import GeoSceneMap from '@geoscene/core/Map.js'
 import MapView from '@geoscene/core/views/MapView.js'
+import SceneView from '@geoscene/core/views/SceneView.js'
+import Camera from '@geoscene/core/Camera.js'
 import Extent from '@geoscene/core/geometry/Extent.js'
 import Point from '@geoscene/core/geometry/Point.js'
 import * as webMercatorUtils from '@geoscene/core/geometry/support/webMercatorUtils.js'
@@ -18,6 +20,7 @@ class MapManager {
     this._interactionsMap = new Map()
     this._eventHandles = new Map()
     this._mapContainer = null
+    this._mode = '2d'  // '2d' | '3d'
   }
 
   init(target, options = {}) {
@@ -29,31 +32,69 @@ class MapManager {
     }
 
     const config = { ...defaultOptions, ...options }
+    this._mode = config.mode || '2d'
 
     this._mapInstance = new GeoSceneMap({
-      layers: []
+      layers: [],
+      ground: this._mode === '3d' ? { surfaceColor: '#333333' } : undefined
     })
 
-    this._viewInstance = new MapView({
-      container: target,
-      map: this._mapInstance,
-      center: config.center,
-      zoom: config.zoom,
-      constraints: {
-        minZoom: config.minZoom,
-        maxZoom: config.maxZoom,
-        rotationEnabled: false
-      },
-      ui: {
-        components: config.controls === false ? [] : ['zoom', 'attribution']
-      }
-    })
+    if (this._mode === '3d') {
+      this._viewInstance = new SceneView({
+        container: target,
+        map: this._mapInstance,
+        camera: {
+          position: [config.center[0], config.center[1], 500],
+          heading: 0,
+          tilt: 60
+        },
+        constraints: {
+          altitude: { min: 50, max: 20000 },
+          clipDistance: { near: 1, far: 100000 }
+        },
+        background: { color: '#222222' },
+        ui: {
+          components: config.controls === false ? [] : ['zoom', 'navigation-toggle']
+        },
+        viewingMode: 'global',
+        qualityProfile: 'medium',
+        environment: {
+          starsEnabled: false,
+          atmosphereEnabled: false,
+          atmosphere: { quality: 'low' },
+          lighting: {
+            type: 'virtual',
+            directShadowsEnabled: false,
+            ambientOcclusionEnabled: false,
+            waterReflectionEnabled: false
+          }
+        },
+        background: { color: [34, 34, 34, 1] },
+        alphaCompositingEnabled: true,
+      })
+      console.log('[MapManager] 3D SceneView 初始化完成')
+    } else {
+      this._viewInstance = new MapView({
+        container: target,
+        map: this._mapInstance,
+        center: config.center,
+        zoom: config.zoom,
+        constraints: {
+          minZoom: config.minZoom,
+          maxZoom: config.maxZoom,
+          rotationEnabled: false
+        },
+        ui: {
+          components: config.controls === false ? [] : ['zoom', 'attribution']
+        }
+      })
+      console.log('[MapManager] 2D MapView 初始化完成')
+    }
 
     if (config.interactive === false) {
       this._disableInteractions()
     }
 
-    console.log('[MapManager] 地图初始化完成（GeoScene）')
     return this._mapInstance
   }
 
@@ -290,6 +331,53 @@ class MapManager {
         console.log('[MapManager] ☀️ 已移除夜间滤镜')
       }
     }
+  }
+
+  // ===== 3D 相机方法 =====
+
+  setCamera(position, heading = 0, tilt = 60, altitude = 200) {
+    const view = toRaw(this._viewInstance)
+    if (!view || this._mode !== '3d') return
+
+    const camera = new Camera({
+      position: [position[0], position[1], altitude],
+      heading,
+      tilt,
+      fov: 55
+    })
+    view.goTo(camera, { duration: 0 }).catch(() => {})
+  }
+
+  getCamera() {
+    if (this._mode !== '3d' || !this._viewInstance) return null
+    const c = this._viewInstance.camera
+    return {
+      position: [c.position.x, c.position.y, c.position.z],
+      heading: c.heading,
+      tilt: c.tilt,
+      fov: c.fov
+    }
+  }
+
+  flyTo(position, heading = 0, tilt = 60, altitude = 200, duration = 3000) {
+    const view = toRaw(this._viewInstance)
+    if (!view || this._mode !== '3d') return Promise.resolve()
+
+    const camera = new Camera({
+      position: [position[0], position[1], altitude],
+      heading,
+      tilt,
+      fov: 55
+    })
+    return view.goTo(camera, {
+      animate: true,
+      duration,
+      easing: 'ease-in-out'
+    })
+  }
+
+  is3D() {
+    return this._mode === '3d'
   }
 }
 

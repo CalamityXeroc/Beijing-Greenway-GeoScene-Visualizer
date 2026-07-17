@@ -319,6 +319,106 @@ app.get('/api/greenways/geojson/collection', async (req, res) => {
   }
 });
 
+// 绿道 3D 飞行路径采样（每300m一个站点，供SceneView漫游用）
+app.get('/api/greenways/:id/flyover', async (req, res) => {
+  try {
+    const { id } = req.params
+    const step = parseInt(req.query.step) || 300
+
+    const result = await pool.query(`
+      WITH line AS (
+        SELECT (ST_Dump(ST_LineMerge(geometry))).geom AS geom
+        FROM greenways WHERE id = $1
+        LIMIT 1
+      ),
+      dumped AS (
+        SELECT (ST_DumpPoints(
+          ST_Segmentize(geom::geography, $2)::geometry
+        )).geom AS pt,
+        (ST_DumpPoints(
+          ST_Segmentize(geom::geography, $2)::geometry
+        )).path[1] AS pt_idx
+        FROM line
+      )
+      SELECT
+        ST_X(pt) AS lng, ST_Y(pt) AS lat, pt_idx AS idx,
+        COALESCE(degrees(ST_Azimuth(pt, lead(pt) OVER w)), 0) AS heading,
+        ST_LineLocatePoint((SELECT geom FROM line), pt) AS progress
+      FROM dumped
+      WINDOW w AS (ORDER BY pt_idx)
+      ORDER BY pt_idx
+    `, [id, step])
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '绿道不存在' })
+    }
+
+    const waypoints = result.rows.map(r => ({
+      lng: r.lng, lat: r.lat, altitude: 200,
+      heading: r.heading || 0, progress: parseFloat(r.progress)
+    }))
+
+    if (waypoints.length > 1 && !waypoints[waypoints.length-1].heading) {
+      waypoints[waypoints.length-1].heading = waypoints[waypoints.length-2].heading || 0
+    }
+
+    res.json({ greenwayId: parseInt(id), waypoints, totalPoints: waypoints.length })
+  } catch (err) {
+    console.error('[飞行路径] 错误:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// 绿道 3D 飞行路径（按名称）
+app.get('/api/greenways/name/:name/flyover', async (req, res) => {
+  try {
+    const { name } = req.params
+    const step = parseInt(req.query.step) || 300
+
+    const idRow = await pool.query('SELECT id FROM greenways WHERE name = $1', [name])
+    if (idRow.rows.length === 0) return res.status(404).json({ error: '绿道不存在' })
+    const id = idRow.rows[0].id
+
+    const result = await pool.query(`
+      WITH line AS (
+        SELECT (ST_Dump(ST_LineMerge(geometry))).geom AS geom
+        FROM greenways WHERE id = $1
+        LIMIT 1
+      ),
+      dumped AS (
+        SELECT (ST_DumpPoints(
+          ST_Segmentize(geom::geography, $2)::geometry
+        )).geom AS pt,
+        (ST_DumpPoints(
+          ST_Segmentize(geom::geography, $2)::geometry
+        )).path[1] AS pt_idx
+        FROM line
+      )
+      SELECT
+        ST_X(pt) AS lng, ST_Y(pt) AS lat, pt_idx AS idx,
+        COALESCE(degrees(ST_Azimuth(pt, lead(pt) OVER w)), 0) AS heading,
+        ST_LineLocatePoint((SELECT geom FROM line), pt) AS progress
+      FROM dumped
+      WINDOW w AS (ORDER BY pt_idx)
+      ORDER BY pt_idx
+    `, [id, step])
+
+    const waypoints = result.rows.map(r => ({
+      lng: r.lng, lat: r.lat, altitude: 200,
+      heading: r.heading || 0, progress: parseFloat(r.progress)
+    }))
+
+    if (waypoints.length > 1 && !waypoints[waypoints.length-1].heading) {
+      waypoints[waypoints.length-1].heading = waypoints[waypoints.length-2].heading || 0
+    }
+
+    res.json({ greenwayId: parseInt(id), greenwayName: name, waypoints, totalPoints: waypoints.length })
+  } catch (err) {
+    console.error('[飞行路径-by-name] 错误:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // 错误处理
 app.use((err, req, res, next) => {
   console.error(err);
@@ -331,7 +431,8 @@ const proxyGaodeTile = async (req, res, params) => {
   if (!x || !y || !z) return res.status(400).json({ error: 'Missing x/y/z' });
 
   const server = (parseInt(x) + parseInt(y)) % 4 + 1;
-  const tileUrl = `https://webrd0${server}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=${style}&x=${x}&y=${y}&z=${z}`;
+  const subdomain = parseInt(style) === 6 ? 'webst' : 'webrd'
+  const tileUrl = `https://${subdomain}0${server}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=${style}&x=${x}&y=${y}&z=${z}`;
 
   try {
     const response = await fetch(tileUrl, {
@@ -362,6 +463,53 @@ app.get('/api/tiles/gaode', async (req, res) => {
   const { x, y, z, style = 8 } = req.query;
   return proxyGaodeTile(req, res, { x, y, z, style });
 });
+
+// ===== ArcGIS 兼容瓦片服务（将高德XYZ转为ArcGIS row格式，供SceneView ImageryTileLayer使用）=====
+app.get('/api/tiles/arcgis/gaode', async (req, res) => {
+  // ArcGIS ImageryTileLayer REST info请求
+  if (req.query.f === 'json') {
+    return res.json({
+      currentVersion: 10.8,
+      tileInfo: {
+        rows: 256, cols: 256, dpi: 96,
+        format: 'PNG32',
+        compressionQuality: 0,
+        origin: { x: -20037508.342787, y: 20037508.342787 },
+        spatialReference: { wkid: 102100, latestWkid: 3857 },
+        lods: Array.from({ length: 19 }, (_, i) => ({
+          level: i, resolution: 156543.033928 / Math.pow(2, i),
+          scale: 591657527.591555 / Math.pow(2, i)
+        }))
+      },
+      fullExtent: {
+        xmin: -20037508.342787, ymin: -20037508.342787,
+        xmax: 20037508.342787, ymax: 20037508.342787,
+        spatialReference: { wkid: 102100 }
+      },
+      spatialReference: { wkid: 102100 }
+    })
+  }
+  res.status(400).json({ error: 'Unknown request' })
+})
+
+// ArcGIS 瓦片请求：/tile/{level}/{row}/{col}
+// 注意：ArcGIS row 从南到北，高德XYZ的y从北到南，需转换
+app.get('/api/tiles/arcgis/gaode/tile/:level/:row/:col', async (req, res) => {
+  const level = parseInt(req.params.level)
+  const arcgisRow = parseInt(req.params.row)
+  const col = parseInt(req.params.col)
+  const xyzY = Math.pow(2, level) - 1 - arcgisRow
+  return proxyGaodeTile(req, res, { x: col, y: xyzY, z: level, style: 8 })
+})
+
+// 兼容其他 ImageryTileLayer 可能用的瓦片路径格式
+app.get('/api/tiles/arcgis/gaode/MapServer/tile/:level/:row/:col', async (req, res) => {
+  const level = parseInt(req.params.level)
+  const arcgisRow = parseInt(req.params.row)
+  const col = parseInt(req.params.col)
+  const xyzY = Math.pow(2, level) - 1 - arcgisRow
+  return proxyGaodeTile(req, res, { x: col, y: xyzY, z: level, style: 8 })
+})
 
 // 获取本机IP用于显示 - 优先选择非169.254开头的地址（真实网络接口）
 function getLocalIP() {

@@ -39,7 +39,7 @@
 
 ##  项目简介
 
-交互式可视化 **17 条北京主要绿道**，集成全屏落地页、GeoScene 交互地图（高德底图）、路径规划导航、GIS 工具集、实时天气、全景街景、管理后台、用户认证及 Capacitor 移动端应用。
+交互式可视化 **17 条北京主要绿道**，集成全屏落地页、GeoScene 交互地图（高德底图）、路径规划导航、**3D 飞行漫游**、GIS 工具集、实时天气、全景街景、管理后台、用户认证及 Capacitor 移动端应用。
 
 -  17 条完整绿道路线
 -  Vue 3 + GeoScene JS SDK + 高德底图 前端
@@ -60,6 +60,7 @@
 - 全站昼夜主题（按北京时间自动切换），管理后台双主题完整适配
 -  **AI 助手（绿道小助手）**：基于 DeepSeek-V4-Flash，，支持路线推荐、操作指引、绿道知识问答，对话自动写入数据库
 -  **管理员 AI 对话分析：** 词云 + 每日趋势折线图 + 最近提问记录，支持昼夜主题自动切换（ECharts + echarts-wordcloud，中文分词使用 `segment` 库）
+-  **3D 飞行漫游（3D Flyover）**：基于 GeoScene SceneView 的沉浸式鸟瞰飞行，卫星影像底图，沿绿道路线自动飞行，POI 兴趣点卡片弹出，支持播放/暂停/调速/前后跳转
 -  Capacitor 移动端应用（试验阶段）
 
 ---
@@ -99,6 +100,7 @@ npm run dev       # http://localhost:5173
 |  **落地页** | 防抖鼠标滚轮六屏全屏切换，0.6s 平滑过渡动画 |
 |  **交互式地图** | GeoScene 多图层渲染 + 高德底图 |
 |  **路径规划** | 步行/骑行路径规划，本地 Dijkstra 最短路径算法（基于 PostGIS 中 OSM 路网数据），面板可拖动 |
+|  **3D 飞行漫游** | GeoScene SceneView 鸟瞰飞行，卫星底图，沿绿道自动漫游，POI 卡片弹出，支持播放控制 |
 |  **GIS 工具集** | 绘图（支持 RGB 调色板）、测量、导入 GeoJSON、基础图层切换 |
 |  **地图导出** | 将当前地图视图导出为 PNG 图片 |
 |  **17 条绿道** | 每条均有独立详情页、属性信息和全景街景 |
@@ -151,6 +153,7 @@ npm run dev       # http://localhost:5173
           PathPlanning.vue         # 路径规划面板（步行/骑行）
           WeatherCard.vue          # 可拖动天气组件
           PanoramaViewer.vue       # 全景街景查看器
+          GreenwayFlyover.vue      # 3D 飞行漫游（SceneView + 卫星底图）
           AIChatbot.vue             # AI 浮窗（仅地图页显示）
        services/
           gaodeApi.js              # 高德API代理调用
@@ -248,6 +251,9 @@ GET /api/gaode/search            # 高德POI搜索（代理）
 GET /api/gaode/walking           # 高德步行路径规划（代理）
 GET /api/gaode/bicycling         # 高德骑行路径规划（代理）
 POST /api/osrm/route             # Dijkstra 最短路径规划（步行/骑行，OSM 路网数据）
+GET /api/greenways/:id/flyover    # 3D 飞行漫游路径点（沿绿道等距采样）
+GET /api/greenways/name/:name/flyover  # 按绿道名称获取漫游路径点
+GET /api/tiles/gaode/:style/:level/:col/:row  # 高德瓦片代理（style=6 卫星图, style=7 矢量图）
 POST /api/heatmap/click          # 记录绿道点击（热度埋点）
 GET /api/heatmap/data            # 热度数据（含质心坐标与加权指数）
 GET /api/heatmap/points          # 沿绿道线密集采样的热力点
@@ -365,8 +371,9 @@ VITE_API_BASE=http://localhost:3001
 | 层级 | 技术 |
 |------|------|
 | 前端框架 | Vue 3.4 + Vite 5 + Pinia |
-| 地图引擎 | GeoScene JS SDK 4.33 + 高德底图 |
-| 路径规划 | 高德地图 Web服务 API（步行/骑行/搜索） |
+| 地图引擎 | GeoScene JS SDK 4.33（2D MapView + 3D SceneView）+ 高德底图 |
+| 3D 飞行漫游 | GeoScene SceneView + WebTileLayer（卫星图）+ Camera flyTo 动画 |
+| 路径规划 | 本地 Dijkstra 最短路径算法（基于 PostGIS OSM 路网数据） |
 | 图表 / 词云 | ECharts 6 + echarts-wordcloud + vue-echarts |
 | AI 模型 | DeepSeek-V4-Flash（REST API） |
 | 中文分词 | segment（纯 JS 分词库） |
