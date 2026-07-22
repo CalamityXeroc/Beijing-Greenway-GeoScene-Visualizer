@@ -47,7 +47,7 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  PostgreSQL + PostGIS geospatial database
 -  Fullpage landing page with debounced mouse-wheel scroll (6 sections)
 -  Layer control integrated into top navigation bar
--  **Greenway Heatmap Layer**: Real-time heatmap overlay with three-factor weighted index (clicks × 0.2 + routes × 0.5 + comments × 0.3), toggleable in layer panel
+-  **Greenway Heatmap Layer**: Real-time heatmap overlay with three-factor weighted index (clicks × 0.2 + routes × 0.5 + comments × 0.3), toggleable in layer panel; auto-initialises 17 greenway records with comment count sync
 -  Admin panel with JWT authentication (localStorage, persists across tabs)
 -  Admin login state reflected in frontend navbar
 -  RGB color picker for all drawing tools (point / line / polygon)
@@ -59,8 +59,8 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  Sensitive-word interception for comments (blocked submissions are rejected with prompt)
 -  Full site day/night theme (auto-switches by Beijing time) + responsive design
 -  **AI Assistant (绿道小助手)**: Powered by DeepSeek-V4-Flash, supports route recommendations, tutorials, and Q&A; conversations logged to database
--  **Admin AI Chat Analytics**: Word cloud + daily trend chart + recent messages log, with day/night theme support (ECharts + echarts-wordcloud, Chinese NLP via `segment`)
--  **3D Flyover Tour (3D 漫游)**: Immersive bird's-eye flight along greenway routes with GeoScene SceneView, satellite imagery basemap, auto-play camera animation, POI detection cards, and playback controls
+-  **Admin AI Chat Analytics**: Word cloud + daily trend chart (7/30/90 day views) + recent messages log, with day/night theme support (ECharts + echarts-wordcloud, Chinese NLP via `segment`)
+-  **3D Flyover Tour (3D 漫游)**: Immersive bird's-eye flight with glowing 3D tube path (PathSymbol3DLayer), auto-play camera animation with banking on turns, waypoint beads with fly/current/upcoming states, camera trail (flown/remaining segments), time-based atmosphere (starfield, sky color, ground color), and playback controls
 -  Capacitor-based mobile app (experimental)
 
 ---
@@ -81,6 +81,7 @@ cd greenway-backend
 npm install
 npm run db:init        # initialise PostgreSQL + PostGIS tables
 npm run db:chat-logs  # create AI chat logs table
+npm run db:heatmap    # create heatmap tracking tables
 npm run dev            # http://localhost:3001
 ```
 
@@ -100,7 +101,7 @@ npm run dev       # http://localhost:5173
 |  **Landing Page** | Fullpage debounced mouse-wheel scroll, 6 animated sections, 0.6s transition |
 |  **Interactive Map** | GeoScene multi-layer rendering with Amap tile basemap |
 |  **Path Planning** | Walking/cycling route planning via on-device Dijkstra shortest-path (OSM road network in PostGIS), draggable panel |
-|  **3D Flyover Tour** | Bird's-eye flight along greenways in GeoScene SceneView with satellite basemap, auto-play, POI cards, speed control |
+|  **3D Flyover Tour** | Glowing 3D tube path + waypoint beads + camera trail + banking turns + time-based atmosphere effects |
 |  **GIS Toolkit** | Draw (with RGB color picker), measure, import GeoJSON, toggle base layers |
 |  **Map Export** | Export current map view as PNG image |
 |  **17 Greenways** | Individual detail pages with attributes & street panorama |
@@ -132,8 +133,9 @@ npm run dev       # http://localhost:5173
           osrmRoute.js     # Dijkstra shortest-path routing (OSM road network)
           heatmap.js       # Heatmap tracking & analytics APIs
     scripts/
-       add-chat-logs-table.js  # DB migration: chat_logs table
-       ...                     # DB init & GeoJSON import utilities
+       add-chat-logs-table.js   # DB migration: chat_logs table
+       add-heatmap-tables.js    # DB migration: heatmap tracking tables
+       ...                      # DB init & GeoJSON import utilities
     init-db.sql             # Schema + PostGIS setup
 
  greenway-vue/               # Vue 3 frontend (Vite)
@@ -251,8 +253,8 @@ GET /api/gaode/search            # Amap POI search (proxy)
 GET /api/gaode/walking           # Amap walking directions (proxy)
 GET /api/gaode/bicycling         # Amap cycling directions (proxy)
 POST /api/osrm/route             # Dijkstra shortest-path routing (walking/cycling, OSM road network)
-GET /api/greenways/:id/flyover    # 3D flyover waypoints for a greenway (sampled along route)
-GET /api/greenways/name/:name/flyover  # flyover waypoints by greenway name
+GET /api/greenways/:id/flyover?maxPoints=45    # 3D flyover waypoints (auto step-size for ~45 points)
+GET /api/greenways/name/:name/flyover?maxPoints=45  # flyover waypoints by greenway name
 GET /api/tiles/gaode/:style/:level/:col/:row  # Amap tile proxy (style 6 = satellite, style 7 = vector)
 POST /api/heatmap/click          # record greenway click (heatmap tracking)
 GET /api/heatmap/data            # heatmap points with centroids & weighted index

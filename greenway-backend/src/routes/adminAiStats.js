@@ -97,7 +97,7 @@ function fillDateSeries(rows, days) {
 
 /* ──────────────────────────── GET /api/admin/ai-stats ──────────────────────────── */
 router.get('/ai-stats', authMiddleware, adminOnly, async (req, res) => {
-  const days = Math.min(90, Math.max(1, parseInt(req.query.days) || 7))
+  const days = Math.min(365, Math.max(1, parseInt(req.query.days) || 90))
 
   try {
     // 1. 查询指定天数内的所有消息

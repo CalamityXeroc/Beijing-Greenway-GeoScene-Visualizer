@@ -12,6 +12,7 @@
     "verify:comments-flow": "node scripts/verify-comments-flow.js",
     "db:import": "node scripts/import-geojson.js",
     "db:chat-logs": "node scripts/add-chat-logs-table.js",
+    "db:heatmap": "node scripts/add-heatmap-tables.js",
     "check": "node scripts/check-env.js"
   },
   "keywords": [

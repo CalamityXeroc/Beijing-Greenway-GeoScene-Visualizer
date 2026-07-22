@@ -52,11 +52,11 @@
     <!-- 第二行：热度趋势 + 评论趋势 -->
     <div class="charts-row">
       <div class="chart-card">
-        <h3 class="chart-title">综合热度趋势（近30天）</h3>
+        <h3 class="chart-title">综合热度趋势（近90天）</h3>
         <div ref="trendChart" class="chart-body"></div>
       </div>
       <div class="chart-card">
-        <h3 class="chart-title">评论趋势（近30天）</h3>
+        <h3 class="chart-title">评论趋势（近90天）</h3>
         <div ref="commentTrendChart" class="chart-body"></div>
       </div>
     </div>
@@ -264,8 +264,8 @@ function handleResize() {
 async function loadData() {
   try {
     const [ov, rank, trend, comp, cRank, cTrend] = await Promise.all([
-      fetchHeatmapOverview(), fetchHeatmapRank(20), fetchHeatmapTrend(30), fetchHeatmapCompare(),
-      fetchCommentRank(20), fetchCommentTrend(30)
+      fetchHeatmapOverview(), fetchHeatmapRank(20), fetchHeatmapTrend(90), fetchHeatmapCompare(),
+      fetchCommentRank(20), fetchCommentTrend(90)
     ])
     overview.value = ov
     rankData.value = rank

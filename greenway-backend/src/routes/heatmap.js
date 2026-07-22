@@ -64,6 +64,14 @@ router.post('/click', async (req, res) => {
  */
 router.get('/data', async (req, res) => {
   try {
+    // 如果表还没创建，返回空数据而不报错
+    const tableCheck = await req.pool.query(
+      `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'greenway_heatmap')`
+    );
+    if (!tableCheck.rows[0].exists) {
+      return res.json({ code: 0, data: [], message: '热度表尚不存在，请运行 npm run db:heatmap' });
+    }
+
     const result = await req.pool.query(`
       SELECT
         h.greenway_name,
@@ -106,6 +114,14 @@ router.get('/data', async (req, res) => {
  */
 router.get('/points', async (req, res) => {
   try {
+    // 表不存在时返回空
+    const tableCheck = await req.pool.query(
+      `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'greenway_heatmap')`
+    );
+    if (!tableCheck.rows[0].exists) {
+      return res.json({ code: 0, data: [], total: 0, message: '热度表尚不存在，请运行 npm run db:heatmap' });
+    }
+
     const result = await req.pool.query(`
       WITH lines AS (
         SELECT
@@ -189,7 +205,7 @@ router.get('/overview', authMiddleware, adminOnly, async (req, res) => {
  * 热度趋势数据 (含评论)
  */
 router.get('/trend', authMiddleware, adminOnly, async (req, res) => {
-  const days = Math.min(90, Math.max(7, parseInt(req.query.days) || 30));
+  const days = Math.min(365, Math.max(7, parseInt(req.query.days) || 90));
 
   try {
     const result = await req.pool.query(`
@@ -375,7 +391,7 @@ router.get('/comment-rank', authMiddleware, adminOnly, async (req, res) => {
  * 评论数量趋势
  */
 router.get('/comment-trend', authMiddleware, adminOnly, async (req, res) => {
-  const days = Math.min(90, Math.max(7, parseInt(req.query.days) || 30));
+  const days = Math.min(365, Math.max(7, parseInt(req.query.days) || 90));
 
   try {
     const result = await req.pool.query(`

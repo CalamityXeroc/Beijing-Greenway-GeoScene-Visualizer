@@ -220,7 +220,7 @@ router.delete('/:id/permanent', authMiddleware, adminOnly, permanentDelete);
 router.post('/:id/permanent-delete', authMiddleware, adminOnly, permanentDelete);
 
 router.get('/stats', authMiddleware, adminOnly, async (req, res) => {
-  const days = Math.min(90, Math.max(7, parsePage(req.query.days, 30)));
+  const days = Math.min(365, Math.max(7, parsePage(req.query.days, 90)));
 
   try {
     const [trendResult, statusResult] = await Promise.all([

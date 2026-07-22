@@ -34,12 +34,28 @@ class MapManager {
     const config = { ...defaultOptions, ...options }
     this._mode = config.mode || '2d'
 
+    const hour3d = new Date().getHours()
+    let groundColor3d = '#333333'
+    if (hour3d >= 19 || hour3d < 5)        groundColor3d = '#0a0a14'
+    else if (hour3d >= 5 && hour3d < 7)    groundColor3d = '#1a1a2e'
+    else if (hour3d >= 17 && hour3d < 19)  groundColor3d = '#1a2018'
+
     this._mapInstance = new GeoSceneMap({
       layers: [],
-      ground: this._mode === '3d' ? { surfaceColor: '#333333' } : undefined
+      ground: this._mode === '3d' ? { surfaceColor: groundColor3d } : undefined
     })
 
     if (this._mode === '3d') {
+      // 根据时间计算天空颜色（清晨/白天/黄昏/夜晚）
+      const hour = new Date().getHours()
+      let skyColor
+      if (hour >= 5 && hour < 7)        { skyColor = [30, 25, 40, 1] }      // 清晨深蓝紫
+      else if (hour >= 7 && hour < 9)   { skyColor = [60, 70, 100, 1] }      // 早晨浅蓝
+      else if (hour >= 9 && hour < 17)  { skyColor = [70, 120, 180, 1] }    // 白天天蓝
+      else if (hour >= 17 && hour < 19) { skyColor = [100, 60, 40, 1] }     // 黄昏暖橙
+      else if (hour >= 19 && hour < 20) { skyColor = [40, 30, 60, 1] }      // 傍晚紫蓝
+      else                              { skyColor = [8, 8, 20, 1] }         // 夜晚深蓝
+
       this._viewInstance = new SceneView({
         container: target,
         map: this._mapInstance,
@@ -52,16 +68,15 @@ class MapManager {
           altitude: { min: 50, max: 20000 },
           clipDistance: { near: 1, far: 100000 }
         },
-        background: { color: '#222222' },
         ui: {
           components: config.controls === false ? [] : ['zoom', 'navigation-toggle']
         },
         viewingMode: 'global',
-        qualityProfile: 'medium',
+        qualityProfile: 'high',
         environment: {
-          starsEnabled: false,
-          atmosphereEnabled: false,
-          atmosphere: { quality: 'low' },
+          starsEnabled: hour >= 19 || hour < 5,
+          atmosphereEnabled: true,
+          atmosphere: { quality: 'high' },
           lighting: {
             type: 'virtual',
             directShadowsEnabled: false,
@@ -69,7 +84,7 @@ class MapManager {
             waterReflectionEnabled: false
           }
         },
-        background: { color: [34, 34, 34, 1] },
+        background: { color: skyColor },
         alphaCompositingEnabled: true,
       })
       console.log('[MapManager] 3D SceneView 初始化完成')

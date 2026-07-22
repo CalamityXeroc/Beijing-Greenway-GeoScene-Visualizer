@@ -66,7 +66,7 @@ router.post('/record', async (req, res) => {
 // GET /api/route/stats/greenway-rank - 绿道热度排名
 router.get('/stats/greenway-rank', async (req, res) => {
   const limit = parseInt(req.query.limit) || 10
-  const days = parseInt(req.query.days) || 30
+  const days = parseInt(req.query.days) || 90
 
   try {
     const result = await req.pool.query(`

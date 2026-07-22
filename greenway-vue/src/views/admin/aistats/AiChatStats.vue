@@ -76,11 +76,11 @@ const isDark = computed(() => theme.value === 'night')
 
 const rangeOptions = [
   { days: 7,  label: '近 7 天' },
-  { days: 14, label: '近 14 天' },
-  { days: 30, label: '近 30 天' }
+  { days: 30, label: '近 30 天' },
+  { days: 90, label: '近 90 天' }
 ]
 
-const days      = ref(7)
+const days      = ref(30)
 const loading   = ref(false)
 const error     = ref('')
 const summary   = ref(null)

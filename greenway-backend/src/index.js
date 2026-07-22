@@ -319,11 +319,26 @@ app.get('/api/greenways/geojson/collection', async (req, res) => {
   }
 });
 
-// 绿道 3D 飞行路径采样（每300m一个站点，供SceneView漫游用）
+// 绿道 3D 飞行路径采样（供SceneView漫游用）
+// ?step=N 固定步长(米)，?maxPoints=N 自动计算步长使总点数≈N（优先使用maxPoints）
 app.get('/api/greenways/:id/flyover', async (req, res) => {
   try {
     const { id } = req.params
-    const step = parseInt(req.query.step) || 300
+    const maxPoints = parseInt(req.query.maxPoints) || 0
+    let step = parseInt(req.query.step) || 0
+
+    // maxPoints 优先：先查绿道长度，再算步长
+    if (maxPoints > 0 || step <= 0) {
+      const lenRow = await pool.query(
+        'SELECT ST_Length(geometry::geography) AS len FROM greenways WHERE id = $1', [id]
+      )
+      const length = lenRow.rows[0]?.len || 0
+      if (maxPoints > 0) {
+        step = Math.max(100, Math.ceil(length / maxPoints))  // 最小100m
+      } else {
+        step = Math.max(100, Math.ceil(length / 40))  // 默认~40个点
+      }
+    }
 
     const result = await pool.query(`
       WITH line AS (
@@ -373,11 +388,25 @@ app.get('/api/greenways/:id/flyover', async (req, res) => {
 app.get('/api/greenways/name/:name/flyover', async (req, res) => {
   try {
     const { name } = req.params
-    const step = parseInt(req.query.step) || 300
+    const maxPoints = parseInt(req.query.maxPoints) || 0
+    let step = parseInt(req.query.step) || 0
 
     const idRow = await pool.query('SELECT id FROM greenways WHERE name = $1', [name])
     if (idRow.rows.length === 0) return res.status(404).json({ error: '绿道不存在' })
     const id = idRow.rows[0].id
+
+    // maxPoints 优先
+    if (maxPoints > 0 || step <= 0) {
+      const lenRow = await pool.query(
+        'SELECT ST_Length(geometry::geography) AS len FROM greenways WHERE id = $1', [id]
+      )
+      const length = lenRow.rows[0]?.len || 0
+      if (maxPoints > 0) {
+        step = Math.max(100, Math.ceil(length / maxPoints))
+      } else {
+        step = Math.max(100, Math.ceil(length / 40))
+      }
+    }
 
     const result = await pool.query(`
       WITH line AS (

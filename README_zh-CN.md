@@ -47,7 +47,7 @@
 -  PostgreSQL + PostGIS 地理数据库
 -  全屏落地页，防抖鼠标滚轮六屏切换（0.6s 过渡动画）
 -  图层控制集成到顶部导航栏下拉菜单
--  **绿道热度热力图**：实时热力图层，三因子加权指数（点击×0.2 + 规划×0.5 + 评论×0.3），图层面板可控开关
+-  **绿道热度热力图**：实时热力图层，三因子加权指数（点击×0.2 + 规划×0.5 + 评论×0.3），图层面板可控开关；自动初始化 17 条绿道热度记录并同步已有评论数
 -  管理后台 JWT 认证（localStorage 持久化，仅主动注销才清除）
 -  前台导航栏显示管理员登录状态
 -  绘图工具 RGB 调色板（点 / 线 / 面均支持自定义颜色）
@@ -59,8 +59,8 @@
 -  评论敏感词拦截：命中敏感词直接禁止发布并提示
 - 全站昼夜主题（按北京时间自动切换），管理后台双主题完整适配
 -  **AI 助手（绿道小助手）**：基于 DeepSeek-V4-Flash，，支持路线推荐、操作指引、绿道知识问答，对话自动写入数据库
--  **管理员 AI 对话分析：** 词云 + 每日趋势折线图 + 最近提问记录，支持昼夜主题自动切换（ECharts + echarts-wordcloud，中文分词使用 `segment` 库）
--  **3D 飞行漫游（3D Flyover）**：基于 GeoScene SceneView 的沉浸式鸟瞰飞行，卫星影像底图，沿绿道路线自动飞行，POI 兴趣点卡片弹出，支持播放/暂停/调速/前后跳转
+-  **管理员 AI 对话分析：** 词云 + 每日趋势折线图（7/30/90 天可选）+ 最近提问记录，支持昼夜主题自动切换（ECharts + echarts-wordcloud，中文分词使用 `segment` 库）
+-  **3D 飞行漫游（3D Flyover）**：发光管状路径（PathSymbol3DLayer）+ 路径光珠（已飞/当前/未来状态）+ 飞行轨迹（已飞段亮色/未飞段暗色）+ 转弯倾斜 + 时段氛围（星空、天空色、地面色自适应），支持播放/暂停/调速/前后跳转
 -  Capacitor 移动端应用（试验阶段）
 
 ---
@@ -81,6 +81,7 @@ cd greenway-backend
 npm install
 npm run db:init         # 初始化 PostgreSQL + PostGIS 表结构
 npm run db:chat-logs   # 创建 AI 对话日志表
+npm run db:heatmap     # 创建热度热力图追踪表
 npm run dev            # http://localhost:3001
 ```
 
@@ -100,7 +101,7 @@ npm run dev       # http://localhost:5173
 |  **落地页** | 防抖鼠标滚轮六屏全屏切换，0.6s 平滑过渡动画 |
 |  **交互式地图** | GeoScene 多图层渲染 + 高德底图 |
 |  **路径规划** | 步行/骑行路径规划，本地 Dijkstra 最短路径算法（基于 PostGIS 中 OSM 路网数据），面板可拖动 |
-|  **3D 飞行漫游** | GeoScene SceneView 鸟瞰飞行，卫星底图，沿绿道自动漫游，POI 卡片弹出，支持播放控制 |
+|  **3D 飞行漫游** | 发光管状路径 + 路径光珠 + 飞行轨迹 + 转弯倾斜 + 时段氛围特效，支持播放控制 |
 |  **GIS 工具集** | 绘图（支持 RGB 调色板）、测量、导入 GeoJSON、基础图层切换 |
 |  **地图导出** | 将当前地图视图导出为 PNG 图片 |
 |  **17 条绿道** | 每条均有独立详情页、属性信息和全景街景 |
@@ -132,8 +133,9 @@ npm run dev       # http://localhost:5173
           osrmRoute.js     # Dijkstra 最短路径规划（OSM 路网数据）
           heatmap.js       # 热度热力图追踪与分析 API
     scripts/
-       add-chat-logs-table.js  # 数据库迁移脚本
-       ...                     # 数据库初始化与导入工具
+       add-chat-logs-table.js   # 数据库迁移：AI 对话日志表
+       add-heatmap-tables.js    # 数据库迁移：热度热力图追踪表
+       ...                      # 数据库初始化与导入工具
     init-db.sql             # 表结构 + PostGIS 初始化
 
  greenway-vue/               # Vue 3 前端（Vite）
@@ -251,8 +253,8 @@ GET /api/gaode/search            # 高德POI搜索（代理）
 GET /api/gaode/walking           # 高德步行路径规划（代理）
 GET /api/gaode/bicycling         # 高德骑行路径规划（代理）
 POST /api/osrm/route             # Dijkstra 最短路径规划（步行/骑行，OSM 路网数据）
-GET /api/greenways/:id/flyover    # 3D 飞行漫游路径点（沿绿道等距采样）
-GET /api/greenways/name/:name/flyover  # 按绿道名称获取漫游路径点
+GET /api/greenways/:id/flyover?maxPoints=45    # 3D 飞行漫游路径点（自动步长，约 45 个点）
+GET /api/greenways/name/:name/flyover?maxPoints=45  # 按绿道名称获取漫游路径点
 GET /api/tiles/gaode/:style/:level/:col/:row  # 高德瓦片代理（style=6 卫星图, style=7 矢量图）
 POST /api/heatmap/click          # 记录绿道点击（热度埋点）
 GET /api/heatmap/data            # 热度数据（含质心坐标与加权指数）

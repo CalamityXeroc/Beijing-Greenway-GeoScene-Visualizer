@@ -411,7 +411,7 @@ router.get('/admin/logs', authMiddleware, adminOnly, async (req, res) => {
  * 最近N天每日登录次数趋势
  */
 router.get('/admin/stats/trend', authMiddleware, adminOnly, async (req, res) => {
-  const days = Math.min(30, Math.max(7, parseInt(req.query.days) || 14));
+  const days = Math.min(365, Math.max(7, parseInt(req.query.days) || 90));
   try {
     const { rows } = await req.pool.query(
       `SELECT DATE(created_at) AS day, COUNT(*) AS count
