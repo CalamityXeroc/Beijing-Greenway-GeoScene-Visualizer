@@ -1,836 +1,1680 @@
-<template>
-  <div class="beiyunhe-page">
-    <header class="header">
-      <button @click="goBack" class="back-btn">
-        <i class="fas fa-arrow-left"></i> 返回
-      </button>
-      <div class="title-container">
-        <h1>北京北运河绿道</h1>
-        <p><i class="fas fa-leaf"></i> 运河古韵，水岸新貌</p>
-      </div>
-    </header>
-
-    <div class="content">
-      <!-- 左侧信息栏 -->
-      <div ref="leftSidebar" class="left-sidebar">
-        <div class="feature-image placeholder-image">
-          <div class="placeholder-text">
-            <i class="fas fa-image"></i>
-            <p>北运河绿道</p>
-          </div>
-        </div>
-        
-        <div class="highlights">
-          <h3><i class="fas fa-star"></i>绿道亮点</h3>
-          <ul>
-            <li>
-              <strong>总长度：</strong>
-              <span>{{ greenwayInfo.total_length }}</span>
-            </li>
-            <li>
-              <strong>覆盖区域：</strong>
-              <span>{{ greenwayInfo.coverage_area }}</span>
-            </li>
-            <li>
-              <strong>建设面积：</strong>
-              <span>{{ greenwayInfo.construction_area }}</span>
-            </li>
-            <li>
-              <strong>特色：</strong>
-              <span>{{ greenwayInfo.features }}</span>
-            </li>
-          </ul>
-        </div>
-
-        <div class="highlights">
-          <h3><i class="fas fa-info-circle"></i>绿道简介</h3>
-          <p class="description">
-            {{ greenwayInfo.description }}
-          </p>
-          <div class="badges">
-            <span class="badge badge-green">
-              <i class="fas fa-water"></i> 运河风光
-            </span>
-            <span class="badge badge-blue">
-              <i class="fas fa-landmark"></i> 文化遗产
-            </span>
-            <span class="badge badge-purple">
-              <i class="fas fa-bicycle"></i> 骑行休闲
-            </span>
-          </div>
-        </div>
-        
-        <!-- 全景浏览按钮 -->
-        <button class="panorama-btn" @click="showPanorama = true">
-          <i class="fas fa-street-view"></i>
-          <span>360°全景浏览</span>
-        </button>
-      </div>
-
-      <!-- 右侧地图区域 -->
-      <div class="right-map">
-        <MapViewer
-          ref="mapViewer"
-          :center="mapConfig.center"
-          :zoom="mapConfig.zoom"
-          :layers="layers"
-          :interactive="false"
-          height="100%"
-          @map-ready="onMapReady"
-        :restrict-navigation="true" />
-      </div>
-    </div>
-    <section class="detail-comments-section">
-      <DesktopCommentsPanel greenway-name="北京北运河绿道" />
-    </section>
-    <!-- 天气卡片（固定定位，可拖动） -->
-    <WeatherCard
-      v-if="weatherLocation"
-      :longitude="weatherLocation.lon"
-      :latitude="weatherLocation.lat"
-      location-label="北运河绿道"
-      @weather-loaded="onWeatherLoaded"
-    />
-
-    <!-- 百度全景查看器 -->
-    <BaiduPanoramaViewer
-      :visible="showPanorama"
-      :panorama-points="panoramaPoints"
-      :initial-point="0"
-      :baidu-map-key="baiduMapKey"
-      @close="showPanorama = false"
-      @point-change="onPointChange"
-    />
-  </div>
-</template>
-
-<script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
-import MapViewer from '@/components/MapViewer.vue'
-import WeatherCard from '@/components/WeatherCard.vue'
-import BaiduPanoramaViewer from '@/components/BaiduPanoramaViewer.vue'
-import DesktopCommentsPanel from '@/components/DesktopCommentsPanel.vue'
-import { loadGreenwayDataByName, buildGreenwayInfo } from '@/utils/greenwayHelper'
-
-const router = useRouter()
-const mapViewer = ref(null)
-const leftSidebar = ref(null)
-const showPanorama = ref(false)
-const baiduMapKey = import.meta.env.VITE_BAIDU_MAP_KEY || ''
-
-let cleanupSidebarWheel = null
-let prevBodyOverflowY = ''
-let prevHtmlOverflowY = ''
-const WHEEL_EDGE_EPSILON = 2
-
-const panoramaPoints = ref([
-  {
-    name: '运河源头',
-    description: '北运河起点，历史标志',
-    lng: 116.6523,
-    lat: 39.9134
-  },
-  {
-    name: '文化遗址区',
-    description: '运河文化展示区',
-    lng: 116.6589,
-    lat: 39.9178
-  },
-  {
-    name: '生态湿地',
-    description: '运河湿地公园',
-    lng: 116.6645,
-    lat: 39.9223
-  },
-  {
-    name: '滨河步道',
-    description: '沿河休闲步道',
-    lng: 116.6712,
-    lat: 39.9267
-  },
-  {
-    name: '观景平台',
-    description: '运河观景台',
-    lng: 116.6778,
-    lat: 39.9312
-  }
-])
-
-const mapConfig = reactive({
-  center: [116.665, 39.92],
-  zoom: 12
-})
-
-const weatherLocation = ref(null)
-
-// 绿道详细信息
-const greenwayInfo = ref({
-  total_length: '加载中...',
-  coverage_area: '加载中...',
-  construction_area: '加载中...',
-  features: '加载中...',
-  description: '正在获取绿道简介信息...'
-})
-
-const layers = ref([
-  {
-    id: 'beiyunhe-greenway',
-    type: 'geojson',
-    data: null,  // 将通过fetch动态设置
-    visible: true,
-    fitExtent: true,
-    style: {
-      lineColor: '#2196F3',
-      lineWidth: 4
-    }
-  }
-])
-
-const onMapReady = (map) => {
-  console.log('[BeiyunheDetail] 地图已就绪')
-  setTimeout(() => {
-    if (mapViewer.value) {
-      const mapMgr = mapViewer.value.getMapManager()
-      const center = mapMgr.getCenter()
-      weatherLocation.value = { lon: center[0], lat: center[1] }
-    }
-  }, 1000)
-}
-
-const onWeatherLoaded = (weather) => {
-  console.log('[BeiyunheDetail] 天气数据已加载:', weather)
-}
-
-const goBack = () => {
-  router.back()
-}
-
-
-const setupSidebarWheelGuard = () => {
-  const el = leftSidebar.value
-  if (!el) return
-
-  const onSidebarWheel = (e) => {
-    if (showPanorama.value) return
-
-    const target = e.target
-    if (target instanceof Element && target.closest('.chatbot-panel, .panorama-modal, .weather-card')) {
-      return
-    }
-
-    const maxScrollTop = el.scrollHeight - el.clientHeight
-    if (maxScrollTop <= 0) {
-      window.scrollBy({ top: e.deltaY, behavior: 'auto' })
-      e.preventDefault()
-      return
-    }
-
-    const isAtTop = el.scrollTop <= WHEEL_EDGE_EPSILON
-    const isAtBottom = (maxScrollTop - el.scrollTop) <= WHEEL_EDGE_EPSILON
-
-    if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
-      window.scrollBy({ top: e.deltaY, behavior: 'auto' })
-      e.preventDefault()
-      e.stopPropagation()
-      return
-    }
-
-    const nextScrollTop = el.scrollTop + e.deltaY
-    const clamped = Math.max(0, Math.min(maxScrollTop, nextScrollTop))
-    const willScroll = clamped !== el.scrollTop
-
-    if (!willScroll) return
-
-    el.scrollTop = clamped
-    e.preventDefault()
-    e.stopPropagation()
-  }
-
-  window.addEventListener('wheel', onSidebarWheel, { passive: false, capture: true })
-  cleanupSidebarWheel = () => {
-    window.removeEventListener('wheel', onSidebarWheel, true)
-    cleanupSidebarWheel = null
-  }
-}
-
-// 加载绿道数据
-const loadGreenwayData = async () => {
-  try {
-    const greenwayData = await loadGreenwayDataByName('北运河绿道', (data) => {
-      // 更新界面显示的属性
-      const info = buildGreenwayInfo(data)
-      Object.assign(greenwayInfo.value, info)
-    })
-    
-    if (greenwayData) {
-      // 更新图层数据
-      layers.value[0].data = greenwayData.geojson
-    }
-  } catch (err) {
-    console.error('[BeiyunheDetail] 加载绿道数据失败:', err)
-  }
-}
-
-onMounted(async () => {
-  // 兜底：清理可能由其他页面遗留的滚动锁
-  prevBodyOverflowY = document.body.style.overflowY
-  prevHtmlOverflowY = document.documentElement.style.overflowY
-  document.body.style.overflowY = 'auto'
-  document.documentElement.style.overflowY = 'auto'
-
-
-  console.log('[BeiyunheDetail] 组件已挂载')
-  await loadGreenwayData()
-  await nextTick()
-  setupSidebarWheelGuard()
-})
-
-onBeforeUnmount(() => {
-  cleanupSidebarWheel?.()
-  document.body.style.overflowY = prevBodyOverflowY
-  document.documentElement.style.overflowY = prevHtmlOverflowY
-})
-</script>
-
-<style scoped>
-.beiyunhe-page {
-  width: 100%;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #E8F5E9 0%, #E3F2FD 50%, #F1F8E9 100%);
-  padding-top: 0;
-  margin: 0;
-}
-
-.header {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  pointer-events: none;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding-top: 1.5rem;
-  padding-left: 480px; /* 地图区域居中 */
-  box-sizing: border-box;
-}
-
-.header h1,
-.header p,
-.back-btn {
-  pointer-events: auto;
-}
-
-.back-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  left: 1.5rem;
-  background: linear-gradient(135deg, #4CAF50, #45a049);
-  color: white;
-  border: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
-  font-weight: 500;
-}
-
-.back-btn:hover {
-  transform: translateY(-50%) scale(1.05);
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
-}
-
-.header h1 {
-  margin: 0 0 0.2rem 0;
-  font-size: 2.2rem; margin: 0 0 0.2rem 0;
-  font-weight: 700;
-  color: #1B5E20;
-}
-
-.header p {
-  margin: 0.5rem 0 0 0;
-  color: #1B5E20;
-  font-size: 1rem;
-  font-weight: 500;
-}
-
-.content {
-  display: flex;
-  min-height: 100vh;
-  gap: 0;
-}
-
-.left-sidebar {
-  width: 480px;
-  padding: 110px 1.5rem 1.5rem 1.5rem;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
-  height: 100vh;
-  max-height: 100vh;
-  overscroll-behavior: contain;
-  position: relative;
-  z-index: 2;
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08);
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.feature-image {
-  width: 100%;
-  height: 220px;
-  object-fit: cover;
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  transition: transform 0.3s ease;
-}
-
-.feature-image:hover {
-  transform: scale(1.03);
-}
-
-.placeholder-image {
-  background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.placeholder-text {
-  text-align: center;
-  color: #4CAF50;
-}
-
-.placeholder-text i {
-  font-size: 3rem;
-  margin-bottom: 0.5rem;
-  opacity: 0.7;
-}
-
-.placeholder-text p {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.highlights {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(5px);
-  padding: 1.25rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(76, 175, 80, 0.1);
-}
-
-.highlights h3 {
-  color: #2E7D32;
-  margin-bottom: 1rem;
-  font-size: 1.1rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.highlights h3::before {
-  content: '';
-  display: block;
-  width: 4px;
-  height: 1em;
-  background: linear-gradient(180deg, #4CAF50, #2196F3);
-  border-radius: 2px;
-}
-
-.highlights ul {
-  list-style-type: none;
-  padding: 0;
-}
-
-.highlights li {
-  margin: 0.75rem 0;
-  padding: 0.75rem 1rem 0.75rem 2.5rem;
-  position: relative;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  transition: all 0.2s ease;
-}
-
-.highlights li:hover {
-  transform: translateX(5px);
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.highlights li::before {
-  content: "\f058";
-  font-family: "Font Awesome 6 Free";
-  font-weight: 900;
-  color: #4CAF50;
-  position: absolute;
-  left: 0.8rem;
-  opacity: 0.8;
-}
-
-.highlights li strong {
-  color: #2196F3;
-}
-
-.highlights li span {
-  color: #666;
-}
-
-.description {
-  margin: 0;
-  color: #424242;
-  line-height: 1.8;
-  text-align: justify;
-  font-size: 0.95rem;
-}
-
-.badges {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-top: 1rem;
-}
-
-.badge {
-  padding: 0.4rem 0.8rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.badge-green {
-  background: linear-gradient(135deg, #C8E6C9, #A5D6A7);
-  color: #1B5E20;
-}
-
-.badge-blue {
-  background: linear-gradient(135deg, #BBDEFB, #90CAF9);
-  color: #0D47A1;
-}
-
-.badge-purple {
-  background: linear-gradient(135deg, #E1BEE7, #CE93D8);
-  color: #4A148C;
-}
-
-.panorama-btn {
-  width: 100%;
-  padding: 1rem 1.5rem;
-  background: linear-gradient(135deg, #4CAF50, #45a049);
-  border: none;
-  border-radius: 10px;
-  color: white;
-  font-size: 1.05rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-}
-
-.panorama-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
-  background: linear-gradient(135deg, #45a049, #388e3c);
-}
-
-.panorama-btn i {
-  font-size: 1.3rem;
-}
-
-.right-map {
-  flex: 1;
-  position: relative;
-  background: #f5f5f5;
-}
-
-
-@media (max-width: 768px) {
-  .content {
-    flex-direction: column;
-    height: auto;
-  }
-
-  .left-sidebar {
-    width: 100%;
-    height: auto;
-  }
-
-  .right-map {
-    height: 60vh;
-  }
-}
-
-.title-container {
-  background: transparent;
-  padding: 0.8rem 2rem;
-  text-align: center;
-  pointer-events: auto;
-  text-shadow: 0 1px 4px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 255, 255, 0.8);
-}
-
-.title-container:hover {
-  transform: translateY(-2px);
-}
-
-/* Night mode styles */
-[data-theme="night"] .beiyunhe-page {
-  background: var(--bg-primary, #1a1a1a);
-}
-
-[data-theme="night"] .header h1,
-[data-theme="night"] .header p,
-[data-theme="night"] .header i {
-  color: var(--text-primary, #e0e0e0);
-}
-
-[data-theme="night"] .back-btn {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-secondary, #b0b0b0);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-[data-theme="night"] .back-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-[data-theme="night"] .left-sidebar {
-  background: var(--card-bg, rgba(30, 30, 30, 0.9));
-  border-right-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme="night"] .placeholder-image {
-  background: var(--bg-secondary, #2a2a2a);
-}
-
-[data-theme="night"] .placeholder-text {
-  color: var(--text-secondary, #b0b0b0);
-}
-
-[data-theme="night"] .placeholder-text i {
-  opacity: 0.5;
-}
-
-[data-theme="night"] .highlights {
-  background: var(--card-bg, rgba(30, 30, 30, 0.7));
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme="night"] .highlights h3 {
-  color: var(--text-primary, #e0e0e0);
-}
-
-[data-theme="night"] .highlights h3::before {
-  background: linear-gradient(180deg, #66bb6a, #42a5f5);
-}
-
-[data-theme="night"] .highlights li {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-[data-theme="night"] .highlights li:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-[data-theme="night"] .highlights li::before {
-  color: #66bb6a;
-}
-
-[data-theme="night"] .highlights li strong {
-  color: #42a5f5;
-}
-
-[data-theme="night"] .highlights li span {
-  color: var(--text-secondary, #b0b0b0);
-}
-
-[data-theme="night"] .description {
-  color: var(--text-secondary, #b0b0b0);
-}
-
-[data-theme="night"] .badge-green {
-  background: rgba(102, 187, 106, 0.15);
-  color: #66bb6a;
-}
-
-[data-theme="night"] .badge-blue {
-  background: rgba(66, 165, 245, 0.15);
-  color: #42a5f5;
-}
-
-[data-theme="night"] .badge-purple {
-  background: rgba(171, 71, 188, 0.15);
-  color: #ab47bc;
-}
-
-[data-theme="night"] .panorama-btn {
-  background: linear-gradient(135deg, #66bb6a, #2e7d32);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme="night"] .panorama-btn:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
-  background: linear-gradient(135deg, #2e7d32, #1b5e20);
-}
-
-[data-theme="night"] .title-container {
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.8);
-}
-
-[data-theme="night"] .right-map {
-  background: var(--bg-primary-dark, #0a0a0a);
-}
-
-[data-theme="night"] .feature-image {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-}
-
-</style>
-
-<!-- 全局主题样式 - 处理scoped样式中无法应用的全局选择器 -->
-<style>
-[data-theme="night"] .beiyunhe-page {
-  background: var(--bg-primary, #1a1a1a);
-}
-
-[data-theme="night"] .beiyunhe-page .header h1,
-[data-theme="night"] .beiyunhe-page .header p,
-[data-theme="night"] .beiyunhe-page .header i {
-  color: var(--text-primary, #e0e0e0);
-}
-
-[data-theme="night"] .beiyunhe-page .back-btn {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-secondary, #b0b0b0);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-[data-theme="night"] .beiyunhe-page .back-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-[data-theme="night"] .beiyunhe-page .left-sidebar {
-  background: var(--card-bg, rgba(30, 30, 30, 0.9));
-  border-right-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme="night"] .beiyunhe-page .placeholder-image {
-  background: var(--bg-secondary, #2a2a2a);
-}
-
-[data-theme="night"] .beiyunhe-page .placeholder-text {
-  color: var(--text-secondary, #b0b0b0);
-}
-
-[data-theme="night"] .beiyunhe-page .placeholder-text i {
-  opacity: 0.5;
-}
-
-[data-theme="night"] .beiyunhe-page .highlights {
-  background: var(--card-bg, rgba(30, 30, 30, 0.7));
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme="night"] .beiyunhe-page .highlights h3 {
-  color: var(--text-primary, #e0e0e0);
-}
-
-[data-theme="night"] .beiyunhe-page .highlights h3::before {
-  background: linear-gradient(180deg, #66bb6a, #42a5f5);
-}
-
-[data-theme="night"] .beiyunhe-page .highlights li {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-[data-theme="night"] .beiyunhe-page .highlights li:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-[data-theme="night"] .beiyunhe-page .highlights li::before {
-  color: #66bb6a;
-}
-
-[data-theme="night"] .beiyunhe-page .highlights li strong {
-  color: #42a5f5;
-}
-
-[data-theme="night"] .beiyunhe-page .highlights li span {
-  color: var(--text-secondary, #b0b0b0);
-}
-
-[data-theme="night"] .beiyunhe-page .description {
-  color: var(--text-secondary, #b0b0b0);
-}
-
-[data-theme="night"] .beiyunhe-page .badge-green {
-  background: rgba(102, 187, 106, 0.15);
-  color: #66bb6a;
-}
-
-[data-theme="night"] .beiyunhe-page .badge-blue {
-  background: rgba(66, 165, 245, 0.15);
-  color: #42a5f5;
-}
-
-[data-theme="night"] .beiyunhe-page .badge-purple {
-  background: rgba(171, 71, 188, 0.15);
-  color: #ab47bc;
-}
-
-[data-theme="night"] .beiyunhe-page .panorama-btn {
-  background: linear-gradient(135deg, #66bb6a, #2e7d32);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme="night"] .beiyunhe-page .panorama-btn:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
-  background: linear-gradient(135deg, #2e7d32, #1b5e20);
-}
-
-[data-theme="night"] .beiyunhe-page .title-container {
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.8);
-}
-
-[data-theme="night"] .beiyunhe-page .right-map {
-  background: var(--bg-primary-dark, #0a0a0a);
-}
-
-[data-theme="night"] .beiyunhe-page .feature-image {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-}
-</style>
-
-
-
-
-
-
-
-
-
-
-
-
-
+<template>
+
+  <div class="beiyunhe-page">
+
+    <header class="header">
+
+      <button @click="goBack" class="back-btn">
+
+        <i class="fas fa-arrow-left"></i> 返回
+
+      </button>
+
+      <div class="title-container">
+
+        <h1>北京北运河绿道</h1>
+
+        <p><i class="fas fa-leaf"></i> 运河古韵，水岸新貌</p>
+
+      </div>
+
+    </header>
+
+
+
+    <div class="content">
+
+      <!-- 左侧信息栏 -->
+
+      <div ref="leftSidebar" class="left-sidebar">
+
+        <img
+          :src="imageUrl"
+          alt="Beiyunhe绿道景观"
+          class="feature-image"
+          @error="handleImageError"
+        />
+
+        
+
+        <div class="highlights">
+
+          <h3><i class="fas fa-star"></i>绿道亮点</h3>
+
+          <ul>
+
+            <li>
+
+              <strong>总长度：</strong>
+
+              <span>{{ greenwayInfo.total_length }}</span>
+
+            </li>
+
+            <li>
+
+              <strong>覆盖区域：</strong>
+
+              <span>{{ greenwayInfo.coverage_area }}</span>
+
+            </li>
+
+            <li>
+
+              <strong>建设面积：</strong>
+
+              <span>{{ greenwayInfo.construction_area }}</span>
+
+            </li>
+
+            <li>
+
+              <strong>特色：</strong>
+
+              <span>{{ greenwayInfo.features }}</span>
+
+            </li>
+
+          </ul>
+
+        </div>
+
+
+
+        <div class="highlights">
+
+          <h3><i class="fas fa-info-circle"></i>绿道简介</h3>
+
+          <p class="description">
+
+            {{ greenwayInfo.description }}
+
+          </p>
+
+          <div class="badges">
+
+            <span class="badge badge-green">
+
+              <i class="fas fa-water"></i> 运河风光
+
+            </span>
+
+            <span class="badge badge-blue">
+
+              <i class="fas fa-landmark"></i> 文化遗产
+
+            </span>
+
+            <span class="badge badge-purple">
+
+              <i class="fas fa-bicycle"></i> 骑行休闲
+
+            </span>
+
+          </div>
+
+        </div>
+
+        
+
+                <NearbyFacilities greenway-name="北运河绿道" />
+
+        <!-- 全景浏览按钮 -->
+
+        <button class="panorama-btn" @click="showPanorama = true">
+
+          <i class="fas fa-street-view"></i>
+
+          <span>360°全景浏览</span>
+
+        </button>
+
+      </div>
+
+
+
+      <!-- 右侧地图区域 -->
+
+      <div class="right-map">
+
+        <MapViewer
+
+          ref="mapViewer"
+
+          :center="mapConfig.center"
+
+          :zoom="mapConfig.zoom"
+
+          :layers="layers"
+
+          :interactive="false"
+
+          height="100%"
+
+          @map-ready="onMapReady"
+
+        :restrict-navigation="true" />
+
+      </div>
+
+    </div>
+
+    <section class="detail-comments-section">
+
+      <DesktopCommentsPanel greenway-name="北京北运河绿道" />
+
+    </section>
+
+    <!-- 天气卡片（固定定位，可拖动） -->
+
+    <WeatherCard
+
+      v-if="weatherLocation"
+
+      :longitude="weatherLocation.lon"
+
+      :latitude="weatherLocation.lat"
+
+      location-label="北运河绿道"
+
+      @weather-loaded="onWeatherLoaded"
+
+    />
+
+
+
+    <!-- 百度全景查看器 -->
+
+    <BaiduPanoramaViewer
+
+      :visible="showPanorama"
+
+      :panorama-points="panoramaPoints"
+
+      :initial-point="0"
+
+      :baidu-map-key="baiduMapKey"
+
+      @close="showPanorama = false"
+
+      @point-change="onPointChange"
+
+    />
+
+  </div>
+
+</template>
+
+
+
+<script setup>
+
+import {ref, reactive, onMounted, onBeforeUnmount, nextTick, computed} from 'vue'
+
+import { useRouter } from 'vue-router'
+
+import MapViewer from '@/components/MapViewer.vue'
+
+import WeatherCard from '@/components/WeatherCard.vue'
+
+import BaiduPanoramaViewer from '@/components/BaiduPanoramaViewer.vue'
+
+import DesktopCommentsPanel from '@/components/DesktopCommentsPanel.vue'
+import NearbyFacilities from '@/components/NearbyFacilities.vue'
+
+import { loadGreenwayDataByName, buildGreenwayInfo } from '@/utils/greenwayHelper'
+
+
+
+const router = useRouter()
+
+const mapViewer = ref(null)
+
+const leftSidebar = ref(null)
+
+const showPanorama = ref(false)
+
+const baiduMapKey = import.meta.env.VITE_BAIDU_MAP_KEY || ''
+
+
+
+let cleanupSidebarWheel = null
+
+let prevBodyOverflowY = ''
+
+let prevHtmlOverflowY = ''
+
+const WHEEL_EDGE_EPSILON = 2
+
+
+
+const panoramaPoints = ref([
+
+  {
+
+    name: '运河源头',
+
+    description: '北运河起点，历史标志',
+
+    lng: 116.6523,
+
+    lat: 39.9134
+
+  },
+
+  {
+
+    name: '文化遗址区',
+
+    description: '运河文化展示区',
+
+    lng: 116.6589,
+
+    lat: 39.9178
+
+  },
+
+  {
+
+    name: '生态湿地',
+
+    description: '运河湿地公园',
+
+    lng: 116.6645,
+
+    lat: 39.9223
+
+  },
+
+  {
+
+    name: '滨河步道',
+
+    description: '沿河休闲步道',
+
+    lng: 116.6712,
+
+    lat: 39.9267
+
+  },
+
+  {
+
+    name: '观景平台',
+
+    description: '运河观景台',
+
+    lng: 116.6778,
+
+    lat: 39.9312
+
+  }
+
+])
+
+
+
+const mapConfig = reactive({
+
+  center: [116.665, 39.92],
+
+  zoom: 12
+
+})
+
+
+
+const weatherLocation = ref(null)
+
+
+
+// 绿道详细信息
+
+const greenwayInfo = ref({
+
+  total_length: '加载中...',
+
+  coverage_area: '加载中...',
+
+  construction_area: '加载中...',
+
+  features: '加载中...',
+
+  description: '正在获取绿道简介信息...',
+  image: null
+})
+
+
+
+
+const imageUrl = computed(() => {
+  if (greenwayInfo.value.image) {
+    return `/images/greenways/${greenwayInfo.value.image}`
+  }
+  return '/images/greenways/placeholder.svg'
+})
+const layers = ref([
+
+  {
+
+    id: 'beiyunhe-greenway',
+
+    type: 'geojson',
+
+    data: null,  // 将通过fetch动态设置
+
+    visible: true,
+
+    fitExtent: true,
+
+    style: {
+
+      lineColor: '#2196F3',
+
+      lineWidth: 4
+
+    }
+
+  }
+
+])
+
+
+
+const onMapReady = (map) => {
+
+  console.log('[BeiyunheDetail] 地图已就绪')
+
+  setTimeout(() => {
+
+    if (mapViewer.value) {
+
+      const mapMgr = mapViewer.value.getMapManager()
+
+      const center = mapMgr.getCenter()
+
+      weatherLocation.value = { lon: center[0], lat: center[1] }
+
+    }
+
+  }, 1000)
+
+}
+
+
+
+const onWeatherLoaded = (weather) => {
+
+  console.log('[BeiyunheDetail] 天气数据已加载:', weather)
+
+}
+
+
+
+const goBack = () => {
+
+  router.back()
+
+}
+
+const onPointChange = (index) => {}
+
+
+
+
+
+
+const setupSidebarWheelGuard = () => {
+
+  const el = leftSidebar.value
+
+  if (!el) return
+
+
+
+  const onSidebarWheel = (e) => {
+
+    if (showPanorama.value) return
+
+
+
+    const target = e.target
+
+    if (target instanceof Element && target.closest('.chatbot-panel, .panorama-modal, .weather-card')) {
+
+      return
+
+    }
+
+
+
+    const maxScrollTop = el.scrollHeight - el.clientHeight
+
+    if (maxScrollTop <= 0) {
+
+      window.scrollBy({ top: e.deltaY, behavior: 'auto' })
+
+      e.preventDefault()
+
+      return
+
+    }
+
+
+
+    const isAtTop = el.scrollTop <= WHEEL_EDGE_EPSILON
+
+    const isAtBottom = (maxScrollTop - el.scrollTop) <= WHEEL_EDGE_EPSILON
+
+
+
+    if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
+
+      window.scrollBy({ top: e.deltaY, behavior: 'auto' })
+
+      e.preventDefault()
+
+      e.stopPropagation()
+
+      return
+
+    }
+
+
+
+    const nextScrollTop = el.scrollTop + e.deltaY
+
+    const clamped = Math.max(0, Math.min(maxScrollTop, nextScrollTop))
+
+    const willScroll = clamped !== el.scrollTop
+
+
+
+    if (!willScroll) return
+
+
+
+    el.scrollTop = clamped
+
+    e.preventDefault()
+
+    e.stopPropagation()
+
+  }
+
+
+
+  window.addEventListener('wheel', onSidebarWheel, { passive: false, capture: true })
+
+  cleanupSidebarWheel = () => {
+
+    window.removeEventListener('wheel', onSidebarWheel, true)
+
+    cleanupSidebarWheel = null
+
+  }
+
+}
+
+
+
+// 加载绿道数据
+
+const loadGreenwayData = async () => {
+
+  try {
+
+    const greenwayData = await loadGreenwayDataByName('北运河绿道', (data) => {
+
+      // 更新界面显示的属性
+
+      const info = buildGreenwayInfo(data)
+
+      Object.assign(greenwayInfo.value, info)
+
+    })
+
+    
+
+    if (greenwayData) {
+
+      // 更新图层数据
+
+      layers.value[0].data = greenwayData.geojson
+
+    }
+
+  } catch (err) {
+
+    console.error('[BeiyunheDetail] 加载绿道数据失败:', err)
+
+  }
+
+}
+
+
+
+onMounted(async () => {
+
+  // 兜底：清理可能由其他页面遗留的滚动锁
+
+  prevBodyOverflowY = document.body.style.overflowY
+
+  prevHtmlOverflowY = document.documentElement.style.overflowY
+
+  document.body.style.overflowY = 'auto'
+
+  document.documentElement.style.overflowY = 'auto'
+
+
+
+
+
+  console.log('[BeiyunheDetail] 组件已挂载')
+
+  await loadGreenwayData()
+
+  await nextTick()
+
+  setupSidebarWheelGuard()
+
+})
+
+
+
+onBeforeUnmount(() => {
+
+  cleanupSidebarWheel?.()
+
+  document.body.style.overflowY = prevBodyOverflowY
+
+  document.documentElement.style.overflowY = prevHtmlOverflowY
+
+})
+
+</script>
+
+
+
+<style scoped>
+
+.beiyunhe-page {
+
+  width: 100%;
+
+  min-height: 100vh;
+
+  background: linear-gradient(135deg, #E8F5E9 0%, #E3F2FD 50%, #F1F8E9 100%);
+
+  padding-top: 0;
+
+  margin: 0;
+
+}
+
+
+
+.header {
+
+  position: absolute;
+
+  top: 0;
+
+  left: 0;
+
+  right: 0;
+
+  z-index: 1000;
+
+  pointer-events: none;
+
+  display: flex;
+
+  justify-content: center;
+
+  align-items: flex-start;
+
+  padding-top: 1.5rem;
+
+  padding-left: 480px; /* 地图区域居中 */
+
+  box-sizing: border-box;
+
+}
+
+
+
+.header h1,
+
+.header p,
+
+.back-btn {
+
+  pointer-events: auto;
+
+}
+
+
+
+.back-btn {
+
+  position: absolute;
+
+  top: 50%;
+
+  transform: translateY(-50%);
+
+  left: 1.5rem;
+
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+
+  color: white;
+
+  border: none;
+
+  padding: 0.6rem 1.2rem;
+
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 0.5rem;
+
+  transition: all 0.3s ease;
+
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+
+  font-weight: 500;
+
+}
+
+
+
+.back-btn:hover {
+
+  transform: translateY(-50%) scale(1.05);
+
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+
+}
+
+
+
+.header h1 {
+
+  margin: 0 0 0.2rem 0;
+
+  font-size: 2.2rem; margin: 0 0 0.2rem 0;
+
+  font-weight: 700;
+
+  color: #1B5E20;
+
+}
+
+
+
+.header p {
+
+  margin: 0.5rem 0 0 0;
+
+  color: #1B5E20;
+
+  font-size: 1rem;
+
+  font-weight: 500;
+
+}
+
+
+
+.content {
+
+  display: flex;
+
+  min-height: 100vh;
+
+  gap: 0;
+
+}
+
+
+
+.left-sidebar {
+
+  width: 480px;
+
+  padding: 110px 1.5rem 1.5rem 1.5rem;
+
+  background: rgba(255, 255, 255, 0.95);
+
+  backdrop-filter: blur(10px);
+
+  overflow-y: auto;
+
+    -webkit-overflow-scrolling: touch;
+
+  touch-action: pan-y;
+
+  height: 100vh;
+
+  max-height: 100vh;
+
+  overscroll-behavior: contain;
+
+  position: relative;
+
+  z-index: 2;
+
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08);
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 1.25rem;
+
+}
+
+
+
+.feature-image {
+
+  width: 100%;
+
+  height: 220px;
+
+  object-fit: cover;
+
+  border-radius: 12px;
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+
+  transition: transform 0.3s ease;
+
+}
+
+
+
+.feature-image:hover {
+
+  transform: scale(1.03);
+
+}
+
+
+
+.placeholder-image {
+
+  background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+}
+
+
+
+.placeholder-text {
+
+  text-align: center;
+
+  color: #4CAF50;
+
+}
+
+
+
+.placeholder-text i {
+
+  font-size: 3rem;
+
+  margin-bottom: 0.5rem;
+
+  opacity: 0.7;
+
+}
+
+
+
+.placeholder-text p {
+
+  font-size: 1.1rem;
+
+  font-weight: 600;
+
+  margin: 0;
+
+}
+
+
+
+.highlights {
+
+  background: rgba(255, 255, 255, 0.6);
+
+  backdrop-filter: blur(5px);
+
+  padding: 1.25rem;
+
+  border-radius: 12px;
+
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+
+  border: 1px solid rgba(76, 175, 80, 0.1);
+
+}
+
+
+
+.highlights h3 {
+
+  color: #2E7D32;
+
+  margin-bottom: 1rem;
+
+  font-size: 1.1rem;
+
+  font-weight: 700;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 0.5rem;
+
+}
+
+
+
+.highlights h3::before {
+
+  content: '';
+
+  display: block;
+
+  width: 4px;
+
+  height: 1em;
+
+  background: linear-gradient(180deg, #4CAF50, #2196F3);
+
+  border-radius: 2px;
+
+}
+
+
+
+.highlights ul {
+
+  list-style-type: none;
+
+  padding: 0;
+
+}
+
+
+
+.highlights li {
+
+  margin: 0.75rem 0;
+
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+
+  position: relative;
+
+  background: rgba(255, 255, 255, 0.5);
+
+  border-radius: 8px;
+
+  transition: all 0.2s ease;
+
+}
+
+
+
+.highlights li:hover {
+
+  transform: translateX(5px);
+
+  background: rgba(255, 255, 255, 0.8);
+
+}
+
+
+
+.highlights li::before {
+
+  content: "\f058";
+
+  font-family: "Font Awesome 6 Free";
+
+  font-weight: 900;
+
+  color: #4CAF50;
+
+  position: absolute;
+
+  left: 0.8rem;
+
+  opacity: 0.8;
+
+}
+
+
+
+.highlights li strong {
+
+  color: #2196F3;
+
+}
+
+
+
+.highlights li span {
+
+  color: #666;
+
+}
+
+
+
+.description {
+
+  margin: 0;
+
+  color: #424242;
+
+  line-height: 1.8;
+
+  text-align: justify;
+
+  font-size: 0.95rem;
+
+}
+
+
+
+.badges {
+
+  display: flex;
+
+  gap: 0.75rem;
+
+  flex-wrap: wrap;
+
+  margin-top: 1rem;
+
+}
+
+
+
+.badge {
+
+  padding: 0.4rem 0.8rem;
+
+  border-radius: 20px;
+
+  font-size: 0.9rem;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 0.35rem;
+
+}
+
+
+
+.badge-green {
+
+  background: linear-gradient(135deg, #C8E6C9, #A5D6A7);
+
+  color: #1B5E20;
+
+}
+
+
+
+.badge-blue {
+
+  background: linear-gradient(135deg, #BBDEFB, #90CAF9);
+
+  color: #0D47A1;
+
+}
+
+
+
+.badge-purple {
+
+  background: linear-gradient(135deg, #E1BEE7, #CE93D8);
+
+  color: #4A148C;
+
+}
+
+
+
+.panorama-btn {
+
+  width: 100%;
+
+  padding: 1rem 1.5rem;
+
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+
+  border: none;
+
+  border-radius: 10px;
+
+  color: white;
+
+  font-size: 1.05rem;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 0.75rem;
+
+  transition: all 0.3s ease;
+
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+
+}
+
+
+
+.panorama-btn:hover {
+
+  transform: translateY(-2px);
+
+  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
+
+  background: linear-gradient(135deg, #45a049, #388e3c);
+
+}
+
+
+
+.panorama-btn i {
+
+  font-size: 1.3rem;
+
+}
+
+
+
+.right-map {
+
+  flex: 1;
+
+  position: relative;
+
+  background: #f5f5f5;
+
+}
+
+
+
+
+
+@media (max-width: 768px) {
+
+  .content {
+
+    flex-direction: column;
+
+    height: auto;
+
+  }
+
+
+
+  .left-sidebar {
+
+    width: 100%;
+
+    height: auto;
+
+  }
+
+
+
+  .right-map {
+
+    height: 60vh;
+
+  }
+
+}
+
+
+
+.title-container {
+
+  background: transparent;
+
+  padding: 0.8rem 2rem;
+
+  text-align: center;
+
+  pointer-events: auto;
+
+  text-shadow: 0 1px 4px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 255, 255, 0.8);
+
+}
+
+
+
+.title-container:hover {
+
+  transform: translateY(-2px);
+
+}
+
+
+
+/* Night mode styles */
+
+[data-theme="night"] .beiyunhe-page {
+
+  background: var(--bg-primary, #1a1a1a);
+
+}
+
+
+
+[data-theme="night"] .header h1,
+
+[data-theme="night"] .header p,
+
+[data-theme="night"] .header i {
+
+  color: var(--text-primary, #e0e0e0);
+
+}
+
+
+
+[data-theme="night"] .back-btn {
+
+  background: rgba(255, 255, 255, 0.1);
+
+  color: var(--text-secondary, #b0b0b0);
+
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
+}
+
+
+
+[data-theme="night"] .back-btn:hover {
+
+  background: rgba(255, 255, 255, 0.15);
+
+}
+
+
+
+[data-theme="night"] .left-sidebar {
+
+  background: var(--card-bg, rgba(30, 30, 30, 0.9));
+
+  border-right-color: rgba(255, 255, 255, 0.1);
+
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
+
+}
+
+
+
+[data-theme="night"] .placeholder-image {
+
+  background: var(--bg-secondary, #2a2a2a);
+
+}
+
+
+
+[data-theme="night"] .placeholder-text {
+
+  color: var(--text-secondary, #b0b0b0);
+
+}
+
+
+
+[data-theme="night"] .placeholder-text i {
+
+  opacity: 0.5;
+
+}
+
+
+
+[data-theme="night"] .highlights {
+
+  background: var(--card-bg, rgba(30, 30, 30, 0.7));
+
+  border-color: rgba(255, 255, 255, 0.1);
+
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+
+}
+
+
+
+[data-theme="night"] .highlights h3 {
+
+  color: var(--text-primary, #e0e0e0);
+
+}
+
+
+
+[data-theme="night"] .highlights h3::before {
+
+  background: linear-gradient(180deg, #66bb6a, #42a5f5);
+
+}
+
+
+
+[data-theme="night"] .highlights li {
+
+  background: rgba(255, 255, 255, 0.08);
+
+}
+
+
+
+[data-theme="night"] .highlights li:hover {
+
+  background: rgba(255, 255, 255, 0.12);
+
+}
+
+
+
+[data-theme="night"] .highlights li::before {
+
+  color: #66bb6a;
+
+}
+
+
+
+[data-theme="night"] .highlights li strong {
+
+  color: #42a5f5;
+
+}
+
+
+
+[data-theme="night"] .highlights li span {
+
+  color: var(--text-secondary, #b0b0b0);
+
+}
+
+
+
+[data-theme="night"] .description {
+
+  color: var(--text-secondary, #b0b0b0);
+
+}
+
+
+
+[data-theme="night"] .badge-green {
+
+  background: rgba(102, 187, 106, 0.15);
+
+  color: #66bb6a;
+
+}
+
+
+
+[data-theme="night"] .badge-blue {
+
+  background: rgba(66, 165, 245, 0.15);
+
+  color: #42a5f5;
+
+}
+
+
+
+[data-theme="night"] .badge-purple {
+
+  background: rgba(171, 71, 188, 0.15);
+
+  color: #ab47bc;
+
+}
+
+
+
+[data-theme="night"] .panorama-btn {
+
+  background: linear-gradient(135deg, #66bb6a, #2e7d32);
+
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+}
+
+
+
+[data-theme="night"] .panorama-btn:hover {
+
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+
+  background: linear-gradient(135deg, #2e7d32, #1b5e20);
+
+}
+
+
+
+[data-theme="night"] .title-container {
+
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.8);
+
+}
+
+
+
+[data-theme="night"] .right-map {
+
+  background: var(--bg-primary-dark, #0a0a0a);
+
+}
+
+
+
+[data-theme="night"] .feature-image {
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+
+}
+
+
+
+</style>
+
+
+
+<!-- 全局主题样式 - 处理scoped样式中无法应用的全局选择器 -->
+
+<style>
+
+[data-theme="night"] .beiyunhe-page {
+
+  background: var(--bg-primary, #1a1a1a);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .header h1,
+
+[data-theme="night"] .beiyunhe-page .header p,
+
+[data-theme="night"] .beiyunhe-page .header i {
+
+  color: var(--text-primary, #e0e0e0);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .back-btn {
+
+  background: rgba(255, 255, 255, 0.1);
+
+  color: var(--text-secondary, #b0b0b0);
+
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .back-btn:hover {
+
+  background: rgba(255, 255, 255, 0.15);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .left-sidebar {
+
+  background: var(--card-bg, rgba(30, 30, 30, 0.9));
+
+  border-right-color: rgba(255, 255, 255, 0.1);
+
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .placeholder-image {
+
+  background: var(--bg-secondary, #2a2a2a);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .placeholder-text {
+
+  color: var(--text-secondary, #b0b0b0);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .placeholder-text i {
+
+  opacity: 0.5;
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .highlights {
+
+  background: var(--card-bg, rgba(30, 30, 30, 0.7));
+
+  border-color: rgba(255, 255, 255, 0.1);
+
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .highlights h3 {
+
+  color: var(--text-primary, #e0e0e0);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .highlights h3::before {
+
+  background: linear-gradient(180deg, #66bb6a, #42a5f5);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .highlights li {
+
+  background: rgba(255, 255, 255, 0.08);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .highlights li:hover {
+
+  background: rgba(255, 255, 255, 0.12);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .highlights li::before {
+
+  color: #66bb6a;
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .highlights li strong {
+
+  color: #42a5f5;
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .highlights li span {
+
+  color: var(--text-secondary, #b0b0b0);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .description {
+
+  color: var(--text-secondary, #b0b0b0);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .badge-green {
+
+  background: rgba(102, 187, 106, 0.15);
+
+  color: #66bb6a;
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .badge-blue {
+
+  background: rgba(66, 165, 245, 0.15);
+
+  color: #42a5f5;
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .badge-purple {
+
+  background: rgba(171, 71, 188, 0.15);
+
+  color: #ab47bc;
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .panorama-btn {
+
+  background: linear-gradient(135deg, #66bb6a, #2e7d32);
+
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .panorama-btn:hover {
+
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+
+  background: linear-gradient(135deg, #2e7d32, #1b5e20);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .title-container {
+
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.8);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .right-map {
+
+  background: var(--bg-primary-dark, #0a0a0a);
+
+}
+
+
+
+[data-theme="night"] .beiyunhe-page .feature-image {
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+
+}
+
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

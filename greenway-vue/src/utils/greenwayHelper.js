@@ -82,6 +82,7 @@ export async function loadGreenwayDataByName(greenwayName, updateCallback) {
         coverage_area: props.coverage_area,
         construction_area: props.construction_area,
         features: props.features,
+        image: props.image || null,
         color: props.color || greenwayColorMap[props.name] || '#2196F3',
         geometry: feature.geometry,
         geojson: geojson  // 保留完整的 GeoJSON 以供地图使用
@@ -114,6 +115,7 @@ export function buildGreenwayInfo(greenwayData) {
     construction_area: greenwayData.construction_area || '暂无数据',
     features: greenwayData.features || '暂无数据',
     description: greenwayData.introduction || greenwayData.description || '暂无简介',
+    image: greenwayData.image || null,
     color: greenwayData.color
   };
 }

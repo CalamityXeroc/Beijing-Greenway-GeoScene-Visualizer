@@ -272,7 +272,7 @@ select:focus {
    7. 横屏模式优化
    ============================================ */
 
-@media (orientation: landscape) {
+@media (orientation: landscape) and (max-width: 1024px) {
   html {
     font-size: 13px;
   }
@@ -292,7 +292,7 @@ select:focus {
     height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom) - 40px);
   }
 
-  /* 隐藏不必要的信息 */
+  /* 隐藏不必要的信息（仅移动端横屏） */
   .description,
   .details-info {
     display: none;

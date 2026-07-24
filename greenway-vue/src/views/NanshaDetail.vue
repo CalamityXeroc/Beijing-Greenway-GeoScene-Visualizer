@@ -25,9 +25,9 @@
     <div class="content">
       <!-- 左侧信息栏 -->
       <div ref="leftSidebar" class="left-sidebar">
-        <img 
-          src="https://via.placeholder.com/800x300?text=南沙绿道" 
-          alt="南沙绿道景观" 
+        <img
+          :src="imageUrl"
+          alt="Nansha绿道景观"
           class="feature-image"
           @error="handleImageError"
         />
@@ -75,6 +75,8 @@
           </div>
         </div>
         
+                <NearbyFacilities greenway-name="南沙绿道" />
+
         <!-- 全景浏览按钮 -->
         <button class="panorama-btn" @click="showPanorama = true">
           <i class="fas fa-street-view"></i>
@@ -125,12 +127,13 @@
 
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import {ref, reactive, onMounted, onBeforeUnmount, nextTick, computed} from 'vue'
 import { useRouter } from 'vue-router'
 import MapViewer from '@/components/MapViewer.vue'
 import WeatherCard from '@/components/WeatherCard.vue'
 import BaiduPanoramaViewer from '@/components/BaiduPanoramaViewer.vue'
 import DesktopCommentsPanel from '@/components/DesktopCommentsPanel.vue'
+import NearbyFacilities from '@/components/NearbyFacilities.vue'
 import { loadGreenwayDataByName, buildGreenwayInfo } from '@/utils/greenwayHelper'
 
 
@@ -185,9 +188,17 @@ const greenwayInfo = ref({
   coverage_area: '加载中...',
   construction_area: '加载中...',
   features: '加载中...',
-  description: '正在获取绿道简介信息...'
+  description: '正在获取绿道简介信息...',
+  image: null
 })
 
+
+const imageUrl = computed(() => {
+  if (greenwayInfo.value.image) {
+    return `/images/greenways/${greenwayInfo.value.image}`
+  }
+  return '/images/greenways/placeholder.svg'
+})
 const layers = ref([
   {
     id: 'nansha-greenway',
@@ -218,7 +229,15 @@ const onWeatherLoaded = (weather) => { console.log('[NanshaDetail] 天气数据�
 
 const goBack = () => { router.back() }
 
-const handleImageError = (event) => { event.target.src = 'https://via.placeholder.com/800x300?text=南沙绿道' }
+const onPointChange = (index) => {}
+
+
+const handleImageError = (event) => {
+  if (!event.target.src.includes('placeholder')) {
+    console.warn('[NanshaDetail] 图片加载失败')
+    event.target.src = '/images/greenways/placeholder.svg'
+  }
+}
 
 const setupSidebarWheelGuard = () => {
   const el = leftSidebar.value

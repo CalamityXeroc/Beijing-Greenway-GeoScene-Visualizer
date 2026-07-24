@@ -60,7 +60,8 @@
 - 全站昼夜主题（按北京时间自动切换），管理后台双主题完整适配
 -  **AI 助手（绿道小助手）**：基于 DeepSeek-V4-Flash，，支持路线推荐、操作指引、绿道知识问答，对话自动写入数据库
 -  **管理员 AI 对话分析：** 词云 + 每日趋势折线图（7/30/90 天可选）+ 最近提问记录，支持昼夜主题自动切换（ECharts + echarts-wordcloud，中文分词使用 `segment` 库）
--  **3D 飞行漫游（3D Flyover）**：发光管状路径（PathSymbol3DLayer）+ 路径光珠（已飞/当前/未来状态）+ 飞行轨迹（已飞段亮色/未飞段暗色）+ 转弯倾斜 + 时段氛围（星空、天空色、地面色自适应），支持播放/暂停/调速/前后跳转
+-  **3D 飞行漫游（3D Flyover）**：发光管状路径（PathSymbol3DLayer）+ 路径光珠（已飞/当前/未来状态）+ 飞行轨迹（已飞段亮色/未飞段暗色）+ 转弯倾斜 + 时段氛围（星空、天空色、地面色自适应），支持播放/暂停/调速/前后跳转。路径经 PostGIS `ST_SimplifyPreserveTopology` + `ST_LineInterpolatePoint` 精确采样为 45 个等距航点（最多 4,911 个原始顶点精简至 45 个）。
+-  **POI 附近设施**：从高德 POI API 导入 6 类共 561 条便民设施（地铁站、公交站、停车场、公共卫生间、便利店、共享单车），经 PostGIS `ST_DWithin` 筛选绿道周边 1km 范围内。详情页按类型分组展示距离列表，地图提供可开关叠加图层（GraphicsLayer，图层下拉菜单控制，默认关闭）。数据支持将来发布到 GeoScene Server。
 -  Capacitor 移动端应用（试验阶段）
 
 ---
@@ -101,10 +102,11 @@ npm run dev       # http://localhost:5173
 |  **落地页** | 防抖鼠标滚轮六屏全屏切换，0.6s 平滑过渡动画 |
 |  **交互式地图** | GeoScene 多图层渲染 + 高德底图 |
 |  **路径规划** | 步行/骑行路径规划，本地 Dijkstra 最短路径算法（基于 PostGIS 中 OSM 路网数据），面板可拖动 |
-|  **3D 飞行漫游** | 发光管状路径 + 路径光珠 + 飞行轨迹 + 转弯倾斜 + 时段氛围特效，支持播放控制 |
+|  **3D 飞行漫游** | 发光管状路径 + 路径光珠 + 飞行轨迹 + 转弯倾斜 + 时段氛围特效；PostGIS 地理处理精确采样为 45 个等距航点 |
 |  **GIS 工具集** | 绘图（支持 RGB 调色板）、测量、导入 GeoJSON、基础图层切换 |
 |  **地图导出** | 将当前地图视图导出为 PNG 图片 |
-|  **17 条绿道** | 每条均有独立详情页、属性信息和全景街景 |
+|  **17 条绿道** | 每条均有独立详情页、真实图片展示、属性信息和全景街景 |
+|  **附近设施** | 561 条 POI（6 类），绿道周边 1km 内；详情页分组列表 + 地图可开关叠加图层 |
 |  **实时天气** | 可拖动天气组件（高德地图 API） |
 |  **AI 助手** | 地图页浮窗，DeepSeek-V4-Flash 驱动，对话写入数据库 |
 |  **AI 对话分析** | 管理员：词云 + 折线图 + 最近提问，昼夜主题自动切换 |
@@ -132,9 +134,11 @@ npm run dev       # http://localhost:5173
           gaode.js         # 高德API代理（路径规划/搜索/逆地理）
           osrmRoute.js     # Dijkstra 最短路径规划（OSM 路网数据）
           heatmap.js       # 热度热力图追踪与分析 API
+          poi.js           # POI 附近设施查询与管理统计 API
     scripts/
        add-chat-logs-table.js   # 数据库迁移：AI 对话日志表
        add-heatmap-tables.js    # 数据库迁移：热度热力图追踪表
+       import-pois.cjs          # 高德 POI 导入脚本（6 类设施，ST_DWithin 筛选）
        ...                      # 数据库初始化与导入工具
     init-db.sql             # 表结构 + PostGIS 初始化
 
@@ -157,6 +161,7 @@ npm run dev       # http://localhost:5173
           PanoramaViewer.vue       # 全景街景查看器
           GreenwayFlyover.vue      # 3D 飞行漫游（SceneView + 卫星底图）
           AIChatbot.vue             # AI 浮窗（仅地图页显示）
+          NearbyFacilities.vue     # POI 附近设施板块（详情页专用）
        services/
           gaodeApi.js              # 高德API代理调用
           osrmApi.js               # Dijkstra 路径规划 API 客户端（步行/骑行）
@@ -170,6 +175,7 @@ npm run dev       # http://localhost:5173
           userAuth.js              # 前台用户 Auth
        router/index.js              # 路由配置 + 导航守卫
     public/数据/                     # GeoJSON 几何数据文件
+    public/images/greenways/        # 绿道封面图片（17 张）
 
  示例图片/                   # 项目截图（本文档引用）
  README.md                   # 英文文档
@@ -253,8 +259,13 @@ GET /api/gaode/search            # 高德POI搜索（代理）
 GET /api/gaode/walking           # 高德步行路径规划（代理）
 GET /api/gaode/bicycling         # 高德骑行路径规划（代理）
 POST /api/osrm/route             # Dijkstra 最短路径规划（步行/骑行，OSM 路网数据）
-GET /api/greenways/:id/flyover?maxPoints=45    # 3D 飞行漫游路径点（自动步长，约 45 个点）
+GET /api/greenways/:id/flyover?maxPoints=45    # 3D 飞行漫游路径点（PostGIS 地理处理，精确 45 个等距点）
 GET /api/greenways/name/:name/flyover?maxPoints=45  # 按绿道名称获取漫游路径点
+GET /api/greenways/:id/nearby-facilities?radius=1000  # 绿道周边设施查询（按类型分组）
+GET /api/greenways/name/:name/nearby-facilities       # 按绿道名称查询周边设施
+GET /api/greenways/:id/nearby-facilities/geojson       # 绿道周边设施 GeoJSON FeatureCollection
+GET /api/facilities/geojson                           # 全部 POI 设施 GeoJSON（地图叠加图层用）
+GET /api/poi-types                                    # POI 类型定义（代码、名称、图标、颜色）
 GET /api/tiles/gaode/:style/:level/:col/:row  # 高德瓦片代理（style=6 卫星图, style=7 矢量图）
 POST /api/heatmap/click          # 记录绿道点击（热度埋点）
 GET /api/heatmap/data            # 热度数据（含质心坐标与加权指数）
@@ -374,7 +385,8 @@ VITE_API_BASE=http://localhost:3001
 |------|------|
 | 前端框架 | Vue 3.4 + Vite 5 + Pinia |
 | 地图引擎 | GeoScene JS SDK 4.33（2D MapView + 3D SceneView）+ 高德底图 |
-| 3D 飞行漫游 | GeoScene SceneView + WebTileLayer（卫星图）+ Camera flyTo 动画 |
+| 3D 飞行漫游 | GeoScene SceneView + WebTileLayer（卫星图）+ Camera flyTo 动画 + PostGIS ST_SimplifyPreserveTopology |
+| POI 附近设施 | 高德 POI API → PostGIS ST_DWithin → GeoJSON → GeoScene GraphicsLayer |
 | 路径规划 | 本地 Dijkstra 最短路径算法（基于 PostGIS OSM 路网数据） |
 | 图表 / 词云 | ECharts 6 + echarts-wordcloud + vue-echarts |
 | AI 模型 | DeepSeek-V4-Flash（REST API） |
@@ -389,21 +401,22 @@ VITE_API_BASE=http://localhost:3001
 ##  数据流转
 
 ```
-GeoJSON 文件
-    
-import-geometry.js（脚本导入）
-    
-PostgreSQL + PostGIS
-    
-ST_AsGeoJSON()
-    
-/api/greenways 接口
-    
-Vue 3 组件（GreenwayOverview / *Detail）
-    
-OpenLayers MapViewer
-    
-浏览器渲染
+高德 POI API                        GeoJSON / OSM 数据
+     │                                      │
+     ▼                                      ▼
+import-pois.cjs（ST_DWithin 筛选）    PostGIS 空间数据库
+     │                                      │
+     ▼                                      ▼
+points_of_interest 表              ST_AsGeoJSON() 序列化
+     │                                      │
+     ▼                                      ▼
+/api/facilities/geojson          /api/greenways 接口
+     │                                      │
+     ▼                                      ▼
+GeoScene GraphicsLayer           Vue 3 组件（GreenwayOverview / *Detail）
+     │                                      │
+     ▼                                      ▼
+地图 POI 叠加层（可开关）           GeoScene MapViewer → 浏览器渲染
 ```
 
 ---

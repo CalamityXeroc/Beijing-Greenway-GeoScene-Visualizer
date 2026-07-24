@@ -238,6 +238,17 @@
             <span class="legend-gradient"/>
             <span class="legend-label">高</span>
           </div>
+          <div class="dd-layer-item">
+            <label class="layer-check">
+              <input type="checkbox" :checked="showFacilities"
+                     @change="emit('toggle-facilities', $event.target.checked)"/>
+              <span class="checkmark"/>
+              <span>附近设施</span>
+            </label>
+          </div>
+          <div class="dd-layer-item" style="font-size:0.75rem;color:#999;padding-left:1.5rem">
+            🚇🚌🅿️🚻🏪🚲 地铁/公交/停车/卫生间/便利店/单车
+          </div>
           <div class="dd-divider"/>
           <!-- 上传自定义 -->
           <div class="dropdown-section">自定义图层</div>
@@ -437,10 +448,11 @@ const props = defineProps({
   toolbarRef: { type: Object, default: null },
   layerConfig: { type: Array, default: () => [] },
   showPathPlanning: { type: Boolean, default: false },
-  showHeatmap: { type: Boolean, default: false }
+  showHeatmap: { type: Boolean, default: false },
+  showFacilities: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['toggle-path-planning', 'toggle-heatmap'])
+const emit = defineEmits(['toggle-path-planning', 'toggle-heatmap', 'toggle-facilities'])
 
 const { theme: globalTheme } = useGlobalTheme()
 const isNight = computed(() => globalTheme.value === 'night')

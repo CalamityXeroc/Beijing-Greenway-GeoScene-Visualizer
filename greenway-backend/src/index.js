@@ -11,7 +11,8 @@ import adminCommentsRouter from './routes/adminComments.js';
 import gaodeRouter from './routes/gaode.js';
 import routeStatsRouter from './routes/routeStats.js';
 import heatmapRouter from './routes/heatmap.js';
-import osrmRouter from './routes/osrmRoute.js';
+import osrmRouter from './routes/osrmRoute.js'
+import poiRouter from './routes/poi.js';
 
 dotenv.config({ path: '.env.local' });
 
@@ -59,7 +60,10 @@ app.use('/api/admin/comment', adminCommentsRouter);
 app.use('/api/gaode', gaodeRouter);
 
 // 挂载 OSRM 路径规划代理路由
-app.use('/api/osrm', osrmRouter);
+app.use('/api/osrm', osrmRouter)
+
+// 挂载 POI 设施路由
+app.use('/api', poiRouter);
 
 // 挂载路径规划记录与统计路由
 app.use('/api/route', routeStatsRouter);
@@ -115,6 +119,7 @@ app.get('/api/greenways', async (req, res) => {
         coverage_area,
         construction_area,
         features,
+        image,
         ST_AsGeoJSON(geometry)::json as geometry,
         created_at,
         updated_at
@@ -146,7 +151,8 @@ app.get('/api/greenways', async (req, res) => {
         coverage_area: row.coverage_area,
         construction_area: row.construction_area,
         features: row.features,
-        color: greenwayColors[row.name] || '#4CAF50',  // 添加颜色属性
+        image: row.image || null,
+        color: greenwayColors[row.name] || '#4CAF50',
         created_at: row.created_at,
         updated_at: row.updated_at
       }
@@ -320,49 +326,56 @@ app.get('/api/greenways/geojson/collection', async (req, res) => {
 });
 
 // 绿道 3D 飞行路径采样（供SceneView漫游用）
-// ?step=N 固定步长(米)，?maxPoints=N 自动计算步长使总点数≈N（优先使用maxPoints）
+// ?maxPoints=N 控制最终航点数量（默认45）
+// 先用 Simplify 去噪，再用 ST_LineInterpolatePoint 精确等距采样
 app.get('/api/greenways/:id/flyover', async (req, res) => {
   try {
     const { id } = req.params
-    const maxPoints = parseInt(req.query.maxPoints) || 0
-    let step = parseInt(req.query.step) || 0
+    const maxPoints = parseInt(req.query.maxPoints) || 45
 
-    // maxPoints 优先：先查绿道长度，再算步长
-    if (maxPoints > 0 || step <= 0) {
-      const lenRow = await pool.query(
-        'SELECT ST_Length(geometry::geography) AS len FROM greenways WHERE id = $1', [id]
-      )
-      const length = lenRow.rows[0]?.len || 0
-      if (maxPoints > 0) {
-        step = Math.max(100, Math.ceil(length / maxPoints))  // 最小100m
-      } else {
-        step = Math.max(100, Math.ceil(length / 40))  // 默认~40个点
-      }
-    }
+    // 查绿道长度，计算简化容差
+    const lenRow = await pool.query(
+      'SELECT ST_Length(geometry::geography) AS len FROM greenways WHERE id = $1', [id]
+    )
+    const length = lenRow.rows[0]?.len || 0
+    const step = Math.max(100, Math.ceil(length / maxPoints))
+    // 简化容差：取步长15%，上限300m，下限15m
+    const simplifyTolerance = Math.max(Math.min(step * 0.15, 300), 15)
 
     const result = await pool.query(`
-      WITH line AS (
-        SELECT (ST_Dump(ST_LineMerge(geometry))).geom AS geom
-        FROM greenways WHERE id = $1
-        LIMIT 1
+      WITH merged AS (
+        SELECT ST_LineMerge(geometry) AS geom FROM greenways WHERE id = $1
       ),
       dumped AS (
-        SELECT (ST_DumpPoints(
-          ST_Segmentize(geom::geography, $2)::geometry
-        )).geom AS pt,
-        (ST_DumpPoints(
-          ST_Segmentize(geom::geography, $2)::geometry
-        )).path[1] AS pt_idx
-        FROM line
+        SELECT (ST_Dump(geom)).geom AS geom FROM merged
+      ),
+      longest AS (
+        SELECT geom FROM dumped ORDER BY ST_Length(geom::geography) DESC LIMIT 1
+      ),
+      simplified AS (
+        SELECT ST_Transform(
+          ST_SimplifyPreserveTopology(ST_Transform(geom, 3857), $3),
+          4326
+        ) AS geom
+        FROM longest
+      ),
+      pts AS (
+        SELECT
+          ST_LineInterpolatePoint(geom::geography, fraction)::geometry AS pt,
+          row_number() OVER () AS idx,
+          fraction AS progress
+        FROM simplified,
+        LATERAL generate_series(0, $2 - 1) AS i,
+        LATERAL (SELECT i::float / GREATEST($2 - 1, 1) AS fraction) AS f
       )
       SELECT
-        ST_X(pt) AS lng, ST_Y(pt) AS lat, pt_idx AS idx,
+        ST_X(pt) AS lng, ST_Y(pt) AS lat, idx,
         COALESCE(degrees(ST_Azimuth(pt, lead(pt) OVER w)), 0) AS heading,
-        ST_LineLocatePoint((SELECT geom FROM line), pt) AS progress
-      FROM dumped
-      WINDOW w AS (ORDER BY pt_idx)
-      ORDER BY pt_idx
-    `, [id, step])
+        progress
+      FROM pts
+      WINDOW w AS (ORDER BY idx)
+      ORDER BY idx
+    `, [id, maxPoints, simplifyTolerance])
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: '绿道不存在' })
@@ -388,49 +401,53 @@ app.get('/api/greenways/:id/flyover', async (req, res) => {
 app.get('/api/greenways/name/:name/flyover', async (req, res) => {
   try {
     const { name } = req.params
-    const maxPoints = parseInt(req.query.maxPoints) || 0
-    let step = parseInt(req.query.step) || 0
+    const maxPoints = parseInt(req.query.maxPoints) || 45
 
     const idRow = await pool.query('SELECT id FROM greenways WHERE name = $1', [name])
     if (idRow.rows.length === 0) return res.status(404).json({ error: '绿道不存在' })
     const id = idRow.rows[0].id
 
-    // maxPoints 优先
-    if (maxPoints > 0 || step <= 0) {
-      const lenRow = await pool.query(
-        'SELECT ST_Length(geometry::geography) AS len FROM greenways WHERE id = $1', [id]
-      )
-      const length = lenRow.rows[0]?.len || 0
-      if (maxPoints > 0) {
-        step = Math.max(100, Math.ceil(length / maxPoints))
-      } else {
-        step = Math.max(100, Math.ceil(length / 40))
-      }
-    }
+    const lenRow = await pool.query(
+      'SELECT ST_Length(geometry::geography) AS len FROM greenways WHERE id = $1', [id]
+    )
+    const length = lenRow.rows[0]?.len || 0
+    const step = Math.max(100, Math.ceil(length / maxPoints))
+    const simplifyTolerance = Math.max(Math.min(step * 0.15, 300), 15)
 
     const result = await pool.query(`
-      WITH line AS (
-        SELECT (ST_Dump(ST_LineMerge(geometry))).geom AS geom
-        FROM greenways WHERE id = $1
-        LIMIT 1
+      WITH merged AS (
+        SELECT ST_LineMerge(geometry) AS geom FROM greenways WHERE id = $1
       ),
       dumped AS (
-        SELECT (ST_DumpPoints(
-          ST_Segmentize(geom::geography, $2)::geometry
-        )).geom AS pt,
-        (ST_DumpPoints(
-          ST_Segmentize(geom::geography, $2)::geometry
-        )).path[1] AS pt_idx
-        FROM line
+        SELECT (ST_Dump(geom)).geom AS geom FROM merged
+      ),
+      longest AS (
+        SELECT geom FROM dumped ORDER BY ST_Length(geom::geography) DESC LIMIT 1
+      ),
+      simplified AS (
+        SELECT ST_Transform(
+          ST_SimplifyPreserveTopology(ST_Transform(geom, 3857), $3),
+          4326
+        ) AS geom
+        FROM longest
+      ),
+      pts AS (
+        SELECT
+          ST_LineInterpolatePoint(geom::geography, fraction)::geometry AS pt,
+          row_number() OVER () AS idx,
+          fraction AS progress
+        FROM simplified,
+        LATERAL generate_series(0, $2 - 1) AS i,
+        LATERAL (SELECT i::float / GREATEST($2 - 1, 1) AS fraction) AS f
       )
       SELECT
-        ST_X(pt) AS lng, ST_Y(pt) AS lat, pt_idx AS idx,
+        ST_X(pt) AS lng, ST_Y(pt) AS lat, idx,
         COALESCE(degrees(ST_Azimuth(pt, lead(pt) OVER w)), 0) AS heading,
-        ST_LineLocatePoint((SELECT geom FROM line), pt) AS progress
-      FROM dumped
-      WINDOW w AS (ORDER BY pt_idx)
-      ORDER BY pt_idx
-    `, [id, step])
+        progress
+      FROM pts
+      WINDOW w AS (ORDER BY idx)
+      ORDER BY idx
+    `, [id, maxPoints, simplifyTolerance])
 
     const waypoints = result.rows.map(r => ({
       lng: r.lng, lat: r.lat, altitude: 200,

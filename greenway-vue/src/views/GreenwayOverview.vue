@@ -13,8 +13,10 @@
       <TopNavbar :toolbarRef="toolbarRef" :layerConfig="layerConfig"
                 :showPathPlanning="showPathPlanning"
                 :showHeatmap="showHeatmap"
+                :showFacilities="showFacilities"
                 @toggle-path-planning="showPathPlanning = !showPathPlanning"
-                @toggle-heatmap="toggleHeatmap($event)"/>
+                @toggle-heatmap="toggleHeatmap($event)"
+                @toggle-facilities="toggleFacilities($event)"/>
     </div>
 
     <!-- 地图容器：精确占满视口剩余高度，滚动后变为普通内容区 -->
@@ -726,6 +728,18 @@ const stopDrag = () => {
 
 // 热力图状态
 const showHeatmap = ref(false)
+const showFacilities = ref(false)
+const facilitiesLayerId = 'greenway-facilities'
+
+// POI 类型 → 颜色映射
+const FACILITY_COLORS = {
+  '150500': '#E53935', // 地铁站-红
+  '150700': '#FB8C00', // 公交站-橙
+  '150900': '#1E88E5', // 停车场-蓝
+  '200300': '#43A047', // 卫生间-绿
+  '060100': '#8E24AA', // 便利店-紫
+  '080600': '#00ACC1', // 单车-青
+}
 const heatmapLayerId = 'greenway-heatmap'
 
 const routeStore = getRouteStore()
@@ -737,8 +751,13 @@ const mapManager = shallowRef(null)
 // 地图就绪
 const onMapReady = (map) => {
   console.log('[GreenwayOverview] 地图已就绪')
-  // 关闭加载指示器
   isLoading.value = false
+
+  if (!map) {
+    console.error('[GreenwayOverview] 地图初始化失败，map 为 null')
+    return
+  }
+
   // 获取 MapManager 实例
   if (mapViewer.value) {
     mapManager.value = markRaw(mapViewer.value.getMapManager())
@@ -1009,6 +1028,78 @@ const toggleHeatmap = async (visible) => {
   } else {
     if (mapManager.value.getLayer(heatmapLayerId)) {
       mapManager.value.removeLayer(heatmapLayerId)
+    }
+  }
+}
+
+const toggleFacilities = async (visible) => {
+  showFacilities.value = visible
+
+  if (!mapManager.value) return
+
+  if (visible) {
+    try {
+      // 如果图层已存在，直接设置为可见
+      const existing = mapManager.value.getLayer(facilitiesLayerId)
+      if (existing) {
+        existing.visible = true
+        return
+      }
+
+      const [GraphicsLayer, Graphic, Point, SimpleMarkerSymbol] = await Promise.all([
+        import('@geoscene/core/layers/GraphicsLayer.js').then(m => m.default || m),
+        import('@geoscene/core/Graphic.js').then(m => m.default || m),
+        import('@geoscene/core/geometry/Point.js').then(m => m.default || m),
+        import('@geoscene/core/symbols/SimpleMarkerSymbol.js').then(m => m.default || m)
+      ])
+
+      const resp = await fetch(`/api/facilities/geojson`)
+      const geojson = await resp.json()
+      if (!geojson.features || geojson.features.length === 0) {
+        showFacilities.value = false
+        return
+      }
+
+      const graphics = geojson.features.map(f => {
+        const p = f.properties
+        const coords = f.geometry?.coordinates || []
+        return new Graphic({
+          geometry: new Point({ longitude: coords[0], latitude: coords[1], spatialReference: { wkid: 4326 } }),
+          symbol: new SimpleMarkerSymbol({
+            style: 'circle',
+            color: FACILITY_COLORS[p.poi_type] || '#666',
+            size: 8,
+            outline: { color: '#fff', width: 1 }
+          }),
+          attributes: {
+            name: p.name,
+            poi_type: p.poi_type,
+            type_name: p.type_name,
+            distance_m: p.distance_m,
+            greenway_id: p.greenway_id
+          }
+        })
+      })
+
+      const layer = new GraphicsLayer({
+        id: facilitiesLayerId,
+        title: '附近设施',
+        graphics,
+        visible: true,
+        minScale: 150000, // 缩放到 1:150k 以内才显示，避免远处密密麻麻
+        listMode: 'hide'
+      })
+      layer._zIndex = 250
+
+      mapManager.value.addLayer(facilitiesLayerId, layer)
+    } catch (e) {
+      console.error('[设施图层] 创建失败:', e)
+      showFacilities.value = false
+    }
+  } else {
+    const layer = mapManager.value.getLayer(facilitiesLayerId)
+    if (layer) {
+      layer.visible = false
     }
   }
 }
@@ -1396,8 +1487,8 @@ onBeforeUnmount(() => {
   box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
 }
 .flyover-btn {
-  margin-left: 8px;
   background: linear-gradient(135deg, #1976D2, #2196F3);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
 }
 .flyover-btn:hover {
   background: linear-gradient(135deg, #1565C0, #1976D2);

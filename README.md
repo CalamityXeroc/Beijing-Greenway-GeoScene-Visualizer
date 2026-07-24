@@ -60,7 +60,8 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  Full site day/night theme (auto-switches by Beijing time) + responsive design
 -  **AI Assistant (绿道小助手)**: Powered by DeepSeek-V4-Flash, supports route recommendations, tutorials, and Q&A; conversations logged to database
 -  **Admin AI Chat Analytics**: Word cloud + daily trend chart (7/30/90 day views) + recent messages log, with day/night theme support (ECharts + echarts-wordcloud, Chinese NLP via `segment`)
--  **3D Flyover Tour (3D 漫游)**: Immersive bird's-eye flight with glowing 3D tube path (PathSymbol3DLayer), auto-play camera animation with banking on turns, waypoint beads with fly/current/upcoming states, camera trail (flown/remaining segments), time-based atmosphere (starfield, sky color, ground color), and playback controls
+-  **3D Flyover Tour (3D 漫游)**: Immersive bird's-eye flight with glowing 3D tube path (PathSymbol3DLayer), auto-play camera animation with banking on turns, waypoint beads with fly/current/upcoming states, camera trail (flown/remaining segments), time-based atmosphere (starfield, sky color, ground color), and playback controls. Paths simplified via PostGIS `ST_SimplifyPreserveTopology` + `ST_LineInterpolatePoint` — exactly 45 equidistant waypoints per greenway, regardless of original vertex count (up to 4,911 raw vertices reduced to 45).
+-  **POI Nearby Facilities (附近设施)**: 561 facilities across 6 categories (subway, bus, parking, restroom, convenience store, bike-share) imported from Amap POI API, filtered by PostGIS `ST_DWithin` within 1 km of greenways. Displayed on detail pages as a grouped list and as a toggleable map overlay layer (GraphicsLayer, enabled via layer dropdown, default off). Supports future GeoScene Server publishing.
 -  Capacitor-based mobile app (experimental)
 
 ---
@@ -101,10 +102,11 @@ npm run dev       # http://localhost:5173
 |  **Landing Page** | Fullpage debounced mouse-wheel scroll, 6 animated sections, 0.6s transition |
 |  **Interactive Map** | GeoScene multi-layer rendering with Amap tile basemap |
 |  **Path Planning** | Walking/cycling route planning via on-device Dijkstra shortest-path (OSM road network in PostGIS), draggable panel |
-|  **3D Flyover Tour** | Glowing 3D tube path + waypoint beads + camera trail + banking turns + time-based atmosphere effects |
+|  **3D Flyover Tour** | Glowing 3D tube path + waypoint beads + camera trail + banking turns + time-based atmosphere effects; 45-point equal-distance sampling via PostGIS simplification |
 |  **GIS Toolkit** | Draw (with RGB color picker), measure, import GeoJSON, toggle base layers |
 |  **Map Export** | Export current map view as PNG image |
-|  **17 Greenways** | Individual detail pages with attributes & street panorama |
+|  **17 Greenways** | Individual detail pages with attributes, real images, facility info & street panorama |
+|  **Nearby Facilities** | 561 POIs (6 categories) within 1 km of greenways; grouped list on detail page + toggleable map layer |
 |  **Real-time Weather** | Draggable weather widget (Amap API) |
 |  **AI Assistant** | Map/detail-only floating chatbot (DeepSeek-V4-Flash), conversations logged to DB |
 |  **AI Chat Analytics** | Admin: word cloud + daily trend + recent messages, dual day/night theme |
@@ -132,9 +134,11 @@ npm run dev       # http://localhost:5173
           gaode.js         # Amap API proxy (directions / search / geocode)
           osrmRoute.js     # Dijkstra shortest-path routing (OSM road network)
           heatmap.js       # Heatmap tracking & analytics APIs
+          poi.js           # POI nearby-facilities query & admin stats APIs
     scripts/
        add-chat-logs-table.js   # DB migration: chat_logs table
        add-heatmap-tables.js    # DB migration: heatmap tracking tables
+       import-pois.cjs          # Amap POI importer (6 categories, ST_DWithin filter)
        ...                      # DB init & GeoJSON import utilities
     init-db.sql             # Schema + PostGIS setup
 
@@ -157,6 +161,7 @@ npm run dev       # http://localhost:5173
           PanoramaViewer.vue       # Street panorama viewer
           GreenwayFlyover.vue      # 3D flyover tour (SceneView + satellite)
           AIChatbot.vue             # AI floating window (map pages only)
+          NearbyFacilities.vue     # POI nearby-facilities block (detail pages)
        services/
           gaodeApi.js              # Amap API proxy calls (directions/search)
           osrmApi.js               # Dijkstra routing API client (walking/cycling)
@@ -170,6 +175,7 @@ npm run dev       # http://localhost:5173
           userAuth.js              # Public user auth
        router/index.js              # Routes + navigation guards
     public/数据/                     # GeoJSON geometry files
+    public/images/greenways/        # Greenway cover images (17 entries)
 
  示例图片/                   # Project screenshots used in this README
  README.md                   # English documentation (this file)
@@ -253,8 +259,13 @@ GET /api/gaode/search            # Amap POI search (proxy)
 GET /api/gaode/walking           # Amap walking directions (proxy)
 GET /api/gaode/bicycling         # Amap cycling directions (proxy)
 POST /api/osrm/route             # Dijkstra shortest-path routing (walking/cycling, OSM road network)
-GET /api/greenways/:id/flyover?maxPoints=45    # 3D flyover waypoints (auto step-size for ~45 points)
+GET /api/greenways/:id/flyover?maxPoints=45    # 3D flyover waypoints (PostGIS-simplified, exactly 45 equidistant points)
 GET /api/greenways/name/:name/flyover?maxPoints=45  # flyover waypoints by greenway name
+GET /api/greenways/:id/nearby-facilities?radius=1000  # POI facilities within radius (grouped by type)
+GET /api/greenways/name/:name/nearby-facilities       # POI facilities by greenway name
+GET /api/greenways/:id/nearby-facilities/geojson       # POI facilities as GeoJSON FeatureCollection
+GET /api/facilities/geojson                           # all POI facilities GeoJSON (map overlay layer)
+GET /api/poi-types                                    # POI category definitions (code, name, icon, color)
 GET /api/tiles/gaode/:style/:level/:col/:row  # Amap tile proxy (style 6 = satellite, style 7 = vector)
 POST /api/heatmap/click          # record greenway click (heatmap tracking)
 GET /api/heatmap/data            # heatmap points with centroids & weighted index
@@ -384,7 +395,8 @@ VITE_API_BASE=http://localhost:3001
 |-------|-----------|
 | Frontend framework | Vue 3.4 + Vite 5 + Pinia |
 | Map engine | GeoScene JS SDK 4.33 (2D MapView + 3D SceneView) + Amap tiles |
-| 3D flyover | GeoScene SceneView + WebTileLayer (satellite) + Camera flyTo animation |
+| 3D flyover | GeoScene SceneView + WebTileLayer (satellite) + Camera flyTo animation + PostGIS ST_SimplifyPreserveTopology |
+| POI facilities | Amap POI API → PostGIS ST_DWithin → GeoJSON → GeoScene GraphicsLayer |
 | Charts / Word cloud | ECharts 6 + echarts-wordcloud + vue-echarts |
 | AI model | DeepSeek-V4-Flash (REST API) |
 | Chinese NLP | segment (pure-JS tokenizer) |

@@ -3,6 +3,9 @@
     <!-- 粒子背景 Canvas（固定层） -->
     <canvas ref="canvasRef" class="bg-canvas"></canvas>
 
+    <!-- 鼠标追光（全局固定层） -->
+    <div class="spotlight" ref="spotlightRef"></div>
+
     <!-- 几何装饰（固定层） -->
     <div class="geo-decor" aria-hidden="true">
       <div class="geo-ring geo-ring--1"></div>
@@ -71,19 +74,6 @@
       </div>
     </header>
 
-    <!-- ══════════ 右侧页面指示点 ══════════ -->
-    <nav class="side-dots" aria-label="页面导航">
-      <button
-        v-for="(label, i) in pageLabels"
-        :key="i"
-        class="side-dot"
-        :class="{ active: currentPage === i }"
-        @click="goTo(i)"
-        :aria-label="label"
-      >
-        <span class="dot-tip">{{ label }}</span>
-      </button>
-    </nav>
 
     <!-- ══════════ 全屏分页滑动容器 ══════════ -->
     <div class="fp-container">
@@ -94,7 +84,7 @@
 
         <!-- ────── Page 0: Hero ────── -->
         <section class="fp-section fp-hero">
-          <div class="hero-inner">
+          <div class="hero-inner" ref="heroInnerRef">
             <div class="hero__content">
               <div class="hero__badge">
                 <span class="badge-dot"></span>
@@ -121,36 +111,8 @@
             </div>
 
             <div class="hero__visual">
-              <div class="globe-wrap">
-                <svg class="globe-svg" viewBox="0 0 400 400" fill="none">
-                  <circle cx="200" cy="200" r="185" fill="none" stroke="url(#globeGlow)" stroke-width="1.5" opacity="0.5"/>
-                  <circle cx="200" cy="200" r="160" fill="url(#globeFill)" stroke="rgba(105,240,174,0.3)" stroke-width="1"/>
-                  <ellipse cx="200" cy="200" rx="160" ry="55" fill="none" stroke="rgba(165,214,167,0.2)" stroke-width="0.8"/>
-                  <ellipse cx="200" cy="200" rx="160" ry="110" fill="none" stroke="rgba(165,214,167,0.15)" stroke-width="0.8"/>
-                  <line x1="200" y1="40" x2="200" y2="360" stroke="rgba(165,214,167,0.2)" stroke-width="0.8"/>
-                  <line x1="40" y1="200" x2="360" y2="200" stroke="rgba(165,214,167,0.15)" stroke-width="0.8"/>
-                  <ellipse cx="200" cy="200" rx="55" ry="160" fill="none" stroke="rgba(165,214,167,0.15)" stroke-width="0.8"/>
-                  <ellipse cx="200" cy="200" rx="110" ry="160" fill="none" stroke="rgba(165,214,167,0.1)" stroke-width="0.8"/>
-                  <path d="M130 240 Q170 180 210 200 Q250 220 280 170" stroke="#69F0AE" stroke-width="2.5" stroke-linecap="round" opacity="0.8" class="globe-path"/>
-                  <path d="M120 200 Q160 230 200 210 Q240 190 270 220" stroke="#A5D6A7" stroke-width="1.5" stroke-linecap="round" opacity="0.6" stroke-dasharray="4 3"/>
-                  <circle cx="130" cy="240" r="4" fill="#69F0AE" opacity="0.9"/>
-                  <circle cx="210" cy="200" r="5" fill="#00E676" opacity="0.9" class="pulse-dot"/>
-                  <circle cx="280" cy="170" r="4" fill="#69F0AE" opacity="0.9"/>
-                  <circle cx="200" cy="210" r="3" fill="#A5D6A7" opacity="0.7"/>
-                  <circle cx="200" cy="200" r="8" fill="none" stroke="#00E676" stroke-width="1.5" opacity="0.5" class="city-ring"/>
-                  <circle cx="200" cy="200" r="4" fill="#00E676" opacity="0.9"/>
-                  <defs>
-                    <radialGradient id="globeFill" cx="40%" cy="35%">
-                      <stop offset="0%" stop-color="#1a3a2a"/>
-                      <stop offset="60%" stop-color="#0d2018"/>
-                      <stop offset="100%" stop-color="#061410"/>
-                    </radialGradient>
-                    <radialGradient id="globeGlow" cx="50%" cy="50%">
-                      <stop offset="0%" stop-color="#69F0AE" stop-opacity="0.6"/>
-                      <stop offset="100%" stop-color="#69F0AE" stop-opacity="0"/>
-                    </radialGradient>
-                  </defs>
-                </svg>
+              <div class="globe-wrap" ref="globeWrapRef">
+                <canvas ref="globeCanvasRef" class="globe-canvas"></canvas>
                 <div class="orbit orbit--1"><div class="orbit__dot"></div></div>
                 <div class="orbit orbit--2"><div class="orbit__dot orbit__dot--2"></div></div>
               </div>
@@ -246,7 +208,7 @@
               <p class="section-desc">17 条精品绿道，等待您亲身探索</p>
             </div>
             <div class="gw-grid">
-              <a v-for="gw in greenwayCards" :key="gw.id" :href="gw.path" class="gw-card" @mouseenter="preloadDetailComponent(gw.path)">
+              <a v-for="gw in greenwayCards" :key="gw.id" :href="gw.path" class="gw-card" :class="{ revealed: currentPage >= 3 }" @mouseenter="preloadDetailComponent(gw.path)">
                 <div class="gw-card__top">
                   <div class="gw-tag" :style="{ background: gw.tagBg }">{{ gw.type }}</div>
                   <div class="gw-len">{{ gw.length }}km</div>
@@ -376,6 +338,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import * as THREE from 'three'
 import { useUserAuth } from '@/stores/userAuth'
 import { useAdminAuth } from '@/stores/adminAuth'
 import { useRouter } from 'vue-router'
@@ -519,7 +482,14 @@ const features = [
 // ══════════════════════════════════════════════════
 const canvasRef = ref(null)
 const landingRoot = ref(null)
+const spotlightRef = ref(null)
+const heroInnerRef = ref(null)
+const globeCanvasRef = ref(null)
+const globeWrapRef = ref(null)
 let animFrameId = null
+let spotlightCleanup = null
+let tiltCleanup = null
+let globeCleanup = null
 
 function initCanvas() {
   const canvas = canvasRef.value
@@ -603,13 +573,198 @@ function preloadDetailComponent(path) {
   }
 }
 
+// ── 🔦 鼠标追光 + 视差 ──
+function initSpotlight() {
+  const root = landingRoot.value
+  const spot = spotlightRef.value
+  const hero = heroInnerRef.value
+  if (!root || !spot || !hero) return
+
+  const onMove = (e) => {
+    const { clientX: x, clientY: y } = e
+    const w = window.innerWidth
+    const h = window.innerHeight
+    // 光斑跟随鼠标（缩小到 400px）
+    spot.style.background = `radial-gradient(400px circle at ${x}px ${y}px, rgba(105,240,174,0.05) 0%, transparent 70%)`
+    spot.style.opacity = '1'
+    // 视差：hero 区域反向微移
+    if (hero && currentPage.value === 0) {
+      const px = (x / w - 0.5) * 16
+      const py = (y / h - 0.5) * 16
+      hero.style.transform = `translate(${-px}px, ${-py}px)`
+    }
+  }
+  const onLeave = () => { spot.style.opacity = '0' }
+  root.addEventListener('mousemove', onMove, { passive: true })
+  root.addEventListener('mouseleave', onLeave)
+  spotlightCleanup = () => {
+    root.removeEventListener('mousemove', onMove)
+    root.removeEventListener('mouseleave', onLeave)
+  }
+}
+
+function cleanupSpotlight() { spotlightCleanup?.() }
+
+// ── ✨ 滚动渐入动画 ──
+function initScrollReveal() {
+  // 全屏滑动布局中，所有 section 都已渲染在 DOM，用 currentPage watch 触发
+  // 此函数保留为扩展点，实际触发由 .revealed 类配合 fp-slider 结构完成
+  // stat-card 已有 .visible 类切换逻辑（基于 currentPage >= 1）
+  // gw-card 在页面 3，用 CSS :nth-child stagger
+}
+
+// ── 🃏 3D 倾斜卡片 + 光柱 ──
+function initTiltCards() {
+  const cards = document.querySelectorAll('.gw-card')
+  if (!cards.length) { setTimeout(initTiltCards, 500); return }
+
+  const handlers = []
+  cards.forEach(card => {
+    const onMove = (e) => {
+      const rect = card.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      const rx = ((y / rect.height) - 0.5) * 14
+      const ry = ((x / rect.width) - 0.5) * -14
+      card.style.transform = `perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg) scale3d(1.02,1.02,1.02)`
+      // 光柱扫过
+      const pct = (x / rect.width * 100).toFixed(1)
+      card.style.setProperty('--beam-x', `${pct}%`)
+    }
+    const onLeave = () => {
+      card.style.transform = 'perspective(800px) rotateX(0) rotateY(0) scale3d(1,1,1)'
+      card.style.setProperty('--beam-x', '50%')
+    }
+    card.addEventListener('mousemove', onMove, { passive: true })
+    card.addEventListener('mouseleave', onLeave)
+    handlers.push({ card, onMove, onLeave })
+  })
+  tiltCleanup = () => handlers.forEach(h => {
+    h.card.removeEventListener('mousemove', h.onMove)
+    h.card.removeEventListener('mouseleave', h.onLeave)
+  })
+}
+
+function cleanupTiltCards() { tiltCleanup?.() }
+
+// ── 🌐 Three.js 3D 线框地球 ──
+// -- 🌐 Three.js 3D 线框地球 --
+function initGlobe() {
+  const canvas = globeCanvasRef.value
+  if (!canvas) return
+
+  const SIZE = 340
+  canvas.width = SIZE * 2; canvas.height = SIZE * 2
+  canvas.style.width = SIZE + 'px'; canvas.style.height = SIZE + 'px'
+
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
+  renderer.setSize(SIZE * 2, SIZE * 2, false)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+  const scene = new THREE.Scene()
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10)
+  camera.position.z = 4.2
+
+  const pivot = new THREE.Group()
+  scene.add(pivot)
+
+  // 球体
+  pivot.add(new THREE.Mesh(
+    new THREE.SphereGeometry(1, 64, 48),
+    new THREE.MeshBasicMaterial({ color: 0x0d2018, transparent: true, opacity: 0.85, depthWrite: false })
+  ))
+  // 线框
+  pivot.add(new THREE.Mesh(
+    new THREE.SphereGeometry(1.003, 48, 32),
+    new THREE.MeshBasicMaterial({ color: 0x4a8c3f, wireframe: true, transparent: true, opacity: 0.15, depthWrite: false })
+  ))
+
+  // 经纬度转3D
+  function ll2v(lat, lon, r) {
+    r = r || 1
+    var phi = (90 - lat) * Math.PI / 180
+    var theta = (lon + 90) * Math.PI / 180
+    return new THREE.Vector3(-r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta))
+  }
+
+  // 亚欧大陆轮廓
+  var paths = [
+    [[70,5],[72,25],[68,50],[60,60],[52,75],[48,90],[50,100],[55,105],[50,110],[42,115],[38,120],[42,130],[48,140],[52,145],[55,150],[50,155],[45,158],[40,160],[35,162],[30,165],[22,168],[18,170],[20,178],[25,180],[28,175],[30,170],[35,168],[40,170],[45,172],[50,175],[55,172],[58,168],[60,160],[62,152],[65,145],[68,140],[72,135],[75,130],[72,120],[68,115],[70,105],[72,95],[70,80],[68,60],[65,40],[68,20],[70,5]],
+    [[58,5],[62,8],[68,12],[70,18],[72,25],[70,20],[65,15],[60,12],[58,8],[58,5]],
+    [[52,-5],[55,-4],[58,-2],[56,0],[52,2],[50,0],[52,-5]],
+    [[30,130],[33,132],[36,136],[40,140],[43,142],[42,138],[38,136],[35,134],[32,132],[30,130]],
+    [[35,126],[38,126],[40,128],[42,127],[40,125],[37,125],[35,126]],
+    [[8,78],[10,76],[15,74],[20,72],[22,75],[28,76],[25,80],[22,82],[18,83],[15,80],[10,78],[8,78]],
+  ]
+  paths.forEach(function(pts) {
+    var curve = new THREE.CatmullRomCurve3(pts.map(function(p) { return ll2v(p[0], p[1], 1.015) }), true)
+    pivot.add(new THREE.Mesh(
+      new THREE.TubeGeometry(curve, 64, 0.005, 4, true),
+      new THREE.MeshBasicMaterial({ color: 0x69F0AE, transparent: true, opacity: 0.3, depthWrite: false })
+    ))
+  })
+
+  // 绿道节点
+  var nodes = [[39.9,116.2],[40.1,116.5],[39.8,116.3],[40.2,116.1],[40.0,116.4],[39.7,116.0]]
+  nodes.forEach(function(n) {
+    var m = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), new THREE.MeshBasicMaterial({ color: 0xA5D6A7, depthWrite: false }))
+    m.position.copy(ll2v(n[0], n[1], 1.02)); pivot.add(m)
+  })
+
+  // 大气辉光
+  scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(1.06, 48, 36),
+    new THREE.ShaderMaterial({
+      vertexShader: 'varying vec3 vN; void main() { vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader: 'varying vec3 vN; void main() { float i = pow(0.65 - dot(vN,vec3(0,0,1.0)), 3.0); gl_FragColor = vec4(0.412,0.941,0.682,i*0.25); }',
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+    })
+  ))
+
+  // 鼠标交互
+  var isDragging = false, prevX = 0, prevY = 0, rotX = 0.3, rotY = 0, autoRotate = true
+  canvas.addEventListener('pointerdown', function(e) { isDragging = true; autoRotate = false; prevX = e.clientX; prevY = e.clientY })
+  window.addEventListener('pointerup', function() { isDragging = false; setTimeout(function() { autoRotate = true }, 1500) })
+  window.addEventListener('pointermove', function(e) {
+    if (!isDragging) return
+    rotY += (e.clientX - prevX) * 0.005; rotX += (e.clientY - prevY) * 0.005
+    rotX = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, rotX))
+    prevX = e.clientX; prevY = e.clientY
+  })
+
+  function animate() {
+    requestAnimationFrame(animate)
+    if (autoRotate) rotY += 0.003
+    pivot.rotation.set(rotX, rotY, 0)
+    renderer.render(scene, camera)
+  }
+  animate()
+
+  globeCleanup = function() {
+    renderer.dispose()
+    scene.traverse(function(o) { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose() })
+  }
+}
+
 onMounted(() => {
   initCanvas()
   landingRoot.value?.addEventListener('wheel', onWheel, { passive: false })
   window.addEventListener('keydown', onKeyDown)
   landingRoot.value?.addEventListener('touchstart', onTouchStart, { passive: true })
   landingRoot.value?.addEventListener('touchend', onTouchEnd)
-  
+
+  // ── 🌐 3D 地球 ──
+  setTimeout(initGlobe, 100)
+
+  // ── 鼠标追光 + 视差 ──
+  initSpotlight()
+
+  // ── 滚动渐入动画 ──
+  initScrollReveal()
+
+  // ── 3D 倾斜卡片 ──
+  initTiltCards()
+
   // 预加载地图和所有绿道详情页面
   setTimeout(() => {
     preloadComponent('@/views/GreenwayOverview.vue')
@@ -627,6 +782,9 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown)
   landingRoot.value?.removeEventListener('touchstart', onTouchStart)
   landingRoot.value?.removeEventListener('touchend', onTouchEnd)
+  cleanupSpotlight()
+  cleanupTiltCards()
+  globeCleanup?.()
 })
 </script>
 
@@ -775,32 +933,12 @@ onBeforeUnmount(() => {
 /* ══════════════════════════════════════════════════
    右侧页面指示点
 ══════════════════════════════════════════════════ */
-.side-dots {
-  position: fixed; right: 24px; top: 50%; transform: translateY(-50%);
-  z-index: 9000;
-  display: flex; flex-direction: column; align-items: center; gap: 14px;
+
+/* 🔦 全局鼠标追光 */
+.spotlight {
+  position: fixed; inset: 0; pointer-events: none; z-index: 8000;
+  opacity: 0; transition: opacity 0.3s;
 }
-.side-dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: rgba(165,214,167,0.18);
-  border: 1.5px solid rgba(165,214,167,0.28);
-  cursor: pointer; position: relative; padding: 0;
-  transition: all 0.3s;
-}
-.side-dot:hover { background: rgba(165,214,167,0.4); transform: scale(1.2); }
-.side-dot.active {
-  background: #69F0AE; border-color: #69F0AE;
-  box-shadow: 0 0 10px rgba(105,240,174,0.6);
-  transform: scale(1.35);
-}
-.dot-tip {
-  position: absolute; right: calc(100% + 10px); top: 50%; transform: translateY(-50%);
-  white-space: nowrap; font-size: 0.7rem; color: rgba(165,214,167,0.75);
-  background: rgba(6,13,20,0.85); border: 1px solid rgba(105,240,174,0.15);
-  padding: 3px 9px; border-radius: 8px;
-  opacity: 0; pointer-events: none; transition: opacity 0.2s;
-}
-.side-dot:hover .dot-tip { opacity: 1; }
 
 /* ══════════════════════════════════════════════════
    分页容器 & 滑块
@@ -813,7 +951,7 @@ onBeforeUnmount(() => {
 .fp-slider {
   width: 100%;
   /* 核心：平滑贝塞尔过渡 */
-  transition: transform 0.6s cubic-bezier(0.77, 0, 0.175, 1);
+  transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1); /* 弹性翻页 */
   will-change: transform;
 }
 /* 每个 Section 恰好占满一屏 */
@@ -831,6 +969,8 @@ onBeforeUnmount(() => {
   display: flex; align-items: center; justify-content: space-between;
   width: 100%; max-width: 1280px; margin: 0 auto;
   padding: 80px 40px 60px; gap: 60px;
+  position: relative; z-index: 1;
+  transition: transform 0.15s ease-out; /* 🖱️ 视差平滑 */
 }
 .hero__content { flex: 1; min-width: 0; }
 
@@ -907,13 +1047,7 @@ onBeforeUnmount(() => {
 /* 地球仪 */
 .hero__visual { flex-shrink: 0; width: 340px; }
 .globe-wrap { position: relative; width: 340px; height: 340px; }
-.globe-svg { width: 100%; height: 100%; filter: drop-shadow(0 0 28px rgba(105,240,174,0.13)); }
-.globe-path { stroke-dasharray: 200; stroke-dashoffset: 200; animation: draw-path 2.8s ease-out 0.6s forwards; }
-@keyframes draw-path { to { stroke-dashoffset: 0; } }
-.pulse-dot { animation: pulse-node 2.5s ease-in-out infinite; }
-@keyframes pulse-node { 0%,100% { opacity: 0.9; } 50% { opacity: 0.4; } }
-.city-ring { animation: city-expand 3s ease-in-out infinite; }
-@keyframes city-expand { 0%,100% { opacity: 0.5; } 50% { opacity: 0; } }
+.globe-canvas { width: 340px; height: 340px; border-radius: 50%; }
 .orbit {
   position: absolute; border-radius: 50%;
   border: 1px solid transparent; animation: orbital linear infinite; pointer-events: none;
@@ -1112,7 +1246,6 @@ a.fl-link:hover { color: #A5D6A7; }
   .banner-card { flex-direction: column; text-align: center; padding: 30px 24px; }
   .footer-inner { flex-direction: column; gap: 24px; }
   .lp-nav { display: none; }
-  .side-dots { display: none; }
 }
 @media (max-width: 600px) {
   .hero-inner, .page-inner, .final-inner { padding-left: 20px; padding-right: 20px; }
@@ -1121,4 +1254,39 @@ a.fl-link:hover { color: #A5D6A7; }
   .gw-grid { grid-template-columns: repeat(2, 1fr); }
   .footer-links { flex-wrap: wrap; gap: 22px; }
 }
+
+/* ══════════════════════════════════════════════════
+   新增特效
+   ═══════════════════════════════════════════════════ */
+
+/* ✨ 绿道卡片渐入动画 */
+.gw-card {
+  opacity: 0; transform: translateY(22px);
+  transition: opacity 0.55s cubic-bezier(0.34,1.56,0.64,1),
+              transform 0.55s cubic-bezier(0.34,1.56,0.64,1);
+}
+.gw-card.revealed { opacity: 1; transform: translateY(0); }
+.gw-card:nth-child(1).revealed { transition-delay: 0.00s; }
+.gw-card:nth-child(2).revealed { transition-delay: 0.06s; }
+.gw-card:nth-child(3).revealed { transition-delay: 0.12s; }
+.gw-card:nth-child(4).revealed { transition-delay: 0.18s; }
+.gw-card:nth-child(5).revealed { transition-delay: 0.24s; }
+.gw-card:nth-child(6).revealed { transition-delay: 0.30s; }
+
+/* 🃏 3D 倾斜卡片 + 光柱 */
+.gw-card {
+  transition: transform 0.25s ease-out;
+  position: relative;
+}
+.gw-card::after {
+  content: '';
+  position: absolute; top: -2px; left: 0; right: 0; height: 2px; z-index: 2;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(105,240,174,0.3) var(--beam-x, 50%),
+    transparent 100%);
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+}
+.gw-card:hover::after { opacity: 1; }
 </style>

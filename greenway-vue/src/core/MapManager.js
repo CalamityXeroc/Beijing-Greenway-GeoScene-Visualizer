@@ -303,7 +303,22 @@ class MapManager {
 
   destroy() {
     const viewInstance = toRaw(this._viewInstance)
-    if (!viewInstance) return
+    if (viewInstance) {
+      // 先清理容器中的 canvas（防止残留 DOM）
+      try {
+        const container = viewInstance.container
+        if (container) {
+          const canvases = container.querySelectorAll('canvas')
+          canvases.forEach(c => c.remove())
+        }
+      } catch (_) { /* 容器可能已被移除 */ }
+
+      try {
+        viewInstance.destroy()
+      } catch (e) {
+        console.warn('[MapManager] 视图销毁时出错:', e.message)
+      }
+    }
 
     this._eventHandles.forEach((bucket) => {
       bucket.forEach((handle) => handle?.remove?.())
@@ -322,7 +337,6 @@ class MapManager {
     this._controlsMap.clear()
     this._interactionsMap.clear()
 
-    viewInstance.destroy()
     this._viewInstance = null
     this._mapInstance = null
 

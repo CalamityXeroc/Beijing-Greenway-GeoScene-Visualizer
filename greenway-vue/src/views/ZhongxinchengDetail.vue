@@ -28,16 +28,11 @@
 
       <div ref="leftSidebar" class="left-sidebar">
 
-        <img 
-
-          src="https://via.placeholder.com/800x300?text=奥林匹克森林公园绿道" 
-
-          alt="奥森绿道景观" 
-
+        <img
+          :src="imageUrl"
+          alt="Zhongxincheng绿道景观"
           class="feature-image"
-
           @error="handleImageError"
-
         />
 
         
@@ -121,6 +116,8 @@
         </div>
 
         
+
+                <NearbyFacilities greenway-name="中心城滨水绿道" />
 
         <!-- 全景浏览按钮 -->
 
@@ -212,7 +209,7 @@
 
 <script setup>
 
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import {ref, reactive, onMounted, onBeforeUnmount, nextTick, computed} from 'vue'
 
 import { useRouter } from 'vue-router'
 
@@ -223,6 +220,7 @@ import WeatherCard from '@/components/WeatherCard.vue'
 import BaiduPanoramaViewer from '@/components/BaiduPanoramaViewer.vue'
 
 import DesktopCommentsPanel from '@/components/DesktopCommentsPanel.vue'
+import NearbyFacilities from '@/components/NearbyFacilities.vue'
 
 import { loadGreenwayDataByName, buildGreenwayInfo } from '@/utils/greenwayHelper'
 
@@ -370,12 +368,20 @@ const greenwayInfo = ref({
 
   features: '加载中...',
 
-  description: '正在获取绿道简介信息...'
+  description: '正在获取绿道简介信息...',
+  image: null
 
 })
 
 
 
+
+const imageUrl = computed(() => {
+  if (greenwayInfo.value.image) {
+    return `/images/greenways/${greenwayInfo.value.image}`
+  }
+  return '/images/greenways/placeholder.svg'
+})
 const layers = ref([
 
   {
@@ -458,16 +464,18 @@ const goBack = () => {
 
 }
 
+const onPointChange = (index) => {}
+
+
 
 
 // 图片加载失败处理
 
 const handleImageError = (event) => {
-
-  console.warn('[AosenDetail] 图片加载失败')
-
-  event.target.src = 'https://via.placeholder.com/800x300?text=奥林匹克森林公园绿道'
-
+  if (!event.target.src.includes('placeholder')) {
+    console.warn('[ZhongxinchengDetail] 图片加载失败')
+    event.target.src = '/images/greenways/placeholder.svg'
+  }
 }
 
 

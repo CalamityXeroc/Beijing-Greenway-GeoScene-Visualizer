@@ -198,36 +198,90 @@ const startTileProxyRecovery = (style) => {
 onMounted(async () => {
   await nextTick()
 
-  const MapManagerClass = (await import('@/core/MapManager')).default
-  const LayerManagerClass = (await import('@/core/LayerManager')).default
-
-  mapManager = markRaw(new MapManagerClass())
-  layerManager = markRaw(new LayerManagerClass())
-
-  map = mapManager.init(mapContainer.value, {
-    center: props.center,
-    zoom: props.zoom,
-    interactive: props.interactive
-  })
-  view = mapManager.getView()
-
-  const baseLayer = layerManager.createGaodeLayer(props.baseLayerStyle, { useProxy: false })
-  installBaseLayer(baseLayer)
-  console.log("[MapViewer] 已装载直连高德底图")
-
-  mapManager.setMapContainer(mapContainer.value)
-
-  const isNight = globalTheme.value === 'night'
-  mapContainer.value.classList.toggle('night-mode', isNight)
-  if (isNight) applyNightEffect()
-
-  if (props.layers && props.layers.length > 0) {
-    await syncLayers(props.layers)
+  // 确保容器 DOM 干净（防止前一个 map 实例留下的残余 canvas）
+  if (mapContainer.value) {
+    const staleCanvases = mapContainer.value.querySelectorAll('canvas')
+    staleCanvases.forEach(c => c.remove())
   }
 
-  setupEventListeners()
-  emit('map-ready', map)
-  console.log('[MapViewer] 地图组件初始化完成（GeoScene）')
+  try {
+    const MapManagerClass = (await import('@/core/MapManager')).default
+    const LayerManagerClass = (await import('@/core/LayerManager')).default
+
+    mapManager = markRaw(new MapManagerClass())
+    layerManager = markRaw(new LayerManagerClass())
+
+    map = mapManager.init(mapContainer.value, {
+      center: props.center,
+      zoom: props.zoom,
+      interactive: props.interactive
+    })
+    view = mapManager.getView()
+
+    if (!view) {
+      console.error('[MapViewer] 地图视图创建失败')
+      emit('map-ready', null)
+      return
+    }
+
+    const baseLayer = layerManager.createGaodeLayer(props.baseLayerStyle, { useProxy: false })
+    installBaseLayer(baseLayer)
+    console.log("[MapViewer] 已装载直连高德底图")
+
+    mapManager.setMapContainer(mapContainer.value)
+
+    const isNight = globalTheme.value === 'night'
+    mapContainer.value.classList.toggle('night-mode', isNight)
+    if (isNight) applyNightEffect()
+
+    if (props.layers && props.layers.length > 0) {
+      await syncLayers(props.layers)
+    }
+
+    setupEventListeners()
+    emit('map-ready', map)
+    console.log('[MapViewer] 地图组件初始化完成（GeoScene）')
+  } catch (err) {
+    console.error('[MapViewer] 地图初始化失败:', err.message || err)
+    // 重试一次（Vite 动态导入可能因导航取消而失败）
+    try {
+      console.log('[MapViewer] 正在重试初始化...')
+      await new Promise(r => setTimeout(r, 500))
+      const MapManagerClass = (await import('@/core/MapManager')).default
+      const LayerManagerClass = (await import('@/core/LayerManager')).default
+
+      mapManager = markRaw(new MapManagerClass())
+      layerManager = markRaw(new LayerManagerClass())
+
+      map = mapManager.init(mapContainer.value, {
+        center: props.center,
+        zoom: props.zoom,
+        interactive: props.interactive
+      })
+      view = mapManager.getView()
+
+      if (!view) {
+        console.error('[MapViewer] 重试失败：视图创建失败')
+        emit('map-ready', null)
+        return
+      }
+
+      const baseLayer = layerManager.createGaodeLayer(props.baseLayerStyle, { useProxy: false })
+      installBaseLayer(baseLayer)
+      mapManager.setMapContainer(mapContainer.value)
+
+      if (props.layers && props.layers.length > 0) {
+        await syncLayers(props.layers)
+      }
+
+      setupEventListeners()
+      emit('map-ready', map)
+      console.log('[MapViewer] 重试初始化成功')
+    } catch (retryErr) {
+      console.error('[MapViewer] 重试也失败:', retryErr.message || retryErr)
+      emit('map-ready', null)
+    }
+  }
 })
 
 
