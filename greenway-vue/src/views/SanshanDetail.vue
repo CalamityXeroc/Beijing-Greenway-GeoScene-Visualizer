@@ -115,7 +115,6 @@
 
         
 
-                <NearbyFacilities greenway-name="三山五园绿道" />
 
         <!-- 全景浏览按钮 -->
 
@@ -150,13 +149,18 @@
           height="100%"
 
           @map-ready="onMapReady"
-
+          @feature-click="onFeatureClick"
+          @feature-hover="onFeatureHover"
         :restrict-navigation="true" />
 
+        <DetailPoiPopup :popup="popup" :tooltip="tooltip"
+          @close="closePopup" />
+
+        <DetailPoiLayerControl :filters="poiTypeFilters" :typeList="poiTypeList"
+          @toggle="(code, v) => togglePoiType(code, v)"
+          @toggleAll="(v) => toggleAllPoiTypes(v)" />
       </div>
-
     </div>
-
     <section class="detail-comments-section">
 
       <DesktopCommentsPanel greenway-name="北京三山五园绿道" />
@@ -218,13 +222,22 @@ import WeatherCard from '@/components/WeatherCard.vue'
 import BaiduPanoramaViewer from '@/components/BaiduPanoramaViewer.vue'
 
 import DesktopCommentsPanel from '@/components/DesktopCommentsPanel.vue'
-import NearbyFacilities from '@/components/NearbyFacilities.vue'
+
+import DetailPoiPopup from '@/components/DetailPoiPopup.vue'
+
+import DetailPoiLayerControl from '@/components/DetailPoiLayerControl.vue'
 
 import { loadGreenwayDataByName, buildGreenwayInfo } from '@/utils/greenwayHelper'
+
+import { useDetailPoi } from '@/composables/useDetailPoi.js'
 
 
 
 const router = useRouter()
+
+const GREENWAY_NAME = '三山五园绿道'
+
+const { popup, tooltip, tooltipStyle, poiTypeFilters, poiTypeList, togglePoiType, toggleAllPoiTypes, loadPoiLayer, onFeatureClick, onFeatureHover, closePopup, cleanupPoi } = useDetailPoi(GREENWAY_NAME)
 
 
 
@@ -417,8 +430,8 @@ const onMapReady = (map) => {
     if (mapViewer.value) {
 
       const mapMgr = mapViewer.value.getMapManager()
-
-      const center = mapMgr.getCenter()
+          if (mapMgr) loadPoiLayer(mapMgr)
+const center = mapMgr.getCenter()
 
       weatherLocation.value = {
 
@@ -636,6 +649,11 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
 
+
+    if (mapViewer.value) {
+      const mapMgr = mapViewer.value.getMapManager()
+      if (mapMgr) cleanupPoi(mapMgr)
+    }
   cleanupSidebarWheel?.()
 
   document.body.style.overflowY = prevBodyOverflowY

@@ -243,12 +243,20 @@
               <input type="checkbox" :checked="showFacilities"
                      @change="emit('toggle-facilities', $event.target.checked)"/>
               <span class="checkmark"/>
-              <span>附近设施</span>
+              <span :style="{ fontWeight: '600' }">附近设施</span>
             </label>
           </div>
-          <div class="dd-layer-item" style="font-size:0.75rem;color:#999;padding-left:1.5rem">
-            🚇🚌🅿️🚻🏪🚲 地铁/公交/停车/卫生间/便利店/单车
-          </div>
+          <template v-if="showFacilities">
+            <div v-for="(label, code) in facilitySubTypes" :key="code" class="dd-layer-item" style="padding-left:1.6rem">
+              <label class="layer-check">
+                <input type="checkbox" :checked="facilityTypeFilters[code] !== false"
+                       @change="emit('toggle-facility-type', code, $event.target.checked)"/>
+                <span class="checkmark"/>
+                <span style="font-size:0.82rem"
+                      :style="{ color: 'rgb(' + facilityColors[code]?.join(',') + ')' }">{{ label }}</span>
+              </label>
+            </div>
+          </template>
           <div class="dd-divider"/>
           <!-- 上传自定义 -->
           <div class="dropdown-section">自定义图层</div>
@@ -449,10 +457,22 @@ const props = defineProps({
   layerConfig: { type: Array, default: () => [] },
   showPathPlanning: { type: Boolean, default: false },
   showHeatmap: { type: Boolean, default: false },
-  showFacilities: { type: Boolean, default: false }
+  showFacilities: { type: Boolean, default: false },
+  facilityTypeFilters: { type: Object, default: () => ({}) }
 })
 
-const emit = defineEmits(['toggle-path-planning', 'toggle-heatmap', 'toggle-facilities'])
+const emit = defineEmits(['toggle-path-planning', 'toggle-heatmap', 'toggle-facilities', 'toggle-facility-type'])
+
+const facilitySubTypes = {
+  '150500': '地铁站', '150700': '公交站', '150900': '停车场',
+  '200300': '卫生间', '060100': '便利店', '080600': '影剧院',
+  '110100': '景点'
+}
+const facilityColors = {
+  '150500': [21, 101, 192], '150700': [2, 119, 189], '150900': [46, 125, 50],
+  '200300': [78, 52, 46], '060100': [198, 40, 40], '080600': [106, 27, 154],
+  '110100': [230, 81, 0]
+}
 
 const { theme: globalTheme } = useGlobalTheme()
 const isNight = computed(() => globalTheme.value === 'night')

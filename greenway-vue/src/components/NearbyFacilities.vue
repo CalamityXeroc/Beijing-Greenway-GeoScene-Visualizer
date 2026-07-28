@@ -40,7 +40,9 @@ const FACILITY_ICONS = {
   '150900': { icon: 'fa-square-parking', name: '停车场', color: '#1E88E5' },
   '200300': { icon: 'fa-restroom', name: '卫生间', color: '#43A047' },
   '060100': { icon: 'fa-store', name: '便利店', color: '#8E24AA' },
-  '080600': { icon: 'fa-bicycle', name: '共享单车', color: '#00ACC1' }
+  '080600': { icon: 'fa-film', name: '影剧院', color: '#6A1B9A' },
+  '110100': { icon: 'fa-landmark', name: '景点', color: '#E65100' },
+  '110200': { icon: 'fa-landmark', name: '景点', color: '#E65100' }
 }
 
 const hasData = computed(() => facilities.value.length > 0)

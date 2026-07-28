@@ -14,9 +14,11 @@
                 :showPathPlanning="showPathPlanning"
                 :showHeatmap="showHeatmap"
                 :showFacilities="showFacilities"
+                :facilityTypeFilters="facilityTypeFilters"
                 @toggle-path-planning="showPathPlanning = !showPathPlanning"
                 @toggle-heatmap="toggleHeatmap($event)"
-                @toggle-facilities="toggleFacilities($event)"/>
+                @toggle-facilities="toggleFacilities($event)"
+                @toggle-facility-type="(code, checked) => toggleFacilityType(code, checked)"/>
     </div>
 
     <!-- 地图容器：精确占满视口剩余高度，滚动后变为普通内容区 -->
@@ -173,8 +175,8 @@
       </div>
     </div>
 
-    <!-- 弹窗 (点击后显示) -->
-    <div v-show="popup.visible" class="popup" :style="popupStyle">
+    <!-- 弹窗：绿道信息 (点击后显示) -->
+    <div v-show="popup.visible && !popup.isPoi" class="popup" :style="popupStyle">
       <div class="popup-content">
         <div class="popup-header" @mousedown="startDrag">
           <h4>{{ popup.title }}</h4>
@@ -189,6 +191,47 @@
         <button @click="openFlyover" class="popup-btn flyover-btn">
           🎬 3D 漫游
         </button>
+      </div>
+    </div>
+
+    <!-- 弹窗：POI 设施信息 -->
+    <div v-show="popup.visible && popup.isPoi" class="popup popup--poi" :style="popupStyle">
+      <div class="popup-content">
+        <div class="popup-header" @mousedown="startDrag">
+          <h4>
+            <img v-if="popup.poiSvg" :src="popup.poiSvg" alt="" style="width:22px;height:22px;vertical-align:middle;margin-right:4px" />
+            {{ popup.poiName || '' }}
+          </h4>
+          <button class="popup-close" @click.stop="closePopup">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <p>
+          <span class="poi-type-tag">{{ popup.poiTypeName || '' }}</span>
+          <span v-if="popup.poiAddress" style="color:#999;font-size:0.85rem">{{ popup.poiAddress }}</span>
+        </p>
+        <p v-if="popup.poiGreenway" style="color:#558B2F;font-size:0.9rem">
+          <i class="fas fa-tree"></i> 所属: {{ popup.poiGreenway }}
+          <span v-if="popup.poiDistance"> · {{ popup.poiDistance }}</span>
+        </p>
+        <button @click="goToPoiGreenway" class="popup-btn">
+          <i class="fas fa-arrow-right"></i> 查看绿道详情
+        </button>
+      </div>
+    </div>
+
+    <!-- POI 图例面板 -->
+    <div v-show="showFacilities" class="facility-legend" :class="{ collapsed: legendCollapsed }">
+      <div class="legend-header" @click="legendCollapsed = !legendCollapsed">
+        <span>图例</span>
+        <i :class="legendCollapsed ? 'fas fa-chevron-up' : 'fas fa-chevron-down'"></i>
+      </div>
+      <div class="legend-body" v-show="!legendCollapsed">
+        <div v-for="(cfg, code) in FACILITY_CONFIG" :key="code" class="legend-row" @click="toggleFacilityType(code, !facilityTypeFilters[code])">
+          <img class="legend-icon" :src="`/images/poi/${cfg.icon}`" :alt="cfg.name" />
+          <span class="legend-label" :class="{ off: !facilityTypeFilters[code] }">{{ cfg.name }}</span>
+        </div>
+        <div v-if="allTypesOff" class="legend-empty" @click="closeAllFacilities">全部关闭 · 点击关闭图层</div>
       </div>
     </div>
 
@@ -213,6 +256,10 @@ import GreenwayFlyover from '@/components/GreenwayFlyover.vue'
 import { getRouteStore } from '@/stores/route.js'
 import { recordGreenwayClick, fetchHeatmapData, fetchHeatmapPoints } from '@/services/heatmapApi.js'
 import { useUserAuth } from '@/stores/userAuth.js'
+import { sessionRef } from '@/utils/sessionRef.js'
+import GeoJSONLayer from '@geoscene/core/layers/GeoJSONLayer.js'
+import UniqueValueRenderer from '@geoscene/core/renderers/UniqueValueRenderer.js'
+import PictureMarkerSymbol from '@geoscene/core/symbols/PictureMarkerSymbol.js'
 
 const router = useRouter()
 const { isLoggedIn, currentUser } = useUserAuth()
@@ -226,7 +273,7 @@ const mapConfig = reactive({
 })
 
 // 图层配置
-const layerConfig = ref([
+const layerConfig = sessionRef('gw_layerConfig', [
   {
     id: 'beijing-boundary',
     name: '市界',
@@ -679,7 +726,16 @@ const popup = reactive({
   title: '',
   content: '',
   data: null,
-  position: { x: 0, y: 0 }
+  position: { x: 0, y: 0 },
+  isPoi: false,
+  poiName: '',
+  poiTypeName: '',
+  poiSvg: '',
+  poiColor: '#666',
+  poiAddress: '',
+  poiGreenway: '',
+  poiDistance: '',
+  poiGreenwayId: null
 })
 
 const popupStyle = computed(() => ({
@@ -727,23 +783,45 @@ const stopDrag = () => {
 }
 
 // 热力图状态
-const showHeatmap = ref(false)
-const showFacilities = ref(false)
+const showHeatmap = sessionRef('gw_showHeatmap', false)
+const showFacilities = sessionRef('gw_showFacilities', false)
+const legendCollapsed = ref(false)
+const allTypesOff = computed(() => Object.values(facilityTypeFilters).every(v => !v))
+function closeAllFacilities() { toggleFacilities(false) }
+
+// POI popup 跳转到绿道详情页
+function goToPoiGreenway() {
+  const name = popup.poiGreenway
+  closePopup()
+  if (!name) return
+  const routeMap = { '温榆河': '/wenyu', '环二环城市绿道': '/huanerhuan', '亮马河绿道': '/liangmahe', '常营半马绿道': '/changying', '昌平42绿道': '/changping42', '丽都商圈绿道': '/lidu', '北运河绿道': '/beiyunhe', '南沙绿道': '/nansha', '奥林匹克森林公园绿道': '/aosen', '营城建都绿道': '/yingcheng', '三山五园绿道': '/sanshan', '朝阳绿道': '/chaoyang', '北翼山水绿道': '/beiyi', '东翼大河绿道': '/dongyi', '郊野休闲环绿道': '/jiaoye', '西翼山水绿道': '/xiyi', '中心城滨水绿道': '/zhongxincheng' }
+  const path = routeMap[name]
+  if (path) router.push(path)
+}
+
 const facilitiesLayerId = 'greenway-facilities'
 
-// POI 类型 → 颜色映射
-const FACILITY_COLORS = {
-  '150500': '#E53935', // 地铁站-红
-  '150700': '#FB8C00', // 公交站-橙
-  '150900': '#1E88E5', // 停车场-蓝
-  '200300': '#43A047', // 卫生间-绿
-  '060100': '#8E24AA', // 便利店-紫
-  '080600': '#00ACC1', // 单车-青
+// POI 类型 → 样式配置（真实矢量图标 + 色调用于 popup 标签）
+const FACILITY_CONFIG = {
+  '150500': { name: '地铁站', icon: 'subway.svg', color: '#1565C0' },
+  '150700': { name: '公交站', icon: 'bus.svg', color: '#0277BD' },
+  '150900': { name: '停车场', icon: 'parking.svg', color: '#2E7D32' },
+  '200300': { name: '卫生间', icon: 'restroom.svg', color: '#4E342E' },
+  '060100': { name: '便利店', icon: 'store.svg', color: '#C62828' },
+  '080600': { name: '影剧院', icon: 'cinema.svg', color: '#6A1B9A' },
+  '110100': { name: '景点', icon: 'scenic.svg', color: '#E65100' },
+  '110200': { name: '景点', icon: 'scenic.svg', color: '#E65100' },
 }
+
+// 各类型子开关（sessionStorage 持久化，与 FACILITY_CONFIG 合并防新增 key 丢失）
+const _filters = sessionRef('gw_facilityFilters', null)
+const _defaultFilters = Object.fromEntries(Object.keys(FACILITY_CONFIG).map(k => [k, true]))
+const facilityTypeFilters = reactive(_filters.value ? { ..._defaultFilters, ..._filters.value } : { ..._defaultFilters })
+watch(() => ({ ...facilityTypeFilters }), (v) => { _filters.value = v }, { deep: true })
 const heatmapLayerId = 'greenway-heatmap'
 
 const routeStore = getRouteStore()
-const showPathPlanning = ref(false)
+const showPathPlanning = sessionRef('gw_showPathPlanning', false)
 
 const mapViewer = ref(null)
 const mapManager = shallowRef(null)
@@ -761,7 +839,6 @@ const onMapReady = (map) => {
   // 获取 MapManager 实例
   if (mapViewer.value) {
     mapManager.value = markRaw(mapViewer.value.getMapManager())
-    // 记录每个图层的默认渲染器，方便恢复
     layerConfig.value.forEach(layer => {
       const layerInstance = mapManager.value?.getLayer(layer.id)
       if (layerInstance && !layerDefaultRenderers.has(layer.id)) {
@@ -769,6 +846,18 @@ const onMapReady = (map) => {
       }
     })
   }
+
+  // 从 sessionStorage 恢复上次打开的地图图层
+  setTimeout(() => {
+    if (showFacilities.value) {
+      console.log('[GreenwayOverview] 恢复 POI 设施图层')
+      toggleFacilities(true)
+    }
+    if (showHeatmap.value) {
+      console.log('[GreenwayOverview] 恢复热度图层')
+      toggleHeatmap(true)
+    }
+  }, 800)
 }
 
 // 路径规划地图点击 → 转发给 routeStore
@@ -861,13 +950,36 @@ const clearLayerHighlight = (layerId) => {
 
 // 要素点击
 const onFeatureClick = ({ featuresWithLayers, pixel }) => {
-  console.log('[GreenwayOverview] 点击事件:', { featuresWithLayers, pixel })
-
-  const greenwayFeature = pickInteractiveFeature(featuresWithLayers)
-  if (!greenwayFeature) {
-    console.log('[GreenwayOverview] 未点击到绿道图层')
-    return
+  // 1. 检查是否点击了 POI 设施
+  for (const item of (featuresWithLayers || [])) {
+    if (item.layerId === facilitiesLayerId) {
+      const attr = item.feature?.attributes || {}
+      const cfg = FACILITY_CONFIG[attr.poi_type] || {}
+      const gwd = attr.greenway_id ? mapManager.value?.getLayer?.(null) : null
+      popup.isPoi = true
+      popup.poiName = attr.name || ''
+      popup.poiTypeName = attr.type_name || ''
+      popup.poiSvg = `/images/poi/${cfg.icon || 'subway.svg'}`
+      popup.poiColor = cfg.color || '#666'
+      popup.poiAddress = attr.address || ''
+      popup.poiDistance = attr.distance_m ? (attr.distance_m < 1000 ? attr.distance_m + 'm' : (attr.distance_m / 1000).toFixed(1) + 'km') : ''
+      popup.title = attr.name || ''
+      popup.content = ''
+      popup.data = attr
+      popup.position = { x: pixel[0], y: pixel[1] }
+      popup.visible = true
+      // 异步查绿道名
+      fetch(`/api/greenways/${attr.greenway_id}`).then(r => r.json()).then(d => {
+        if (d.data?.name) popup.poiGreenway = d.data.name
+      }).catch(() => {})
+      tooltip.visible = false
+      return
+    }
   }
+
+  // 2. 正常绿道点击
+  const greenwayFeature = pickInteractiveFeature(featuresWithLayers)
+  if (!greenwayFeature) return
 
   console.log('[GreenwayOverview] 点击到绿道:', greenwayFeature)
 
@@ -903,6 +1015,23 @@ const onFeatureClick = ({ featuresWithLayers, pixel }) => {
 let lastHoveredLayerId = null
 
 const onFeatureHover = ({ featuresWithLayers, pixel }) => {
+  // POI 设施悬浮 tooltip
+  for (const item of (featuresWithLayers || [])) {
+    if (item.layerId === facilitiesLayerId && !popup.visible) {
+      const attr = item.feature?.attributes || {}
+      const cfg = FACILITY_CONFIG[attr.poi_type]
+      tooltip.title = attr.name || ''
+      tooltip.data = {
+        length: null,
+        area: (attr.type_name || '') + (attr.distance_m ? ' · ' + (attr.distance_m < 1000 ? attr.distance_m + 'm' : (attr.distance_m/1000).toFixed(1)+'km') : ''),
+        description: attr.address || ''
+      }
+      scheduleTooltipPosition(pixel)
+      tooltip.visible = true
+      return
+    }
+  }
+
   const isLayerSelected = selectedLayerId.value !== null
   const greenwayFeature = pickInteractiveFeature(featuresWithLayers)
 
@@ -1039,19 +1168,11 @@ const toggleFacilities = async (visible) => {
 
   if (visible) {
     try {
-      // 如果图层已存在，直接设置为可见
       const existing = mapManager.value.getLayer(facilitiesLayerId)
       if (existing) {
         existing.visible = true
         return
       }
-
-      const [GraphicsLayer, Graphic, Point, SimpleMarkerSymbol] = await Promise.all([
-        import('@geoscene/core/layers/GraphicsLayer.js').then(m => m.default || m),
-        import('@geoscene/core/Graphic.js').then(m => m.default || m),
-        import('@geoscene/core/geometry/Point.js').then(m => m.default || m),
-        import('@geoscene/core/symbols/SimpleMarkerSymbol.js').then(m => m.default || m)
-      ])
 
       const resp = await fetch(`/api/facilities/geojson`)
       const geojson = await resp.json()
@@ -1060,49 +1181,93 @@ const toggleFacilities = async (visible) => {
         return
       }
 
-      const graphics = geojson.features.map(f => {
-        const p = f.properties
-        const coords = f.geometry?.coordinates || []
-        return new Graphic({
-          geometry: new Point({ longitude: coords[0], latitude: coords[1], spatialReference: { wkid: 4326 } }),
-          symbol: new SimpleMarkerSymbol({
-            style: 'circle',
-            color: FACILITY_COLORS[p.poi_type] || '#666',
-            size: 8,
-            outline: { color: '#fff', width: 1 }
-          }),
-          attributes: {
-            name: p.name,
-            poi_type: p.poi_type,
-            type_name: p.type_name,
-            distance_m: p.distance_m,
-            greenway_id: p.greenway_id
-          }
-        })
-      })
+      // 图层 URL（Blob）
+      const blob = new Blob([JSON.stringify(geojson)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
 
-      const layer = new GraphicsLayer({
+      // 构建渲染器：真实矢量图标
+      const uniqueValueInfos = Object.entries(FACILITY_CONFIG).map(([code, cfg]) => ({
+        value: code,
+        symbol: new PictureMarkerSymbol({
+          url: `/images/poi/${cfg.icon}`,
+          width: '26px',
+          height: '26px'
+        })
+      }))
+
+      const layer = new GeoJSONLayer({
         id: facilitiesLayerId,
         title: '附近设施',
-        graphics,
+        url,
         visible: true,
-        minScale: 150000, // 缩放到 1:150k 以内才显示，避免远处密密麻麻
-        listMode: 'hide'
+        outFields: ['id', 'name', 'poi_type', 'type_name', 'distance_m', 'greenway_id', 'address'],
+        minScale: 0,
+        maxScale: 0,
+        renderer: new UniqueValueRenderer({
+          field: 'poi_type',
+          uniqueValueInfos
+        })
       })
       layer._zIndex = 250
+      // 标记此图层仅供交互查询，GeoJSONLayer 不再通过 hitTest 响应时
+      // 我们改用在 MapViewer 的 feature-hover/click 中做判断
+      layer.listMode = 'hide'
 
       mapManager.value.addLayer(facilitiesLayerId, layer)
+      console.log('[设施图层] 已添加, POI:', geojson.features.length)
+
+      // 缩放监听：zoom < 11 时隐藏设施图层
+      const view = mapManager.value.getView()
+      if (view) {
+        const handleZoom = () => {
+          const facLayer = mapManager.value?.getLayer(facilitiesLayerId)
+          if (!facLayer) return
+          const z = view.zoom
+          facLayer.visible = z >= 11 && showFacilities.value
+        }
+        view.watch('zoom', handleZoom)
+        facZoomWatcher = handleZoom
+        handleZoom()
+      }
     } catch (e) {
       console.error('[设施图层] 创建失败:', e)
       showFacilities.value = false
     }
   } else {
+    if (facZoomWatcher) { facZoomWatcher = null }
     const layer = mapManager.value.getLayer(facilitiesLayerId)
     if (layer) {
       layer.visible = false
     }
   }
 }
+
+// 单独切换某类设施
+function toggleFacilityType(typeCode, checked) {
+  facilityTypeFilters[typeCode] = checked
+  // 景点类需要同步 110100(公园广场) 和 110200(风景名胜)
+  if (typeCode === '110100') facilityTypeFilters['110200'] = checked
+  if (typeCode === '110200') facilityTypeFilters['110100'] = checked
+  const layer = mapManager.value?.getLayer(facilitiesLayerId)
+  if (!layer?.renderer) return
+
+  const renderer = layer.renderer
+  if (renderer.type === 'unique-value') {
+    const newInfos = Object.entries(FACILITY_CONFIG)
+      .filter(([code]) => facilityTypeFilters[code])
+      .map(([code, cfg]) => ({
+        value: code,
+        symbol: new PictureMarkerSymbol({
+          url: `/images/poi/${cfg.icon}`,
+          width: '26px',
+          height: '26px'
+        })
+      }))
+    renderer.uniqueValueInfos = newInfos
+  }
+}
+
+let facZoomWatcher = null
 
 // 图层切换事件（来自工具栏）
 const onLayerToggled = ({ layerId, visible }) => {
@@ -1117,8 +1282,8 @@ const onLayerToggled = ({ layerId, visible }) => {
 // 关闭弹窗
 const closePopup = () => {
   popup.visible = false
-  
-  // 清除选中图层的高亮
+  popup.isPoi = false
+
   if (selectedLayerId.value) {
     clearLayerHighlight(selectedLayerId.value)
     selectedLayerId.value = null
@@ -1694,6 +1859,36 @@ onBeforeUnmount(() => {
 @media (max-width: 768px) {
   /* 移动端: TopNavbar 组件自行处理响应式 */
 }
+
+/* === POI 图例面板 === */
+.facility-legend {
+  position: absolute;
+  left: 1rem; bottom: 2.5rem;
+  z-index: 100;
+  background: rgba(255,255,255,0.94);
+  backdrop-filter: blur(8px);
+  border-radius: 10px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+  border: 1px solid rgba(76,175,80,0.12);
+  min-width: 140px; overflow: hidden; user-select: none;
+}
+.facility-legend.collapsed { min-width: 0; }
+.legend-header { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.7rem; cursor: pointer; font-size: 0.78rem; color: #666; font-weight: 600; }
+.legend-header:hover { background: rgba(76,175,80,0.05); }
+.legend-body { padding: 0 0.7rem 0.45rem; }
+.legend-row { display: flex; align-items: center; gap: 0.45rem; padding: 0.3rem 0; cursor: pointer; font-size: 0.75rem; }
+.legend-row:hover { opacity: 0.75; }
+.legend-icon { width: 20px; height: 20px; flex-shrink: 0; }
+.legend-label { color: #555; }
+.legend-label.off { color: #ccc; text-decoration: line-through; }
+.legend-empty { text-align: center; padding: 0.4rem 0 0.2rem; font-size: 0.7rem; color: #999; cursor: pointer; }
+.legend-empty:hover { color: #4CAF50; }
+.popup--poi .poi-type-tag { display: inline-block; padding: 0.12rem 0.5rem; border-radius: 10px; font-size: 0.76rem; font-weight: 600; margin-right: 0.4rem; background: rgba(0,0,0,0.06); color: #666; }
+[data-theme="night"] .facility-legend { background: rgba(20,30,20,0.92); border-color: rgba(76,175,80,0.15); box-shadow: 0 2px 16px rgba(0,0,0,0.3); }
+[data-theme="night"] .legend-header { color: #aaa; }
+[data-theme="night"] .legend-header:hover { background: rgba(76,175,80,0.08); }
+[data-theme="night"] .legend-label { color: #bbb; }
+[data-theme="night"] .legend-label.off { color: #555; }
 
 /* 悬停提示框 - 性能优化 */
 .hover-tooltip {

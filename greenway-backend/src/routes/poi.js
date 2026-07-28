@@ -8,7 +8,9 @@ const POI_TYPE_MAP = {
   '150900': { name: '停车场', icon: 'fa-square-parking', color: '#1E88E5' },
   '200300': { name: '公共卫生间', icon: 'fa-restroom', color: '#43A047' },
   '060100': { name: '便利店', icon: 'fa-store', color: '#8E24AA' },
-  '080600': { name: '共享单车', icon: 'fa-bicycle', color: '#00ACC1' }
+  '080600': { name: '影剧院', icon: 'fa-film', color: '#6A1B9A' },
+  '110100': { name: '景点', icon: 'fa-landmark', color: '#E65100' },
+  '110200': { name: '景点', icon: 'fa-landmark', color: '#E65100' }
 }
 
 // 工具：按名称查设施
@@ -34,6 +36,48 @@ async function queryFacilities(pool, greenwayId, types, radius) {
     type_name: POI_TYPE_MAP[r.poi_type]?.name || r.poi_type
   }))
 }
+
+// 绿道附近设施 GeoJSON（按名称 — 必须放在 :id 之前）
+router.get('/greenways/name/:name/nearby-facilities/geojson', async (req, res) => {
+  try {
+    const { name } = req.params
+    const types = req.query.types ? req.query.types.split(',') : Object.keys(POI_TYPE_MAP)
+    const idRow = await req.pool.query('SELECT id FROM greenways WHERE name = $1', [name])
+    if (idRow.rows.length === 0) return res.status(404).json({ type: 'FeatureCollection', features: [] })
+
+    const id = idRow.rows[0].id
+    const result = await req.pool.query(`
+      SELECT
+        poi.id, poi.name, poi.poi_type, poi.description AS address,
+        ROUND(ST_Distance(poi.geometry::geography, g.geometry::geography)) AS distance_m,
+        poi.greenway_id,
+        ST_AsGeoJSON(poi.geometry)::json AS geometry
+      FROM points_of_interest poi
+      JOIN greenways g ON g.id = $1
+      WHERE poi.greenway_id = $1
+        AND poi.poi_type = ANY($2::varchar[])
+      ORDER BY poi.poi_type, distance_m
+      LIMIT 200
+    `, [id, types])
+
+    const features = result.rows.map(r => ({
+      type: 'Feature',
+      geometry: r.geometry,
+      properties: {
+        id: r.id, name: r.name, poi_type: r.poi_type,
+        type_name: POI_TYPE_MAP[r.poi_type]?.name || r.poi_type,
+        color: POI_TYPE_MAP[r.poi_type]?.color || '#999',
+        distance_m: parseInt(r.distance_m),
+        greenway_id: r.greenway_id,
+        address: r.address
+      }
+    }))
+    res.json({ type: 'FeatureCollection', features })
+  } catch (err) {
+    console.error('[POI-GeoJSON-by-name] 查询失败:', err.message)
+    res.status(500).json({ type: 'FeatureCollection', features: [] })
+  }
+})
 
 // 绿道附近设施查询（按名称 — 必须放在 :id 之前，否则 Express 会将 "name" 匹配为 :id）
 router.get('/greenways/name/:name/nearby-facilities', async (req, res) => {
@@ -163,7 +207,8 @@ router.get('/admin/poi/stats', async (req, res) => {
         COUNT(*) FILTER (WHERE poi.poi_type = '150900') AS parking,
         COUNT(*) FILTER (WHERE poi.poi_type = '200300') AS restroom,
         COUNT(*) FILTER (WHERE poi.poi_type = '060100') AS store,
-        COUNT(*) FILTER (WHERE poi.poi_type = '080600') AS bike,
+        COUNT(*) FILTER (WHERE poi.poi_type = '080600') AS cinema,
+        COUNT(*) FILTER (WHERE poi.poi_type IN ('110100','110200')) AS scenic,
         COUNT(*) AS total
       FROM greenways g
       LEFT JOIN points_of_interest poi ON poi.greenway_id = g.id

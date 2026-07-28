@@ -61,7 +61,7 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  **AI Assistant (绿道小助手)**: Powered by DeepSeek-V4-Flash, supports route recommendations, tutorials, and Q&A; conversations logged to database
 -  **Admin AI Chat Analytics**: Word cloud + daily trend chart (7/30/90 day views) + recent messages log, with day/night theme support (ECharts + echarts-wordcloud, Chinese NLP via `segment`)
 -  **3D Flyover Tour (3D 漫游)**: Immersive bird's-eye flight with glowing 3D tube path (PathSymbol3DLayer), auto-play camera animation with banking on turns, waypoint beads with fly/current/upcoming states, camera trail (flown/remaining segments), time-based atmosphere (starfield, sky color, ground color), and playback controls. Paths simplified via PostGIS `ST_SimplifyPreserveTopology` + `ST_LineInterpolatePoint` — exactly 45 equidistant waypoints per greenway, regardless of original vertex count (up to 4,911 raw vertices reduced to 45).
--  **POI Nearby Facilities (附近设施)**: 561 facilities across 6 categories (subway, bus, parking, restroom, convenience store, bike-share) imported from Amap POI API, filtered by PostGIS `ST_DWithin` within 1 km of greenways. Displayed on detail pages as a grouped list and as a toggleable map overlay layer (GraphicsLayer, enabled via layer dropdown, default off). Supports future GeoScene Server publishing.
+-  **POI Nearby Facilities**: 847 facilities across 7 categories (subway, bus, parking, restroom, convenience store, cinema, scenic spots) imported from Amap POI API, filtered by PostGIS `ST_DWithin` within 1 km of greenways. Professional SVG map markers with hover tooltips and click detail popups. Per-type visibility control via layer legend panel and detail-page layer controller. Radius-adjustable (500m–5km) on detail pages. State persisted across page navigation via sessionStorage.
 -  Capacitor-based mobile app (experimental)
 
 ---
@@ -106,7 +106,7 @@ npm run dev       # http://localhost:5173
 |  **GIS Toolkit** | Draw (with RGB color picker), measure, import GeoJSON, toggle base layers |
 |  **Map Export** | Export current map view as PNG image |
 |  **17 Greenways** | Individual detail pages with attributes, real images, facility info & street panorama |
-|  **Nearby Facilities** | 561 POIs (6 categories) within 1 km of greenways; grouped list on detail page + toggleable map layer |
+|  **Nearby Facilities** | 847 POIs (7 categories), SVG markers, tooltip+popup, per-type filter, radius slider, session-persisted |
 |  **Real-time Weather** | Draggable weather widget (Amap API) |
 |  **AI Assistant** | Map/detail-only floating chatbot (DeepSeek-V4-Flash), conversations logged to DB |
 |  **AI Chat Analytics** | Admin: word cloud + daily trend + recent messages, dual day/night theme |
@@ -162,6 +162,8 @@ npm run dev       # http://localhost:5173
           GreenwayFlyover.vue      # 3D flyover tour (SceneView + satellite)
           AIChatbot.vue             # AI floating window (map pages only)
           NearbyFacilities.vue     # POI nearby-facilities block (detail pages)
+          DetailPoiPopup.vue       # POI detail popup + tooltip
+          DetailPoiLayerControl.vue # Per-type POI visibility toggle panel
        services/
           gaodeApi.js              # Amap API proxy calls (directions/search)
           osrmApi.js               # Dijkstra routing API client (walking/cycling)
@@ -170,6 +172,9 @@ npm run dev       # http://localhost:5173
           route.js                 # Route planning reactive state
        utils/
           coordinateTransform.js   # WGS84 ↔ GCJ02 conversion
+          sessionRef.js            # sessionStorage-backed reactive ref
+       composables/
+          useDetailPoi.js          # Detail-page POI layer + popup logic
        stores/
           adminAuth.js             # Pinia store (JWT, localStorage)
           userAuth.js              # Public user auth
@@ -263,6 +268,7 @@ GET /api/greenways/:id/flyover?maxPoints=45    # 3D flyover waypoints (PostGIS-s
 GET /api/greenways/name/:name/flyover?maxPoints=45  # flyover waypoints by greenway name
 GET /api/greenways/:id/nearby-facilities?radius=1000  # POI facilities within radius (grouped by type)
 GET /api/greenways/name/:name/nearby-facilities       # POI facilities by greenway name
+GET /api/greenways/name/:name/nearby-facilities/geojson  # POI GeoJSON by greenway name
 GET /api/greenways/:id/nearby-facilities/geojson       # POI facilities as GeoJSON FeatureCollection
 GET /api/facilities/geojson                           # all POI facilities GeoJSON (map overlay layer)
 GET /api/poi-types                                    # POI category definitions (code, name, icon, color)
@@ -396,7 +402,7 @@ VITE_API_BASE=http://localhost:3001
 | Frontend framework | Vue 3.4 + Vite 5 + Pinia |
 | Map engine | GeoScene JS SDK 4.33 (2D MapView + 3D SceneView) + Amap tiles |
 | 3D flyover | GeoScene SceneView + WebTileLayer (satellite) + Camera flyTo animation + PostGIS ST_SimplifyPreserveTopology |
-| POI facilities | Amap POI API → PostGIS ST_DWithin → GeoJSON → GeoScene GraphicsLayer |
+| POI facilities | Amap POI API → PostGIS ST_DWithin → GeoJSON → GeoScene GeoJSONLayer + PictureMarkerSymbol |
 | Charts / Word cloud | ECharts 6 + echarts-wordcloud + vue-echarts |
 | AI model | DeepSeek-V4-Flash (REST API) |
 | Chinese NLP | segment (pure-JS tokenizer) |

@@ -117,7 +117,6 @@
 
         
 
-                <NearbyFacilities greenway-name="奥林匹克森林公园绿道" />
 
         <!-- 全景浏览按钮 -->
 
@@ -153,7 +152,21 @@
 
           @map-ready="onMapReady"
 
+          @feature-click="onFeatureClick"
+
+          @feature-hover="onFeatureHover"
+
         :restrict-navigation="true" />
+
+        <DetailPoiPopup :popup="popup" :tooltip="tooltip"
+
+          @close="closePopup" />
+
+        <DetailPoiLayerControl :filters="poiTypeFilters" :typeList="poiTypeList"
+
+          @toggle="(code, v) => togglePoiType(code, v)"
+
+          @toggleAll="(v) => toggleAllPoiTypes(v)" />
 
       </div>
 
@@ -220,15 +233,22 @@ import WeatherCard from '@/components/WeatherCard.vue'
 import BaiduPanoramaViewer from '@/components/BaiduPanoramaViewer.vue'
 
 import DesktopCommentsPanel from '@/components/DesktopCommentsPanel.vue'
-import NearbyFacilities from '@/components/NearbyFacilities.vue'
+
+import DetailPoiPopup from '@/components/DetailPoiPopup.vue'
+
+import DetailPoiLayerControl from '@/components/DetailPoiLayerControl.vue'
 
 import { loadGreenwayDataByName, buildGreenwayInfo } from '@/utils/greenwayHelper'
+
+import { useDetailPoi } from '@/composables/useDetailPoi.js'
 
 
 
 const router = useRouter()
 
+const GREENWAY_NAME = '奥林匹克森林公园绿道'
 
+const { popup, tooltip, tooltipStyle, poiTypeFilters, poiTypeList, togglePoiType, toggleAllPoiTypes, loadPoiLayer, onFeatureClick, onFeatureHover, closePopup, cleanupPoi } = useDetailPoi(GREENWAY_NAME)
 
 // 地图组件引用
 
@@ -416,15 +436,17 @@ const onMapReady = (map) => {
 
   console.log('[AosenDetail] 地图已就绪')
 
-  
 
-  // 获取地图中心作为天气查询位置（更新到实际地图中心）
+
+  // 加载 POI 设施图层
 
   setTimeout(() => {
 
     if (mapViewer.value) {
 
       const mapMgr = mapViewer.value.getMapManager()
+
+      if (mapMgr) loadPoiLayer(mapMgr)
 
       const center = mapMgr.getCenter()
 
@@ -643,6 +665,14 @@ onMounted(async () => {
 
 
 onBeforeUnmount(() => {
+
+  if (mapViewer.value) {
+
+    const mapMgr = mapViewer.value.getMapManager()
+
+    if (mapMgr) cleanupPoi(mapMgr)
+
+  }
 
   cleanupSidebarWheel?.()
 

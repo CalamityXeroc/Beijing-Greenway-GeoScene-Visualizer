@@ -22,7 +22,9 @@ const POI_TYPES = {
   '150900': { name: '停车场', icon: '🅿️' },
   '200300': { name: '公共卫生间', icon: '🚻' },
   '060100': { name: '便利店', icon: '🏪' },
-  '080600': { name: '共享单车', icon: '🚲' }
+  '080600': { name: '影剧院', icon: '🎬' },
+  '110100': { name: '景点', icon: '🏛️' },
+  '110200': { name: '景点', icon: '🏛️' }
 }
 
 const RADIUS = parseInt(process.argv.find(a => a.startsWith('--radius='))?.split('=')[1] || '1000')
