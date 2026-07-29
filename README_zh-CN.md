@@ -61,7 +61,7 @@
 -  **AI 助手（绿道小助手）**：基于 DeepSeek-V4-Flash，，支持路线推荐、操作指引、绿道知识问答，对话自动写入数据库
 -  **管理员 AI 对话分析：** 词云 + 每日趋势折线图（7/30/90 天可选）+ 最近提问记录，支持昼夜主题自动切换（ECharts + echarts-wordcloud，中文分词使用 `segment` 库）
 -  **3D 飞行漫游（3D Flyover）**：发光管状路径（PathSymbol3DLayer）+ 路径光珠（已飞/当前/未来状态）+ 飞行轨迹（已飞段亮色/未飞段暗色）+ 转弯倾斜 + 时段氛围（星空、天空色、地面色自适应），支持播放/暂停/调速/前后跳转。路径经 PostGIS `ST_SimplifyPreserveTopology` + `ST_LineInterpolatePoint` 精确采样为 45 个等距航点（最多 4,911 个原始顶点精简至 45 个）。
--  **POI 附近设施**：从高德 POI API 导入 7 类共 847 条便民设施（地铁站、公交站、停车场、公共卫生间、便利店、影剧院、景点），经 PostGIS `ST_DWithin` 筛选绿道周边 1km 范围内。专业 SVG 矢量地图标记，支持悬浮 tooltip、点击详情弹窗。图例面板和详情页图层控制器支持按类型独立开关，详情页支持半径可调（500m~5km）。会话间通过 sessionStorage 持久化图层状态。
+-  **POI 附近设施**：从高德 POI API 导入 7 类共 847 条便民设施（地铁站、公交站、停车场、公共卫生间、便利店、影剧院、景点），经 PostGIS `ST_DWithin` 筛选绿道周边指定范围内。专业 SVG 矢量地图标记，支持悬浮 tooltip、点击详情弹窗。顶部导航栏内置全局关键词搜索（自动补全 + 键盘导航）。图例面板和详情页图层控制器支持按类型独立开关，详情页支持搜索半径可调（500m~5km）。会话间通过 sessionStorage 持久化图层状态。
 -  Capacitor 移动端应用（试验阶段）
 
 ---
@@ -106,7 +106,7 @@ npm run dev       # http://localhost:5173
 |  **GIS 工具集** | 绘图（支持 RGB 调色板）、测量、导入 GeoJSON、基础图层切换 |
 |  **地图导出** | 将当前地图视图导出为 PNG 图片 |
 |  **17 条绿道** | 每条均有独立详情页、真实图片展示、属性信息和全景街景 |
-|  **附近设施** | 847 条 POI（7 类），SVG 矢量标记，悬浮提示+点击弹窗，分类筛选，半径可调，会话持久化 |
+|  **附近设施** | 847 条 POI（7 类），SVG 矢量标记，关键词搜索，悬浮提示+点击弹窗，分类筛选，半径可调，会话持久化 |
 |  **实时天气** | 可拖动天气组件（高德地图 API） |
 |  **AI 助手** | 地图页浮窗，DeepSeek-V4-Flash 驱动，对话写入数据库 |
 |  **AI 对话分析** | 管理员：词云 + 折线图 + 最近提问，昼夜主题自动切换 |
@@ -138,7 +138,7 @@ npm run dev       # http://localhost:5173
     scripts/
        add-chat-logs-table.js   # 数据库迁移：AI 对话日志表
        add-heatmap-tables.js    # 数据库迁移：热度热力图追踪表
-       import-pois.cjs          # 高德 POI 导入脚本（6 类设施，ST_DWithin 筛选）
+       import-pois.cjs          # 高德 POI 导入脚本（7 类设施，ST_DWithin 筛选）
        ...                      # 数据库初始化与导入工具
     init-db.sql             # 表结构 + PostGIS 初始化
 
@@ -164,6 +164,7 @@ npm run dev       # http://localhost:5173
           NearbyFacilities.vue     # POI 附近设施板块（详情页专用）
           DetailPoiPopup.vue       # POI 详情弹窗 + 悬浮提示
           DetailPoiLayerControl.vue # POI 类型独立开关面板
+          PoiSearchBar.vue         # POI 全局关键词搜索（自动补全 + 键盘导航）
        services/
           gaodeApi.js              # 高德API代理调用
           osrmApi.js               # Dijkstra 路径规划 API 客户端（步行/骑行）
@@ -271,6 +272,7 @@ GET /api/greenways/name/:name/nearby-facilities       # 按绿道名称查询周
 GET /api/greenways/name/:name/nearby-facilities/geojson  # 按绿道名称查询周边设施 GeoJSON
 GET /api/greenways/:id/nearby-facilities/geojson       # 绿道周边设施 GeoJSON FeatureCollection
 GET /api/facilities/geojson                           # 全部 POI 设施 GeoJSON（地图叠加图层用）
+GET /api/poi/search?q=关键词                          # POI 设施关键词搜索（名称/地址模糊匹配）
 GET /api/poi-types                                    # POI 类型定义（代码、名称、图标、颜色）
 GET /api/tiles/gaode/:style/:level/:col/:row  # 高德瓦片代理（style=6 卫星图, style=7 矢量图）
 POST /api/heatmap/click          # 记录绿道点击（热度埋点）

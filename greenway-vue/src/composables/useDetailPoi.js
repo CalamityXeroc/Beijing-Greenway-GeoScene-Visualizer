@@ -105,29 +105,39 @@ export function useDetailPoi(greenwayName) {
   // 自动同步渲染器
   watch(() => ({ ...poiTypeFilters }), () => { applyTypeFilters(_mm) }, { deep: true })
 
+  // 搜索半径
+  const _radiusKey = `gw_detailPoiRadius_${greenwayName}`
+  const radius = sessionRef(_radiusKey, 1000)
+
   // 保存 mapManager 引用供 renderer 更新用
   let _mm = null
+  let _blobUrl = null
 
   function loadPoiLayer(mapManager) {
     if (!mapManager) return
     _mm = mapManager
 
-    const existing = mapManager.getLayer(layerId)
-    if (existing) {
-      existing.visible = true
-      applyTypeFilters(mapManager) // 恢复上次筛选状态
-      return
-    }
-
     const encoded = encodeURIComponent(greenwayName)
-    fetch(`/api/greenways/name/${encoded}/nearby-facilities/geojson?radius=1000`)
+    const url = `/api/greenways/name/${encoded}/nearby-facilities/geojson?radius=${radius.value}`
+    _doLoad(url, mapManager)
+  }
+
+  function _doLoad(url, mapManager) {
+    fetch(url)
       .then(r => r.json())
       .then(geojson => {
-        if (!geojson.features || geojson.features.length === 0) return
+        if (!geojson.features) return
         if (!_mm?.getView) return
 
+        // 先清理旧图层
+        const old = mapManager.getLayer(layerId)
+        if (old?._objectUrl) { URL.revokeObjectURL(old._objectUrl) }
+        if (old) mapManager.removeLayer(layerId)
+
+        if (geojson.features.length === 0) { console.log(`[useDetailPoi] ${greenwayName}: 0 POI (radius=${radius.value}m)`); return }
+
         const blob = new Blob([JSON.stringify(geojson)], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
+        _blobUrl = URL.createObjectURL(blob)
 
         const uniqueValueInfos = Object.entries(FACILITY_CONFIG)
           .filter(([code]) => poiTypeFilters[code])
@@ -137,19 +147,26 @@ export function useDetailPoi(greenwayName) {
           }))
 
         const layer = new GeoJSONLayer({
-          id: layerId, title: '附近设施', url, visible: true,
+          id: layerId, title: '附近设施', url: _blobUrl, visible: true,
           outFields: ['id', 'name', 'poi_type', 'type_name', 'distance_m', 'greenway_id', 'address'],
           minScale: 0, maxScale: 0,
           renderer: new UniqueValueRenderer({ field: 'poi_type', uniqueValueInfos })
         })
         layer._zIndex = 250
         layer.listMode = 'hide'
-        layer._objectUrl = url
+        layer._objectUrl = _blobUrl
 
         _mm.addLayer(layerId, layer)
-        console.log(`[useDetailPoi] ${greenwayName}: ${geojson.features.length} 个 POI 已加载`)
+        console.log(`[useDetailPoi] ${greenwayName}: ${geojson.features.length} 个 POI (radius=${radius.value}m)`)
       })
       .catch(e => { console.error(`[useDetailPoi] ${greenwayName} 加载失败:`, e.message) })
+  }
+
+  function changeRadius(val) {
+    radius.value = val
+    if (!_mm) return
+    const encoded = encodeURIComponent(greenwayName)
+    _doLoad(`/api/greenways/name/${encoded}/nearby-facilities/geojson?radius=${val}`, _mm)
   }
 
   function onFeatureClick({ featuresWithLayers, pixel }) {
@@ -211,17 +228,16 @@ export function useDetailPoi(greenwayName) {
   function cleanupPoi(mapManager) {
     if (!mapManager) return
     const layer = mapManager.getLayer(layerId)
-    if (layer?._objectUrl) {
-      URL.revokeObjectURL(layer._objectUrl)
-    }
+    if (layer?._objectUrl) { URL.revokeObjectURL(layer._objectUrl) }
+    if (_blobUrl) { URL.revokeObjectURL(_blobUrl); _blobUrl = null }
     mapManager.removeLayer(layerId)
     _mm = null
   }
 
   return {
     popup, tooltip, tooltipStyle, popupStyle,
-    poiTypeFilters, poiTypeList, togglePoiType, toggleAllPoiTypes, applyTypeFilters,
-    loadPoiLayer, onFeatureClick, onFeatureHover, closePopup, goToPoiGreenway, cleanupPoi,
+    poiTypeFilters, poiTypeList, radius, togglePoiType, toggleAllPoiTypes, applyTypeFilters,
+    loadPoiLayer, changeRadius, onFeatureClick, onFeatureHover, closePopup, goToPoiGreenway, cleanupPoi,
     FACILITY_CONFIG
   }
 }

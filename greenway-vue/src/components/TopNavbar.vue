@@ -353,6 +353,9 @@
       </div>
     </div>
 
+    <!-- 搜索栏插槽 -->
+    <slot name="search" />
+
     <!-- 右：登录入口 -->
     <div class="nav-right">
       <div class="user-menu" @mouseenter="openMenu('user')" @mouseleave="closeMenu('user')">

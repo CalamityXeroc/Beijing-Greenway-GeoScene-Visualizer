@@ -162,7 +162,7 @@
 
           @close="closePopup" />
 
-        <DetailPoiLayerControl :filters="poiTypeFilters" :typeList="poiTypeList"
+        <DetailPoiLayerControl :filters="poiTypeFilters" :typeList="poiTypeList" :radius="radius" @changeRadius="changeRadius"
 
           @toggle="(code, v) => togglePoiType(code, v)"
 
@@ -248,7 +248,7 @@ const router = useRouter()
 
 const GREENWAY_NAME = '奥林匹克森林公园绿道'
 
-const { popup, tooltip, tooltipStyle, poiTypeFilters, poiTypeList, togglePoiType, toggleAllPoiTypes, loadPoiLayer, onFeatureClick, onFeatureHover, closePopup, cleanupPoi } = useDetailPoi(GREENWAY_NAME)
+const { popup, tooltip, tooltipStyle, poiTypeFilters, poiTypeList, radius, togglePoiType, toggleAllPoiTypes, loadPoiLayer, changeRadius, onFeatureClick, onFeatureHover, closePopup, cleanupPoi } = useDetailPoi(GREENWAY_NAME)
 
 // 地图组件引用
 

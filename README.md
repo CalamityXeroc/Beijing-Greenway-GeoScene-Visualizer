@@ -61,7 +61,7 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  **AI Assistant (绿道小助手)**: Powered by DeepSeek-V4-Flash, supports route recommendations, tutorials, and Q&A; conversations logged to database
 -  **Admin AI Chat Analytics**: Word cloud + daily trend chart (7/30/90 day views) + recent messages log, with day/night theme support (ECharts + echarts-wordcloud, Chinese NLP via `segment`)
 -  **3D Flyover Tour (3D 漫游)**: Immersive bird's-eye flight with glowing 3D tube path (PathSymbol3DLayer), auto-play camera animation with banking on turns, waypoint beads with fly/current/upcoming states, camera trail (flown/remaining segments), time-based atmosphere (starfield, sky color, ground color), and playback controls. Paths simplified via PostGIS `ST_SimplifyPreserveTopology` + `ST_LineInterpolatePoint` — exactly 45 equidistant waypoints per greenway, regardless of original vertex count (up to 4,911 raw vertices reduced to 45).
--  **POI Nearby Facilities**: 847 facilities across 7 categories (subway, bus, parking, restroom, convenience store, cinema, scenic spots) imported from Amap POI API, filtered by PostGIS `ST_DWithin` within 1 km of greenways. Professional SVG map markers with hover tooltips and click detail popups. Per-type visibility control via layer legend panel and detail-page layer controller. Radius-adjustable (500m–5km) on detail pages. State persisted across page navigation via sessionStorage.
+-  **POI Nearby Facilities**: 847 facilities across 7 categories (subway, bus, parking, restroom, convenience store, cinema, scenic spots) imported from Amap POI API, filtered by PostGIS `ST_DWithin` within 1 km of greenways. Professional SVG map markers with hover tooltips and click detail popups. Global keyword search with autocomplete + keyboard navigation in the top navbar. Per-type visibility control via layer legend panel and detail-page layer controller. Adjustable search radius (500m–5km) on detail pages. State persisted across page navigation via sessionStorage.
 -  Capacitor-based mobile app (experimental)
 
 ---
@@ -106,7 +106,7 @@ npm run dev       # http://localhost:5173
 |  **GIS Toolkit** | Draw (with RGB color picker), measure, import GeoJSON, toggle base layers |
 |  **Map Export** | Export current map view as PNG image |
 |  **17 Greenways** | Individual detail pages with attributes, real images, facility info & street panorama |
-|  **Nearby Facilities** | 847 POIs (7 categories), SVG markers, tooltip+popup, per-type filter, radius slider, session-persisted |
+|  **Nearby Facilities** | 847 POIs (7 categories), SVG markers, tooltip+popup, keyword search, per-type filter, radius slider, session-persisted |
 |  **Real-time Weather** | Draggable weather widget (Amap API) |
 |  **AI Assistant** | Map/detail-only floating chatbot (DeepSeek-V4-Flash), conversations logged to DB |
 |  **AI Chat Analytics** | Admin: word cloud + daily trend + recent messages, dual day/night theme |
@@ -138,7 +138,7 @@ npm run dev       # http://localhost:5173
     scripts/
        add-chat-logs-table.js   # DB migration: chat_logs table
        add-heatmap-tables.js    # DB migration: heatmap tracking tables
-       import-pois.cjs          # Amap POI importer (6 categories, ST_DWithin filter)
+       import-pois.cjs          # Amap POI importer (7 categories, ST_DWithin filter)
        ...                      # DB init & GeoJSON import utilities
     init-db.sql             # Schema + PostGIS setup
 
@@ -164,6 +164,7 @@ npm run dev       # http://localhost:5173
           NearbyFacilities.vue     # POI nearby-facilities block (detail pages)
           DetailPoiPopup.vue       # POI detail popup + tooltip
           DetailPoiLayerControl.vue # Per-type POI visibility toggle panel
+          PoiSearchBar.vue         # Global POI keyword search with autocomplete
        services/
           gaodeApi.js              # Amap API proxy calls (directions/search)
           osrmApi.js               # Dijkstra routing API client (walking/cycling)
@@ -271,6 +272,7 @@ GET /api/greenways/name/:name/nearby-facilities       # POI facilities by greenw
 GET /api/greenways/name/:name/nearby-facilities/geojson  # POI GeoJSON by greenway name
 GET /api/greenways/:id/nearby-facilities/geojson       # POI facilities as GeoJSON FeatureCollection
 GET /api/facilities/geojson                           # all POI facilities GeoJSON (map overlay layer)
+GET /api/poi/search?q=keyword                         # keyword search across POI names & addresses
 GET /api/poi-types                                    # POI category definitions (code, name, icon, color)
 GET /api/tiles/gaode/:style/:level/:col/:row  # Amap tile proxy (style 6 = satellite, style 7 = vector)
 POST /api/heatmap/click          # record greenway click (heatmap tracking)

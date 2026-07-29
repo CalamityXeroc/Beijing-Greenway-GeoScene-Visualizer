@@ -5,6 +5,11 @@
         <span>设施图层</span>
         <a class="poi-layer-all" @click="toggleAll">{{ allOn ? '全部关闭' : '全部开启' }}</a>
       </div>
+      <div class="radius-row">
+        <button v-for="r in [500,1000,2000,5000]" :key="r"
+          class="radius-btn" :class="{ active: radius === r }"
+          @click="$emit('changeRadius', r)">{{ r >= 1000 ? (r/1000)+'km' : r+'m' }}</button>
+      </div>
       <label v-for="t in typeList" :key="t.code" class="poi-layer-row">
         <input type="checkbox" :checked="filters[t.code] !== false"
                @change="emit('toggle', t.code, $event.target.checked)" />
@@ -28,10 +33,11 @@ import { ref, computed } from 'vue'
 
 const props = defineProps({
   filters: { type: Object, required: true },
-  typeList: { type: Array, required: true }
+  typeList: { type: Array, required: true },
+  radius: { type: Number, default: 1000 }
 })
 
-const emit = defineEmits(['toggle', 'toggleAll'])
+const emit = defineEmits(['toggle', 'toggleAll', 'changeRadius'])
 
 const show = ref(false)
 
@@ -76,6 +82,19 @@ function toggleAll() {
 }
 .poi-layer-all { font-size: 0.7rem; color: #4CAF50; cursor: pointer; font-weight: 400; }
 .poi-layer-all:hover { color: #2E7D32; }
+
+.radius-row { display: flex; gap: 4px; padding: 0 0.65rem 0.45rem; }
+.radius-btn {
+  flex: 1; padding: 2px 0; border-radius: 4px; border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(0,0,0,0.02); font-size: 0.68rem; color: #777; cursor: pointer;
+  transition: all .15s;
+}
+.radius-btn:hover { border-color: #4CAF50; color: #4CAF50; }
+.radius-btn.active { background: #4CAF50; color: #fff; border-color: #4CAF50; font-weight: 600; }
+
+[data-theme="night"] .radius-btn { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); color: #999; }
+[data-theme="night"] .radius-btn:hover { border-color: #66BB6A; color: #66BB6A; }
+[data-theme="night"] .radius-btn.active { background: #43A047; color: #fff; border-color: #43A047; }
 
 .poi-layer-row {
   display: flex; align-items: center; gap: 8px; padding: 0.38rem 0.7rem;

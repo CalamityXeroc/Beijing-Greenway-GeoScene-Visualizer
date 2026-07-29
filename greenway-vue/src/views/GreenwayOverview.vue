@@ -18,7 +18,11 @@
                 @toggle-path-planning="showPathPlanning = !showPathPlanning"
                 @toggle-heatmap="toggleHeatmap($event)"
                 @toggle-facilities="toggleFacilities($event)"
-                @toggle-facility-type="(code, checked) => toggleFacilityType(code, checked)"/>
+                @toggle-facility-type="(code, checked) => toggleFacilityType(code, checked)">
+        <template #search>
+          <PoiSearchBar @select="onPoiSearchSelect" />
+        </template>
+      </TopNavbar>
     </div>
 
     <!-- 地图容器：精确占满视口剩余高度，滚动后变为普通内容区 -->
@@ -260,6 +264,7 @@ import { sessionRef } from '@/utils/sessionRef.js'
 import GeoJSONLayer from '@geoscene/core/layers/GeoJSONLayer.js'
 import UniqueValueRenderer from '@geoscene/core/renderers/UniqueValueRenderer.js'
 import PictureMarkerSymbol from '@geoscene/core/symbols/PictureMarkerSymbol.js'
+import PoiSearchBar from '@/components/PoiSearchBar.vue'
 
 const router = useRouter()
 const { isLoggedIn, currentUser } = useUserAuth()
@@ -788,6 +793,30 @@ const showFacilities = sessionRef('gw_showFacilities', false)
 const legendCollapsed = ref(false)
 const allTypesOff = computed(() => Object.values(facilityTypeFilters).every(v => !v))
 function closeAllFacilities() { toggleFacilities(false) }
+
+// POI 搜索选中处理
+function onPoiSearchSelect(poi) {
+  if (!mapManager.value) return
+  // 确保设施图层已开启
+  if (!showFacilities.value) toggleFacilities(true)
+  const view = mapManager.value.getView()
+  if (view) {
+    view.goTo({ center: [poi.lng, poi.lat], zoom: 15 }, { duration: 800 })
+  }
+  // 显示 popup
+  popup.isPoi = true
+  popup.poiName = poi.name
+  popup.poiTypeName = poi.type_name
+  popup.poiSvg = `/images/poi/${FACILITY_CONFIG[poi.poi_type]?.icon || 'subway.svg'}`
+  popup.poiColor = poi.color || '#666'
+  popup.poiAddress = poi.address || ''
+  popup.poiDistance = ''
+  popup.poiGreenway = poi.greenway_name || ''
+  popup.title = poi.name
+  popup.position = { x: window.innerWidth / 2, y: 200 }
+  popup.visible = true
+  tooltip.visible = false
+}
 
 // POI popup 跳转到绿道详情页
 function goToPoiGreenway() {

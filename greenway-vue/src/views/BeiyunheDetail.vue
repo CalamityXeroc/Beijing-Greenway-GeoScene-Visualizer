@@ -158,7 +158,7 @@
         <DetailPoiPopup :popup="popup" :tooltip="tooltip"
           @close="closePopup" />
 
-        <DetailPoiLayerControl :filters="poiTypeFilters" :typeList="poiTypeList"
+        <DetailPoiLayerControl :filters="poiTypeFilters" :typeList="poiTypeList" :radius="radius" @changeRadius="changeRadius"
           @toggle="(code, v) => togglePoiType(code, v)"
           @toggleAll="(v) => toggleAllPoiTypes(v)" />
       </div>
@@ -239,7 +239,7 @@ const router = useRouter()
 
 const GREENWAY_NAME = '北运河绿道'
 
-const { popup, tooltip, tooltipStyle, poiTypeFilters, poiTypeList, togglePoiType, toggleAllPoiTypes, loadPoiLayer, onFeatureClick, onFeatureHover, closePopup, cleanupPoi } = useDetailPoi(GREENWAY_NAME)
+const { popup, tooltip, tooltipStyle, poiTypeFilters, poiTypeList, radius, togglePoiType, toggleAllPoiTypes, loadPoiLayer, changeRadius, onFeatureClick, onFeatureHover, closePopup, cleanupPoi } = useDetailPoi(GREENWAY_NAME)
 
 const mapViewer = ref(null)
 
