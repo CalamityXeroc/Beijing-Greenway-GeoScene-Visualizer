@@ -2,7 +2,7 @@
   <div class="heat-admin">
     <div class="page-header">
       <h2 class="page-title">绿道热度管理</h2>
-      <span class="page-subtitle">实时监控绿道热度数据，分析用户行为趋势 | 热度 = 点击×0.2 + 规划×0.5 + 评论×0.3</span>
+      <span class="page-subtitle">实时监控绿道热度数据，分析用户行为趋势 | 热度 = 点击×0.15 + 规划×0.40 + 评论×0.20 + POI点击×0.25</span>
     </div>
 
     <!-- 统计卡片 -->
@@ -247,9 +247,10 @@ function makeWeightPieChart() {
     series: [{
       name: '权重', type: 'pie', radius: ['40%', '70%'], center: ['50%', '45%'],
       data: [
-        { value: 20, name: '点击量 (0.2)', itemStyle: { color: '#1890ff' } },
-        { value: 50, name: '路径规划 (0.5)', itemStyle: { color: '#52c41a' } },
-        { value: 30, name: '评论量 (0.3)', itemStyle: { color: '#faad14' } }
+        { value: 15, name: '点击量 (0.15)', itemStyle: { color: '#1890ff' } },
+        { value: 40, name: '路径规划 (0.40)', itemStyle: { color: '#52c41a' } },
+        { value: 20, name: '评论量 (0.20)', itemStyle: { color: '#faad14' } },
+        { value: 25, name: 'POI点击 (0.25)', itemStyle: { color: '#8B5CF6' } }
       ],
       label: { color: textColor(), formatter: '{b}\n{d}%' }
     }]

@@ -373,6 +373,124 @@ table tr:hover {
   }
 }
 
+/* ===== GeoScene POI Popup 自定义内容样式 ===== */
+.poi-popup { font-size: 13px; line-height: 1.6; min-width: 200px; }
+.poi-popup-icon { width: 30px; height: 30px; object-fit: contain; margin-bottom: 6px; }
+.poi-popup-type { font-size: 12px; font-weight: 700; letter-spacing: 0.5px; }
+.poi-popup-name { font-size: 15px; font-weight: 700; color: #1f2937; margin: 2px 0 6px; }
+.poi-popup-addr, .poi-popup-dist, .poi-popup-gw { font-size: 12px; color: #6b7280; margin: 2px 0; }
+.poi-popup-btn {
+  display: inline-block; margin-top: 10px; padding: 6px 14px;
+  background: #2E7D32; color: #fff !important; border-radius: 8px;
+  font-size: 12px; font-weight: 600; text-decoration: none !important;
+  transition: background 0.2s;
+}
+.poi-popup-btn:hover { background: #256829; }
+
+/* 聚合点 popup */
+.poi-popup-cluster { font-size: 13px; min-width: 220px; max-width: 280px; }
+.poi-popup-cluster-head { font-weight: 700; color: #1f2937; margin-bottom: 8px; }
+.poi-popup-cluster-list { max-height: 220px; overflow-y: auto; }
+.poi-popup-cluster-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 6px; border-radius: 6px; font-size: 12px; color: #374151;
+}
+.poi-popup-cluster-item:hover { background: #f3f4f6; }
+.poi-popup-cluster-item em { margin-left: auto; font-style: normal; font-size: 11px; color: #9ca3af; }
+.poi-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
+.poi-popup-cluster-hint { color: #6b7280; font-size: 12px; }
+
+/* 夜间模式：平台统一用 [data-theme="night"] 标记 */
+[data-theme="night"] .poi-popup-name,
+[data-theme="night"] .poi-popup-cluster-head { color: #e5e7eb; }
+[data-theme="night"] .poi-popup-addr,
+[data-theme="night"] .poi-popup-dist,
+[data-theme="night"] .poi-popup-gw,
+[data-theme="night"] .poi-popup-cluster-hint { color: #9ca3af; }
+[data-theme="night"] .poi-popup-cluster-item { color: #d1d5db; }
+[data-theme="night"] .poi-popup-cluster-item:hover { background: #2a2a2a; }
+[data-theme="night"] .poi-popup-btn { background: #4CAF50; }
+[data-theme="night"] .poi-popup-btn:hover { background: #66bb6a; }
+
+/* ===== GeoScene popup 停靠模式：去掉全屏遮罩，避免停靠后盖住地图 ===== */
+.geoscene-popup--is-docked {
+  background: transparent !important;
+  box-shadow: none !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  inset: auto !important;
+  top: 80px !important;
+  right: 20px !important;
+  left: auto !important;
+  bottom: auto !important;
+}
+.geoscene-popup--is-docked .geoscene-popup__main-container {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ===== GeoScene popup 黑夜模式：平台切主题时同步深色 ===== */
+[data-theme="night"] .geoscene-popup__main-container,
+[data-theme="night"] .geoscene-popup .geoscene-features,
+[data-theme="night"] .geoscene-popup .geoscene-widget--panel {
+  background: #1a1a1a;
+  color: #e5e7eb;
+}
+[data-theme="night"] .geoscene-popup .geoscene-widget__heading,
+[data-theme="night"] .geoscene-popup .geoscene-features__heading {
+  color: #e5e7eb;
+}
+/* calcite-flow-item：header 区（停靠/关闭按钮行）也要深色 */
+[data-theme="night"] .geoscene-popup calcite-flow-item {
+  background: #1a1a1a;
+  color: #e5e7eb;
+  --calcite-color-foreground-1: #1a1a1a;
+  --calcite-color-foreground-2: #2a2a2a;
+  --calcite-color-foreground-3: #333;
+  --calcite-color-text-1: #e5e7eb;
+  --calcite-color-text-2: #d1d5db;
+  --calcite-color-text-3: #9ca3af;
+  --calcite-color-border-1: #333;
+  --calcite-color-border-2: #2a2a2a;
+  --calcite-color-background: #1a1a1a;
+}
+/* calcite 组件在 Shadow DOM 内，用 ::part 或 :host 深层覆盖 */
+[data-theme="night"] .geoscene-popup calcite-flow-item::part(header),
+[data-theme="night"] .geoscene-popup calcite-flow-item::part(header-content),
+[data-theme="night"] .geoscene-popup calcite-flow-item::part(header-actions-end),
+[data-theme="night"] .geoscene-popup calcite-flow-item::part(action-bar),
+[data-theme="night"] .geoscene-popup calcite-action::part(icon),
+[data-theme="night"] .geoscene-popup calcite-action-bar,
+[data-theme="night"] .geoscene-popup calcite-action-group {
+  background: #1a1a1a;
+  color: #e5e7eb;
+}
+/* calcite-action 自身也定义变量，确保图标/文字变浅色 */
+[data-theme="night"] .geoscene-popup calcite-action {
+  --calcite-color-foreground-1: #1a1a1a;
+  --calcite-color-foreground-2: #2a2a2a;
+  --calcite-color-text-1: #e5e7eb;
+  --calcite-color-text-2: #d1d5db;
+  --calcite-color-text-3: #9ca3af;
+  --calcite-color-border-1: #333;
+  background: #1a1a1a !important;
+  color: #e5e7eb !important;
+}
+[data-theme="night"] .geoscene-popup calcite-action:hover {
+  background: #2a2a2a !important;
+}
+/* 聚合列表项 hover 背景 */
+[data-theme="night"] .geoscene-popup .poi-popup-cluster-item:hover {
+  background: #2a2a2a;
+}
+[data-theme="night"] .geoscene-popup .geoscene-popup__main-container .poi-popup,
+[data-theme="night"] .geoscene-popup .geoscene-popup__main-container .poi-popup-cluster {
+  color: #d1d5db;
+}
+
 /* ============ 主题响应约定 ============ */
 /* 具体的主题样式由每个组件的scoped样式使用[data-theme="night"]选择器处理
    以避免全局规则与本地样式冲突而破坏day mode */

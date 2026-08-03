@@ -62,6 +62,11 @@
 -  **管理员 AI 对话分析：** 词云 + 每日趋势折线图（7/30/90 天可选）+ 最近提问记录，支持昼夜主题自动切换（ECharts + echarts-wordcloud，中文分词使用 `segment` 库）
 -  **3D 飞行漫游（3D Flyover）**：发光管状路径（PathSymbol3DLayer）+ 路径光珠（已飞/当前/未来状态）+ 飞行轨迹（已飞段亮色/未飞段暗色）+ 转弯倾斜 + 时段氛围（星空、天空色、地面色自适应），支持播放/暂停/调速/前后跳转。路径经 PostGIS `ST_SimplifyPreserveTopology` + `ST_LineInterpolatePoint` 精确采样为 45 个等距航点（最多 4,911 个原始顶点精简至 45 个）。
 -  **POI 附近设施**：从高德 POI API 导入 7 类共 847 条便民设施（地铁站、公交站、停车场、公共卫生间、便利店、影剧院、景点），经 PostGIS `ST_DWithin` 筛选绿道周边指定范围内。专业 SVG 矢量地图标记，支持悬浮 tooltip、点击详情弹窗。顶部导航栏内置全局关键词搜索（自动补全 + 键盘导航）。图例面板和详情页图层控制器支持按类型独立开关，详情页支持搜索半径可调（500m~5km）。会话间通过 sessionStorage 持久化图层状态。
+-  **POI 设施聚类**：缩放级别 11~13 时设施点自动聚合成数字气泡，放大后散开显示单个 POI；点击聚合点弹出聚合区域内真实 POI 名称列表。聚类严格跟随图层类型过滤（`definitionExpression`），只保留用户选中的设施类型。
+-  **统一 GeoScene Popup**：设施交互 UI 统一迁移至 GeoScene 原生 popup（popupTemplate + content 函数），支持设施图标、类型、地址、距离展示与"查看绿道详情"一键跳转按钮；单点与聚合 popup 均完整适配白天/黑夜双主题。
+-  **空间分析工具集**：地图上绘制多边形分析区域，调用后端 PostGIS `ST_Intersects` 空间查询，返回区域内命中的绿道与设施，地图高亮 + 结果列表面板（含面积、周长、设施密度分析）。支持绘制多个分析区域，再次点击多边形可恢复结果。
+-  **用户收藏 + 个人中心**：收藏绿道（后端 `user_favorites` 表 + 收藏按钮），桌面端收藏列表页、移动端收藏页与个人中心统计（收藏数、骑行记录、总里程、评论数）全部接入真实数据。
+-  **图层图例控件**：集成 GeoScene 官方 Legend 组件（Expand 折叠面板），自动展示热力图渐变与设施图例。
 -  Capacitor 移动端应用（试验阶段）
 
 ---
@@ -107,6 +112,11 @@ npm run dev       # http://localhost:5173
 |  **地图导出** | 将当前地图视图导出为 PNG 图片 |
 |  **17 条绿道** | 每条均有独立详情页、真实图片展示、属性信息和全景街景 |
 |  **附近设施** | 847 条 POI（7 类），SVG 矢量标记，关键词搜索，悬浮提示+点击弹窗，分类筛选，半径可调，会话持久化 |
+|  **POI 聚类** | 缩放 11~13 聚合为数字气泡，放大散开单点；聚合列表显示真实 POI 名，跟随类型过滤 |
+|  **统一 Popup** | 单点/聚合统一 GeoScene popup：设施详情 + 绿道跳转按钮，白天/黑夜双主题 |
+|  **空间分析** | 绘制多边形 → PostGIS 空间查询 → 绿道/设施高亮 + 结果面板（面积/周长/密度） |
+|  **用户收藏** | 收藏绿道（后端持久化），桌面收藏页 + 移动端收藏页，个人中心真实统计 |
+|  **图例控件** | GeoScene 官方 Legend 组件（Expand 折叠），自动展示热力/设施图例 |
 |  **实时天气** | 可拖动天气组件（高德地图 API） |
 |  **AI 助手** | 地图页浮窗，DeepSeek-V4-Flash 驱动，对话写入数据库 |
 |  **AI 对话分析** | 管理员：词云 + 折线图 + 最近提问，昼夜主题自动切换 |
@@ -135,9 +145,12 @@ npm run dev       # http://localhost:5173
           osrmRoute.js     # Dijkstra 最短路径规划（OSM 路网数据）
           heatmap.js       # 热度热力图追踪与分析 API
           poi.js           # POI 附近设施查询与管理统计 API
+          favorites.js     # 用户收藏 CRUD 与个人中心统计 API
+          spatial.js       # 空间分析 API（多边形区域查询绿道/设施）
     scripts/
        add-chat-logs-table.js   # 数据库迁移：AI 对话日志表
        add-heatmap-tables.js    # 数据库迁移：热度热力图追踪表
+       add-favorites-table.js   # 数据库迁移：用户收藏表
        import-pois.cjs          # 高德 POI 导入脚本（7 类设施，ST_DWithin 筛选）
        ...                      # 数据库初始化与导入工具
     init-db.sql             # 表结构 + PostGIS 初始化
@@ -165,15 +178,22 @@ npm run dev       # http://localhost:5173
           DetailPoiPopup.vue       # POI 详情弹窗 + 悬浮提示
           DetailPoiLayerControl.vue # POI 类型独立开关面板
           PoiSearchBar.vue         # POI 全局关键词搜索（自动补全 + 键盘导航）
+          FavoriteButton.vue       # 绿道收藏按钮（心形切换）
+          MapLegend.vue            # GeoScene 官方图例组件（Expand 折叠）
+          SpatialAnalysisPanel.vue # 空间分析结果列表面板
        services/
           gaodeApi.js              # 高德API代理调用
           osrmApi.js               # Dijkstra 路径规划 API 客户端（步行/骑行）
           heatmapApi.js            # 热度热力图分析 API 客户端
+          favoritesApi.js          # 收藏 + 个人统计 API 客户端
+          spatialApi.js            # 空间分析 API 客户端
        stores/
           route.js                 # 路径规划响应式状态
+          favorites.js             # 收藏状态（ids + toggle + 登出清理）
        utils/
           coordinateTransform.js   # WGS84 ↔ GCJ02 坐标转换
           sessionRef.js            # sessionStorage 持久化响应式引用
+          poiPopupTemplate.js      # POI 统一 GeoScene popup 构建器（单点/聚合/跳转）
        composables/
           useDetailPoi.js          # 详情页 POI 图层 + 弹窗逻辑
        stores/
@@ -216,6 +236,7 @@ npm run dev       # http://localhost:5173
 | `/zhongxincheng` | ZhongxinchengDetail | 中心城滨水绿道详情 |
 | `/login` | UserLogin | 用户登录 |
 | `/register` | UserRegister | 用户注册 |
+| `/favorites` | FavoritesPage | 我的收藏（桌面端收藏列表页） |
 | `/admin/login` | AdminLogin | 管理员登录 |
 | `/admin/dashboard` | AdminDashboard | 数据概览 *（需登录）* |
 | `/admin/users` | AdminUsers | 用户管理 *（需登录）* |
@@ -274,6 +295,12 @@ GET /api/greenways/:id/nearby-facilities/geojson       # 绿道周边设施 GeoJ
 GET /api/facilities/geojson                           # 全部 POI 设施 GeoJSON（地图叠加图层用）
 GET /api/poi/search?q=关键词                          # POI 设施关键词搜索（名称/地址模糊匹配）
 GET /api/poi-types                                    # POI 类型定义（代码、名称、图标、颜色）
+POST /api/spatial/analyze                            # 空间分析：绘制多边形查询区域内绿道与设施（ST_Intersects）
+GET  /api/favorites/ids                              # 当前用户收藏的绿道 id 列表（按钮态）
+GET  /api/favorites                                  # 收藏列表（JOIN 绿道展示字段）
+POST /api/favorites                                  # 添加收藏 { greenway_id | greenway_name }
+DELETE /api/favorites/:greenwayId                    # 取消收藏
+GET  /api/user/stats                                 # 个人中心统计（收藏数/骑行/总里程/评论数）
 GET /api/tiles/gaode/:style/:level/:col/:row  # 高德瓦片代理（style=6 卫星图, style=7 矢量图）
 POST /api/heatmap/click          # 记录绿道点击（热度埋点）
 GET /api/heatmap/data            # 热度数据（含质心坐标与加权指数）
@@ -337,6 +364,15 @@ CREATE TABLE greenway_clicks (
   greenway_name   VARCHAR(255) NOT NULL,
   user_id         INTEGER,
   clicked_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 用户收藏表
+CREATE TABLE user_favorites (
+  id           SERIAL PRIMARY KEY,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  greenway_id  INTEGER NOT NULL REFERENCES greenways(id) ON DELETE CASCADE,
+  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, greenway_id)
 );
 ```
 

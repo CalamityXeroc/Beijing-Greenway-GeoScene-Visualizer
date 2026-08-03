@@ -84,7 +84,7 @@ async function main() {
     const syncCmt = await pool.query(`
       UPDATE greenway_heatmap h
       SET comment_count = sub.cnt,
-          heat_index = ROUND((h.click_count * 0.2 + h.route_count * 0.5 + sub.cnt * 0.3)::numeric, 1),
+          heat_index = ROUND((h.click_count * 0.15 + h.route_count * 0.40 + sub.cnt * 0.20 + h.poi_click_count * 0.25)::numeric, 1),
           last_updated = CURRENT_TIMESTAMP
       FROM (
         SELECT g.name, COUNT(*)::int AS cnt
@@ -100,7 +100,7 @@ async function main() {
     // 6. 重新计算所有绿道热度指数（统一用最新公式）
     const recalc = await pool.query(`
       UPDATE greenway_heatmap
-      SET heat_index = ROUND((click_count * 0.2 + route_count * 0.5 + comment_count * 0.3)::numeric, 1),
+      SET heat_index = ROUND((click_count * 0.15 + route_count * 0.40 + comment_count * 0.20 + poi_click_count * 0.25)::numeric, 1),
           last_updated = CURRENT_TIMESTAMP
     `);
     console.log(`  ✓ 热度指数重算完成，更新了 ${recalc.rowCount} 条记录`);

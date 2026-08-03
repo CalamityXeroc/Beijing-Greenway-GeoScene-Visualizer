@@ -30,17 +30,17 @@
     <!-- 统计卡片 -->
     <div class="stats-card">
       <div class="stat-item" @click="goToPage('rides')">
-        <span class="stat-val">{{ currentUser?.ridesCount ?? 0 }}</span>
+        <span class="stat-val">{{ userStats.ride_count ?? 0 }}</span>
         <span class="stat-key">骑行记录</span>
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item" @click="goToPage('favorites')">
-        <span class="stat-val">{{ currentUser?.favoritesCount ?? 0 }}</span>
+        <span class="stat-val">{{ userStats.favorite_count ?? 0 }}</span>
         <span class="stat-key">我的收藏</span>
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
-        <span class="stat-val">{{ currentUser?.totalDistance ?? 0 }}<small>km</small></span>
+        <span class="stat-val">{{ userStats.total_distance_km ?? 0 }}<small>km</small></span>
         <span class="stat-key">总里程</span>
       </div>
     </div>
@@ -162,16 +162,25 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import MobileBottomNav from '../components/MobileBottomNav.vue'
 import { useAppTheme } from '../composables/useAppTheme'
 import { useUserAuth } from '@/stores/userAuth'
+import { fetchUserStats } from '@/services/favoritesApi'
 
 const router = useRouter()
 const activeTab = ref('profile')
 const { isDark, toggleTheme } = useAppTheme()
 const { isLoggedIn, currentUser, nickname, username, clearSession } = useUserAuth()
+
+// 个人统计（真实数据）
+const userStats = ref({})
+const loadStats = async () => {
+  if (!isLoggedIn.value) { userStats.value = {}; return }
+  userStats.value = await fetchUserStats().catch(() => ({}))
+}
+onMounted(loadStats)
 
 // 用户显示信息
 const displayName = computed(() => {

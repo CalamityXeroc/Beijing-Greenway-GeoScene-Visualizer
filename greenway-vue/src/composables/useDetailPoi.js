@@ -7,6 +7,7 @@ import { sessionRef } from '@/utils/sessionRef.js'
 import GeoJSONLayer from '@geoscene/core/layers/GeoJSONLayer.js'
 import UniqueValueRenderer from '@geoscene/core/renderers/UniqueValueRenderer.js'
 import PictureMarkerSymbol from '@geoscene/core/symbols/PictureMarkerSymbol.js'
+import { buildPoiPopupTemplate, bindPoiPopupNavigation } from '@/utils/poiPopupTemplate.js'
 
 const FACILITY_CONFIG = {
   '150500': { name: '地铁站', icon: 'subway.svg', color: '#1565C0' },
@@ -116,6 +117,11 @@ export function useDetailPoi(greenwayName) {
   function loadPoiLayer(mapManager) {
     if (!mapManager) return
     _mm = mapManager
+    // 绑定 popup 内"查看绿道详情"按钮的全局点击委托（composable 创建时绑定）
+    if (!_navBound) {
+      _unbindNav = bindPoiPopupNavigation(router)
+      _navBound = true
+    }
 
     const encoded = encodeURIComponent(greenwayName)
     const url = `/api/greenways/name/${encoded}/nearby-facilities/geojson?radius=${radius.value}`
@@ -148,9 +154,11 @@ export function useDetailPoi(greenwayName) {
 
         const layer = new GeoJSONLayer({
           id: layerId, title: '附近设施', url: _blobUrl, visible: true,
-          outFields: ['id', 'name', 'poi_type', 'type_name', 'distance_m', 'greenway_id', 'address'],
+          outFields: ['id', 'name', 'poi_type', 'type_name', 'distance_m', 'greenway_id', 'greenway_name', 'address'],
           minScale: 0, maxScale: 0,
-          renderer: new UniqueValueRenderer({ field: 'poi_type', uniqueValueInfos })
+          renderer: new UniqueValueRenderer({ field: 'poi_type', uniqueValueInfos }),
+          // 统一 GeoScene popup：单点详情 + 跳转按钮
+          popupTemplate: buildPoiPopupTemplate(FACILITY_CONFIG)
         })
         layer._zIndex = 250
         layer.listMode = 'hide'
@@ -169,25 +177,14 @@ export function useDetailPoi(greenwayName) {
     _doLoad(`/api/greenways/name/${encoded}/nearby-facilities/geojson?radius=${val}`, _mm)
   }
 
-  function onFeatureClick({ featuresWithLayers, pixel }) {
+  function onFeatureClick({ featuresWithLayers }) {
     for (const item of (featuresWithLayers || [])) {
       if (item.layerId === layerId) {
         const attr = item.feature?.attributes || {}
-        const cfg = FACILITY_CONFIG[attr.poi_type] || {}
-        popup.poiName = attr.name || ''
-        popup.poiTypeName = attr.type_name || ''
-        popup.poiSvg = `/images/poi/${cfg.icon || 'subway.svg'}`
-        popup.poiColor = cfg.color || '#666'
-        popup.poiAddress = attr.address || ''
-        popup.poiDistance = attr.distance_m
-          ? (attr.distance_m < 1000 ? attr.distance_m + 'm' : (attr.distance_m / 1000).toFixed(1) + 'km')
-          : ''
-        popup.position = { x: pixel[0], y: pixel[1] }
-        popup.visible = true
+        // UI 统一交给 GeoScene popup，这里只做埋点
+        popup.visible = false
         tooltip.visible = false
-        fetch(`/api/greenways/${attr.greenway_id}`).then(r => r.json()).then(d => {
-          if (d.data?.name) popup.poiGreenway = d.data.name
-        }).catch(() => {})
+        fetch('/api/poi/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poi_id: attr.id, poi_name: attr.name, poi_type: attr.poi_type, greenway_id: attr.greenway_id }) }).catch(() => {})
         return
       }
     }
@@ -225,6 +222,10 @@ export function useDetailPoi(greenwayName) {
     if (path) router.push(path)
   }
 
+  // popup 内官方 ActionButton 的 trigger-action 跳转（loadPoiLayer 拿到 view 时绑定）
+  let _unbindNav = () => {}
+  let _navBound = false
+
   function cleanupPoi(mapManager) {
     if (!mapManager) return
     const layer = mapManager.getLayer(layerId)
@@ -232,6 +233,9 @@ export function useDetailPoi(greenwayName) {
     if (_blobUrl) { URL.revokeObjectURL(_blobUrl); _blobUrl = null }
     mapManager.removeLayer(layerId)
     _mm = null
+    _unbindNav?.()
+    _unbindNav = null
+    _navBound = false
   }
 
   return {

@@ -62,6 +62,11 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  **Admin AI Chat Analytics**: Word cloud + daily trend chart (7/30/90 day views) + recent messages log, with day/night theme support (ECharts + echarts-wordcloud, Chinese NLP via `segment`)
 -  **3D Flyover Tour (3D 漫游)**: Immersive bird's-eye flight with glowing 3D tube path (PathSymbol3DLayer), auto-play camera animation with banking on turns, waypoint beads with fly/current/upcoming states, camera trail (flown/remaining segments), time-based atmosphere (starfield, sky color, ground color), and playback controls. Paths simplified via PostGIS `ST_SimplifyPreserveTopology` + `ST_LineInterpolatePoint` — exactly 45 equidistant waypoints per greenway, regardless of original vertex count (up to 4,911 raw vertices reduced to 45).
 -  **POI Nearby Facilities**: 847 facilities across 7 categories (subway, bus, parking, restroom, convenience store, cinema, scenic spots) imported from Amap POI API, filtered by PostGIS `ST_DWithin` within 1 km of greenways. Professional SVG map markers with hover tooltips and click detail popups. Global keyword search with autocomplete + keyboard navigation in the top navbar. Per-type visibility control via layer legend panel and detail-page layer controller. Adjustable search radius (500m–5km) on detail pages. State persisted across page navigation via sessionStorage.
+-  **POI Facility Clustering**: Facilities auto-aggregate into numeric bubbles at zoom 11–13, dispersing into individual points when zoomed in. Clicking a cluster opens a popup listing the real POI names within the aggregation area. Clustering strictly follows layer type filtering (`definitionExpression`) so only user-selected facility types are aggregated.
+-  **Unified GeoScene Popup**: All facility interaction UI migrated to native GeoScene popups (popupTemplate + content function) supporting facility icons, type, address, distance display and a one-click "View Greenway Detail" jump button. Both single-point and cluster popups fully support day/night themes.
+-  **Spatial Analysis Toolkit**: Draw a polygon on the map to run a backend PostGIS `ST_Intersects` spatial query, returning greenways and facilities within the area — highlighted on the map with a result list panel (including area, perimeter, and facility density analysis). Multiple analysis polygons supported; clicking a polygon again restores its results.
+-  **User Favorites + Personal Center**: Favorite greenways (backend `user_favorites` table + favorite button), desktop favorites page, mobile favorites page, and personal-center stats (favorites count, ride records, total distance, comment count) all wired to real data.
+-  **Layer Legend Widget**: Integrated official GeoScene Legend component (Expand collapsible panel) that automatically shows heatmap gradients and facility legends.
 -  Capacitor-based mobile app (experimental)
 
 ---
@@ -107,6 +112,11 @@ npm run dev       # http://localhost:5173
 |  **Map Export** | Export current map view as PNG image |
 |  **17 Greenways** | Individual detail pages with attributes, real images, facility info & street panorama |
 |  **Nearby Facilities** | 847 POIs (7 categories), SVG markers, tooltip+popup, keyword search, per-type filter, radius slider, session-persisted |
+|  **POI Clustering** | Zoom 11–13 aggregates facilities into bubbles, dispersing at higher zoom; cluster popup lists real POI names, follows type filtering |
+|  **Unified Popup** | Single/aggregate unified GeoScene popup: facility detail + greenway jump button, day/night themes |
+|  **Spatial Analysis** | Draw polygon → PostGIS spatial query → greenway/facility highlight + result panel (area/perimeter/density) |
+|  **User Favorites** | Favorite greenways (backend persisted), desktop + mobile favorites pages, personal-center real stats |
+|  **Legend Widget** | Official GeoScene Legend component (Expand collapsible), auto heatmap/facility legends |
 |  **Real-time Weather** | Draggable weather widget (Amap API) |
 |  **AI Assistant** | Map/detail-only floating chatbot (DeepSeek-V4-Flash), conversations logged to DB |
 |  **AI Chat Analytics** | Admin: word cloud + daily trend + recent messages, dual day/night theme |
@@ -135,9 +145,12 @@ npm run dev       # http://localhost:5173
           osrmRoute.js     # Dijkstra shortest-path routing (OSM road network)
           heatmap.js       # Heatmap tracking & analytics APIs
           poi.js           # POI nearby-facilities query & admin stats APIs
+          favorites.js     # User favorites CRUD & personal-center stats APIs
+          spatial.js       # Spatial analysis API (polygon query for greenways/facilities)
     scripts/
        add-chat-logs-table.js   # DB migration: chat_logs table
        add-heatmap-tables.js    # DB migration: heatmap tracking tables
+       add-favorites-table.js   # DB migration: user_favorites table
        import-pois.cjs          # Amap POI importer (7 categories, ST_DWithin filter)
        ...                      # DB init & GeoJSON import utilities
     init-db.sql             # Schema + PostGIS setup
@@ -165,15 +178,22 @@ npm run dev       # http://localhost:5173
           DetailPoiPopup.vue       # POI detail popup + tooltip
           DetailPoiLayerControl.vue # Per-type POI visibility toggle panel
           PoiSearchBar.vue         # Global POI keyword search with autocomplete
+          FavoriteButton.vue       # Greenway favorite button (heart toggle)
+          MapLegend.vue            # Official GeoScene legend widget (Expand fold)
+          SpatialAnalysisPanel.vue # Spatial analysis result list panel
        services/
           gaodeApi.js              # Amap API proxy calls (directions/search)
           osrmApi.js               # Dijkstra routing API client (walking/cycling)
           heatmapApi.js            # Heatmap analytics API client
+          favoritesApi.js          # Favorites + personal stats API client
+          spatialApi.js            # Spatial analysis API client
        stores/
           route.js                 # Route planning reactive state
+          favorites.js             # Favorite state (ids + toggle + logout reset)
        utils/
           coordinateTransform.js   # WGS84 ↔ GCJ02 conversion
           sessionRef.js            # sessionStorage-backed reactive ref
+          poiPopupTemplate.js      # Unified GeoScene popup builder (point/cluster/jump)
        composables/
           useDetailPoi.js          # Detail-page POI layer + popup logic
        stores/
@@ -216,6 +236,7 @@ npm run dev       # http://localhost:5173
 | `/zhongxincheng` | ZhongxinchengDetail | 中心城滨水绿道 |
 | `/login` | UserLogin | User login |
 | `/register` | UserRegister | User registration |
+| `/favorites` | FavoritesPage | My favorites (desktop favorites list page) |
 | `/admin/login` | AdminLogin | Admin login |
 | `/admin/dashboard` | AdminDashboard | Admin overview *(auth required)* |
 | `/admin/users` | AdminUsers | User management *(auth required)* |
@@ -274,6 +295,12 @@ GET /api/greenways/:id/nearby-facilities/geojson       # POI facilities as GeoJS
 GET /api/facilities/geojson                           # all POI facilities GeoJSON (map overlay layer)
 GET /api/poi/search?q=keyword                         # keyword search across POI names & addresses
 GET /api/poi-types                                    # POI category definitions (code, name, icon, color)
+POST /api/spatial/analyze                            # spatial analysis: draw polygon, query greenways/facilities in area (ST_Intersects)
+GET  /api/favorites/ids                              # current user's favorited greenway IDs (button state)
+GET  /api/favorites                                  # favorites list (JOIN greenway display fields)
+POST /api/favorites                                  # add favorite { greenway_id | greenway_name }
+DELETE /api/favorites/:greenwayId                    # remove favorite
+GET  /api/user/stats                                 # personal-center stats (favorites/rides/total distance/comments)
 GET /api/tiles/gaode/:style/:level/:col/:row  # Amap tile proxy (style 6 = satellite, style 7 = vector)
 POST /api/heatmap/click          # record greenway click (heatmap tracking)
 GET /api/heatmap/data            # heatmap points with centroids & weighted index
@@ -347,6 +374,15 @@ CREATE TABLE greenway_clicks (
   greenway_name   VARCHAR(255) NOT NULL,
   user_id         INTEGER,
   clicked_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User favorites table
+CREATE TABLE user_favorites (
+  id           SERIAL PRIMARY KEY,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  greenway_id  INTEGER NOT NULL REFERENCES greenways(id) ON DELETE CASCADE,
+  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, greenway_id)
 );
 ```
 

@@ -13,6 +13,7 @@
     "db:import": "node scripts/import-geojson.js",
     "db:chat-logs": "node scripts/add-chat-logs-table.js",
     "db:heatmap": "node scripts/add-heatmap-tables.js",
+    "db:favorites": "node scripts/add-favorites-table.js",
     "check": "node scripts/check-env.js"
   },
   "keywords": [

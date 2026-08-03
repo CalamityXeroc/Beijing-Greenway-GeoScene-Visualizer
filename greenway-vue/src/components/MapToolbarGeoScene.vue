@@ -10,6 +10,7 @@ import SketchViewModel from '@geoscene/core/widgets/Sketch/SketchViewModel.js'
 import Graphic from '@geoscene/core/Graphic.js'
 import Point from '@geoscene/core/geometry/Point.js'
 import * as geometryEngine from '@geoscene/core/geometry/geometryEngine.js'
+import * as webMercatorUtils from '@geoscene/core/geometry/support/webMercatorUtils.js'
 import { useGlobalTheme } from '@/utils/useTheme'
 
 const props = defineProps({
@@ -23,7 +24,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['tool-activated', 'layer-added', 'layer-toggled'])
+const emit = defineEmits(['tool-activated', 'layer-added', 'layer-toggled', 'spatial-analysis-complete', 'spatial-analysis-clear'])
 const { theme: globalTheme, setTheme: setGlobalTheme } = useGlobalTheme()
 
 const activeTool = ref(null)
@@ -69,11 +70,13 @@ const filteredLayerConfig = computed(() => {
 
 let drawLayer = null
 let measureLayer = null
+let spatialLayer = null
 let sketchViewModel = null
 let sketchCreateHandle = null
 let sketchMode = null
 let sketchGeometryType = null
 let measureType = null
+let spatialSeq = 0
 
 const getMapManager = () => toRaw(props.mapManager)
 
@@ -166,6 +169,18 @@ const initMeasureLayer = () => {
   getMapManager()?.addLayer('measure-layer', measureLayer)
 }
 
+const initSpatialLayer = () => {
+  spatialLayer = new GraphicsLayer({
+    id: 'spatial-layer',
+    title: '空间分析',
+    listMode: 'hide',
+    visible: true
+  })
+  spatialLayer._zIndex = 102
+  spatialLayer._interactive = true // 允许 hitTest 再次点击多边形查看结果
+  getMapManager()?.addLayer('spatial-layer', spatialLayer)
+}
+
 const setupSketchViewModel = () => {
   const view = getMapManager()?.getView?.()
   if (!view || !drawLayer) return
@@ -190,6 +205,31 @@ const setupSketchViewModel = () => {
       event.graphic.symbol = buildMeasureSymbol(measureType)
       addMeasurementLabel(event.graphic.geometry, value)
       emit('tool-activated', { type: 'measure', subType: measureType, value })
+    } else if (sketchMode === 'spatial') {
+      // 空间分析：多边形转 4326 GeoJSON 交给上层查询
+      try {
+        const analysisId = ++spatialSeq
+        const area = formatArea(event.graphic.geometry)
+        const perimeter = formatLength(event.graphic.geometry)
+        // 给多边形 graphic 打上 analysisId，供再次点击时查回结果
+        event.graphic.attributes = { ...(event.graphic.attributes || {}), analysisId }
+        event.graphic.symbol = buildPolygonSymbol()
+        spatialLayer.add(event.graphic)
+        addMeasurementLabel(event.graphic.geometry, `面积 ${area} · 周长 ${perimeter}`, spatialLayer)
+        let g = event.graphic.geometry
+        if (g.spatialReference?.isWebMercator) {
+          g = webMercatorUtils.webMercatorToGeographic(g)
+        }
+        emit('spatial-analysis-complete', {
+          polygon: { type: 'Polygon', coordinates: g.rings },
+          analysis: { area, perimeter },
+          analysisId
+        })
+      } catch (err) {
+        console.error('[空间分析] 几何处理失败:', err.message)
+      }
+      removeCurrentInteraction()
+      return
     } else {
       emit('tool-activated', { type: 'draw', subType: activeTool.value })
     }
@@ -234,6 +274,34 @@ const activateDrawTool = (type) => {
   sketchViewModel.polylineSymbol = buildLineSymbol()
   sketchViewModel.polygonSymbol = buildPolygonSymbol()
   sketchViewModel.create(sketchGeometryType)
+}
+
+const activateSpatialAnalysis = () => {
+  if (!sketchViewModel || !spatialLayer) return
+  if (activeTool.value === 'spatial') {
+    removeCurrentInteraction()
+    return
+  }
+
+  removeCurrentInteraction()
+
+  sketchMode = 'spatial'
+  sketchGeometryType = 'polygon'
+  activeTool.value = 'spatial'
+
+  sketchViewModel.layer = spatialLayer
+  sketchViewModel.pointSymbol = buildPointSymbol()
+  sketchViewModel.polylineSymbol = buildLineSymbol()
+  sketchViewModel.polygonSymbol = buildPolygonSymbol()
+  sketchViewModel.create('polygon')
+}
+
+const clearSpatialAnalysis = () => {
+  if (confirm('确定要清除所有空间分析吗？')) {
+    spatialLayer?.removeAll()
+    removeCurrentInteraction()
+    emit('spatial-analysis-clear')
+  }
 }
 
 const activateMeasureTool = (type) => {
@@ -282,8 +350,9 @@ const formatArea = (geometry) => {
   return `${Math.round(area * 100) / 100} m²`
 }
 
-const addMeasurementLabel = (geometry, text) => {
-  if (!measureLayer || !geometry || !text) return
+const addMeasurementLabel = (geometry, text, targetLayer = null) => {
+  const layer = targetLayer || measureLayer
+  if (!layer || !geometry || !text) return
   let point = null
 
   if (geometry.type === 'polyline' && geometry.paths?.length) {
@@ -318,7 +387,7 @@ const addMeasurementLabel = (geometry, text) => {
       }
     }
   })
-  measureLayer.add(labelGraphic)
+  layer.add(labelGraphic)
 }
 
 const handleFileUpload = async (event) => {
@@ -462,6 +531,7 @@ const clearMeasurements = () => {
 onMounted(() => {
   initDrawLayer()
   initMeasureLayer()
+  initSpatialLayer()
   setupSketchViewModel()
   const manager = getMapManager()
   if (manager && globalTheme.value === 'night') {
@@ -480,6 +550,8 @@ onBeforeUnmount(() => {
 defineExpose({
   activateDrawTool,
   activateMeasureTool,
+  activateSpatialAnalysis,
+  clearSpatialAnalysis,
   switchTheme,
   toggleBaseLayer,
   clearDrawings,

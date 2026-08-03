@@ -1,4 +1,5 @@
 import express from 'express'
+import { authMiddleware, adminOnly } from '../auth.js'
 const router = express.Router()
 
 // POI 类型映射
@@ -53,7 +54,7 @@ router.get('/greenways/name/:name/nearby-facilities/geojson', async (req, res) =
       SELECT
         poi.id, poi.name, poi.poi_type, poi.description AS address,
         ROUND(ST_Distance(poi.geometry::geography, g.geometry::geography)) AS distance_m,
-        poi.greenway_id,
+        poi.greenway_id, g.name AS greenway_name,
         ST_AsGeoJSON(poi.geometry)::json AS geometry
       FROM points_of_interest poi
       JOIN greenways g ON g.id = $1
@@ -73,6 +74,7 @@ router.get('/greenways/name/:name/nearby-facilities/geojson', async (req, res) =
         color: POI_TYPE_MAP[r.poi_type]?.color || '#999',
         distance_m: parseInt(r.distance_m),
         greenway_id: r.greenway_id,
+        greenway_name: r.greenway_name,
         address: r.address
       }
     }))
@@ -129,6 +131,7 @@ router.get('/greenways/:id/nearby-facilities/geojson', async (req, res) => {
       SELECT
         poi.id, poi.name, poi.poi_type, poi.description AS address,
         ROUND(ST_Distance(poi.geometry::geography, g.geometry::geography)) AS distance_m,
+        poi.greenway_id, g.name AS greenway_name,
         ST_AsGeoJSON(poi.geometry)::json AS geometry
       FROM points_of_interest poi
       JOIN greenways g ON g.id = $1
@@ -149,6 +152,8 @@ router.get('/greenways/:id/nearby-facilities/geojson', async (req, res) => {
         type_name: POI_TYPE_MAP[r.poi_type]?.name || r.poi_type,
         color: POI_TYPE_MAP[r.poi_type]?.color || '#999',
         distance_m: parseInt(r.distance_m),
+        greenway_id: r.greenway_id,
+        greenway_name: r.greenway_name,
         address: r.address
       }
     }))
@@ -166,9 +171,10 @@ router.get('/facilities/geojson', async (req, res) => {
     const result = await req.pool.query(`
       SELECT
         poi.id, poi.name, poi.poi_type, poi.description AS address,
-        poi.greenway_id,
+        poi.greenway_id, g.name AS greenway_name,
         ST_AsGeoJSON(poi.geometry)::json AS geometry
       FROM points_of_interest poi
+      LEFT JOIN greenways g ON g.id = poi.greenway_id
       LIMIT 2000
     `)
 
@@ -182,6 +188,7 @@ router.get('/facilities/geojson', async (req, res) => {
         type_name: POI_TYPE_MAP[r.poi_type]?.name || r.poi_type,
         color: POI_TYPE_MAP[r.poi_type]?.color || '#999',
         greenway_id: r.greenway_id,
+        greenway_name: r.greenway_name,
         address: r.address
       }
     }))
@@ -224,6 +231,65 @@ router.get('/poi/search', async (req, res) => {
   }
 })
 
+// 管理后台：POI 点击趋势
+router.get('/admin/poi/click-trend', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const days = Math.min(365, Math.max(7, parseInt(req.query.days) || 30))
+    const result = await req.pool.query(`
+      SELECT d::date as date, COALESCE(c.cnt, 0) as cnt
+      FROM generate_series(CURRENT_DATE - INTERVAL '${days - 1} days', CURRENT_DATE, '1 day') d
+      LEFT JOIN (
+        SELECT clicked_at::date as dt, COUNT(*) as cnt
+        FROM poi_clicks
+        WHERE clicked_at > CURRENT_DATE - INTERVAL '${days} days'
+        GROUP BY clicked_at::date
+      ) c ON d::date = c.dt
+      ORDER BY d::date
+    `)
+    res.json({ data: result.rows.map(r => ({ date: r.date, cnt: parseInt(r.cnt) })) })
+  } catch (e) { res.status(500).json({ data: [] }) }
+})
+
+// 管理后台：POI 类型点击分布（景点 110100/110200 合并为一类）
+router.get('/admin/poi/type-clicks', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const result = await req.pool.query(`
+      SELECT
+        CASE WHEN poi_type IN ('110100','110200') THEN '110100' ELSE poi_type END AS poi_type,
+        COUNT(*) as cnt
+      FROM poi_clicks
+      GROUP BY 1
+      ORDER BY cnt DESC
+    `)
+    res.json({ data: result.rows.map(r => ({
+      poi_type: r.poi_type,
+      type_name: POI_TYPE_MAP[r.poi_type]?.name || r.poi_type,
+      cnt: parseInt(r.cnt)
+    })) })
+  } catch (e) { res.status(500).json({ data: [] }) }
+})
+
+// 管理后台：热门 POI TOP N
+router.get('/admin/poi/top', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const limit = Math.min(50, Math.max(5, parseInt(req.query.limit) || 10))
+    const result = await req.pool.query(`
+      SELECT pc.poi_name, pc.poi_type, g.name as greenway_name, COUNT(*) as cnt
+      FROM poi_clicks pc
+      LEFT JOIN greenways g ON g.id = pc.greenway_id
+      GROUP BY pc.poi_name, pc.poi_type, g.name
+      ORDER BY cnt DESC LIMIT $1
+    `, [limit])
+    res.json({ data: result.rows.map(r => ({
+      poi_name: r.poi_name,
+      poi_type: r.poi_type,
+      type_name: POI_TYPE_MAP[r.poi_type]?.name || r.poi_type,
+      greenway_name: r.greenway_name || '未知',
+      cnt: parseInt(r.cnt)
+    })) })
+  } catch (e) { res.status(500).json({ data: [] }) }
+})
+
 // 管理后台：POI 统计
 router.get('/admin/poi/stats', async (req, res) => {
   try {
@@ -231,10 +297,13 @@ router.get('/admin/poi/stats', async (req, res) => {
     const overview = await req.pool.query(`
       SELECT
         COUNT(*) AS total,
-        COUNT(DISTINCT poi_type) AS type_count,
+        COUNT(DISTINCT CASE WHEN poi_type IN ('110100','110200') THEN '110100' ELSE poi_type END) AS type_count,
         COUNT(DISTINCT greenway_id) AS greenway_count
       FROM points_of_interest
     `)
+    // 今日点击 + 最热类型
+    const today = await req.pool.query(`SELECT COUNT(*) FROM poi_clicks WHERE clicked_at > CURRENT_DATE`)
+    const topType = await req.pool.query(`SELECT poi_type, COUNT(*) as cnt FROM poi_clicks GROUP BY poi_type ORDER BY cnt DESC LIMIT 1`)
 
     // 各绿道 POI 分布
     const breakdown = await req.pool.query(`
@@ -263,7 +332,11 @@ router.get('/admin/poi/stats', async (req, res) => {
     `)
 
     res.json({
-      overview: overview.rows[0],
+      total: parseInt(overview.rows[0]?.total || 0),
+      typeCount: parseInt(overview.rows[0]?.type_count || 0),
+      greenwayCount: parseInt(overview.rows[0]?.greenway_count || 0),
+      todayClicks: parseInt(today.rows[0]?.count || 0),
+      topType: POI_TYPE_MAP[topType.rows[0]?.poi_type]?.name || '暂无数据',
       type_total: typeTotals.rows.map(r => ({
         ...r,
         name: POI_TYPE_MAP[r.poi_type]?.name || r.poi_type,
@@ -274,6 +347,37 @@ router.get('/admin/poi/stats', async (req, res) => {
   } catch (err) {
     console.error('[POI-Admin] 统计失败:', err.message)
     res.status(500).json({ error: err.message })
+  }
+})
+
+// POI 点击埋点
+router.post('/poi/click', async (req, res) => {
+  try {
+    const { poi_id, poi_name, poi_type, greenway_id } = req.body
+    if (!poi_name) return res.status(400).json({ code: 1, message: '缺少POI名称' })
+
+    // 插入点击记录
+    await req.pool.query(
+      'INSERT INTO poi_clicks (poi_id, poi_name, poi_type, greenway_id) VALUES ($1,$2,$3,$4)',
+      [poi_id || null, poi_name, poi_type || null, greenway_id || null]
+    )
+
+    // 同步更新对应绿道的 poi_click_count + 热力指数
+    if (greenway_id) {
+      await req.pool.query(`
+        UPDATE greenway_heatmap h
+        SET poi_click_count = poi_click_count + 1,
+            heat_index = ROUND((click_count * 0.15 + route_count * 0.40 + comment_count * 0.20 + (poi_click_count + 1) * 0.25)::numeric, 1),
+            last_updated = CURRENT_TIMESTAMP
+        FROM greenways g
+        WHERE g.id = $1 AND h.greenway_name = g.name
+      `, [greenway_id])
+    }
+
+    res.json({ code: 0, message: 'ok' })
+  } catch (e) {
+    console.error('[POI-click] 失败:', e.message)
+    res.status(500).json({ code: 1, message: '记录失败' })
   }
 })
 

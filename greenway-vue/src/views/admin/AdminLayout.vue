@@ -140,6 +140,12 @@ const navItems = [
            <circle cx="8" cy="7" r="1.5" fill="#ff4d4f"/>
            <circle cx="16" cy="17" r="1.5" fill="#ff4d4f"/>`
   },
+  {
+    path: '/admin/poi-stats',
+    label: 'POI热度统计',
+    icon: `<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+           <path d="M12 6v6l4 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`
+  },
 ]
 
 const currentTitle = computed(() => {

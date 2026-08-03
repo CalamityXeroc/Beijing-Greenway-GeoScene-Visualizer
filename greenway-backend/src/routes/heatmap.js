@@ -37,16 +37,17 @@ router.post('/click', async (req, res) => {
       [greenway_name, user_id || null]
     );
 
-    // 更新热度表 (新公式: click*0.2 + route*0.5 + comment*0.3)
+    // 更新热度表 (新公式: click*0.15 + route*0.40 + comment*0.20 + poi_click*0.25)
     await req.pool.query(
       `INSERT INTO greenway_heatmap (greenway_name, click_count, heat_index)
-       VALUES ($1, 1, 0.2)
+       VALUES ($1, 1, 0.15)
        ON CONFLICT (greenway_name)
        DO UPDATE SET
          click_count = greenway_heatmap.click_count + 1,
-         heat_index = (greenway_heatmap.click_count + 1) * 0.2
-                    + greenway_heatmap.route_count * 0.5
-                    + greenway_heatmap.comment_count * 0.3,
+         heat_index = (greenway_heatmap.click_count + 1) * 0.15
+                    + greenway_heatmap.route_count * 0.40
+                    + greenway_heatmap.comment_count * 0.20
+                    + greenway_heatmap.poi_click_count * 0.25,
          last_updated = CURRENT_TIMESTAMP`,
       [greenway_name]
     );
@@ -75,11 +76,8 @@ router.get('/data', async (req, res) => {
     const result = await req.pool.query(`
       SELECT
         h.greenway_name,
-        h.click_count,
-        h.route_count,
-        h.comment_count,
-        h.heat_index,
-        h.last_updated,
+        h.click_count, h.route_count, h.comment_count, h.poi_click_count,
+        h.heat_index, h.last_updated,
         ST_X(ST_Centroid(g.geometry)) as center_lng,
         ST_Y(ST_Centroid(g.geometry)) as center_lat
       FROM greenway_heatmap h
@@ -95,6 +93,7 @@ router.get('/data', async (req, res) => {
         click_count: parseInt(r.click_count),
         route_count: parseInt(r.route_count),
         comment_count: parseInt(r.comment_count || 0),
+        poi_click_count: parseInt(r.poi_click_count || 0),
         heat_index: Math.round(r.heat_index * 10) / 10,
         center_lng: r.center_lng,
         center_lat: r.center_lat,
@@ -211,10 +210,11 @@ router.get('/trend', authMiddleware, adminOnly, async (req, res) => {
     const result = await req.pool.query(`
       SELECT
         d::date as date,
+        COALESCE(p.poi_count, 0) as poi_click_count,
         COALESCE(c.click_count, 0) as click_count,
         COALESCE(r.route_count, 0) as route_count,
         COALESCE(cm.comment_count, 0) as comment_count,
-        ROUND((COALESCE(c.click_count, 0) * 0.2 + COALESCE(r.route_count, 0) * 0.5 + COALESCE(cm.comment_count, 0) * 0.3)::numeric, 1) as heat_index
+        ROUND((COALESCE(c.click_count, 0) * 0.15 + COALESCE(r.route_count, 0) * 0.40 + COALESCE(cm.comment_count, 0) * 0.20 + COALESCE(p.poi_count, 0) * 0.25)::numeric, 1) as heat_index
       FROM generate_series(CURRENT_DATE - INTERVAL '${days - 1} days', CURRENT_DATE, '1 day') d
       LEFT JOIN (
         SELECT clicked_at::date as dt, COUNT(*) as click_count
@@ -236,6 +236,12 @@ router.get('/trend', authMiddleware, adminOnly, async (req, res) => {
           AND status = 'visible'
         GROUP BY created_at::date
       ) cm ON d::date = cm.dt
+      LEFT JOIN (
+        SELECT clicked_at::date as dt, COUNT(*) as poi_count
+        FROM poi_clicks
+        WHERE clicked_at > CURRENT_DATE - INTERVAL '${days} days'
+        GROUP BY clicked_at::date
+      ) p ON d::date = p.dt
       ORDER BY d::date
     `);
 
@@ -246,6 +252,7 @@ router.get('/trend', authMiddleware, adminOnly, async (req, res) => {
         click_count: parseInt(r.click_count),
         route_count: parseInt(r.route_count),
         comment_count: parseInt(r.comment_count),
+        poi_click_count: parseInt(r.poi_click_count || 0),
         heat_index: parseFloat(r.heat_index)
       }))
     });
@@ -264,7 +271,7 @@ router.get('/rank', authMiddleware, adminOnly, async (req, res) => {
 
   try {
     const result = await req.pool.query(`
-      SELECT h.greenway_name, h.click_count, h.route_count, h.comment_count, h.heat_index, h.last_updated
+      SELECT h.greenway_name, h.click_count, h.route_count, h.comment_count, h.poi_click_count, h.heat_index, h.last_updated
       FROM greenway_heatmap h
       INNER JOIN greenways g ON g.name = h.greenway_name
       ORDER BY h.heat_index DESC
@@ -278,6 +285,7 @@ router.get('/rank', authMiddleware, adminOnly, async (req, res) => {
         click_count: parseInt(r.click_count),
         route_count: parseInt(r.route_count),
         comment_count: parseInt(r.comment_count || 0),
+        poi_click_count: parseInt(r.poi_click_count || 0),
         heat_index: Math.round(r.heat_index * 10) / 10,
         last_updated: r.last_updated
       }))
@@ -295,7 +303,7 @@ router.get('/rank', authMiddleware, adminOnly, async (req, res) => {
 router.get('/compare', authMiddleware, adminOnly, async (req, res) => {
   try {
     const result = await req.pool.query(`
-      SELECT h.greenway_name, h.click_count, h.route_count, h.comment_count
+      SELECT h.greenway_name, h.click_count, h.route_count, h.comment_count, h.poi_click_count
       FROM greenway_heatmap h
       INNER JOIN greenways g ON g.name = h.greenway_name
       ORDER BY h.heat_index DESC
@@ -307,7 +315,8 @@ router.get('/compare', authMiddleware, adminOnly, async (req, res) => {
         greenway_name: r.greenway_name,
         click_count: parseInt(r.click_count),
         route_count: parseInt(r.route_count),
-        comment_count: parseInt(r.comment_count || 0)
+        comment_count: parseInt(r.comment_count || 0),
+        poi_click_count: parseInt(r.poi_click_count || 0)
       }))
     });
   } catch (e) {

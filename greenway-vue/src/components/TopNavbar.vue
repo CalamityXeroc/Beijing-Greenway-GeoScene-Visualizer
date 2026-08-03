@@ -338,6 +338,36 @@
         </div>
       </div>
 
+      <!-- 空间分析 -->
+      <div class="nav-item" @mouseenter="openMenu('spatial')" @mouseleave="closeMenu('spatial')">
+        <button class="nav-btn" :class="{ active: toolbarRef.activeTool?.value === 'spatial' }">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-8"/>
+          </svg>
+          空间分析
+          <svg class="chevron" viewBox="0 0 24 24" width="11" height="11" fill="none"
+               stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="dropdown" v-show="openMenuId === 'spatial'">
+          <div class="dropdown-section">空间分析</div>
+          <button class="dd-btn" :class="{ active: toolbarRef.activeTool?.value === 'spatial' }"
+                  @click="callTool('activateSpatialAnalysis')">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 22 20 2 20"/>
+            </svg>
+            绘制分析区域
+          </button>
+          <div class="dd-divider"/>
+          <button class="dd-btn dd-btn--danger" @click="callTool('clearSpatialAnalysis')">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+            </svg>
+            清除空间分析
+          </button>
+        </div>
+      </div>
+
       <!-- 路径规划 -->
       <div class="nav-item">
         <button class="nav-btn" :class="{ active: showPathPlanning }"
@@ -435,6 +465,12 @@
               </a>
               <div class="dd-divider"/>
             </template>
+            <a class="dd-btn" href="/favorites">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+              我的收藏
+            </a>
             <button class="dd-btn dd-btn--danger" @click="handleLogout">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>

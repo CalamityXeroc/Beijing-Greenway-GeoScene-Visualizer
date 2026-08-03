@@ -56,8 +56,22 @@
         @tool-activated="onToolActivated"
         @layer-added="onLayerAdded"
         @layer-toggled="onLayerToggled"
+        @spatial-analysis-complete="onSpatialAnalysisComplete"
+        @spatial-analysis-clear="onSpatialAnalysisClear"
       />
     </div>
+
+    <!-- 空间分析结果面板 -->
+    <SpatialAnalysisPanel
+      v-if="spatialResult"
+      :result="spatialResult"
+      @close="closeSpatialPanel"
+      @locate-poi="locateSpatialPoi"
+      @locate-greenway="locateSpatialGreenway"
+    />
+
+    <!-- 官方图例控件（右下角 Expand） -->
+    <MapLegend v-if="mapManager" ref="legendRef" :map-manager="mapManager" />
 
     <!-- 信息卡片区域 -->
     <div class="info-section">
@@ -189,6 +203,7 @@
           </button>
         </div>
         <p>{{ popup.content }}</p>
+        <FavoriteButton v-if="popup.greenwayId" :greenway-id="popup.greenwayId" label style="margin-bottom:8px" />
         <button @click="viewPopupDetail" class="popup-btn">
           <i class="fas fa-external-link-alt"></i> 查看详情
         </button>
@@ -262,14 +277,37 @@ import { recordGreenwayClick, fetchHeatmapData, fetchHeatmapPoints } from '@/ser
 import { useUserAuth } from '@/stores/userAuth.js'
 import { sessionRef } from '@/utils/sessionRef.js'
 import GeoJSONLayer from '@geoscene/core/layers/GeoJSONLayer.js'
+import FavoriteButton from '@/components/FavoriteButton.vue'
 import UniqueValueRenderer from '@geoscene/core/renderers/UniqueValueRenderer.js'
 import PictureMarkerSymbol from '@geoscene/core/symbols/PictureMarkerSymbol.js'
 import PoiSearchBar from '@/components/PoiSearchBar.vue'
+import SpatialAnalysisPanel from '@/components/SpatialAnalysisPanel.vue'
+import MapLegend from '@/components/MapLegend.vue'
+import { analyzeSpatial } from '@/services/spatialApi.js'
+import GraphicsLayer from '@geoscene/core/layers/GraphicsLayer.js'
+import Graphic from '@geoscene/core/Graphic.js'
+import Point from '@geoscene/core/geometry/Point.js'
+import { buildPoiPopupTemplate, buildClusterPopupTemplate, bindPoiPopupNavigation } from '@/utils/poiPopupTemplate.js'
 
 const router = useRouter()
 const { isLoggedIn, currentUser } = useUserAuth()
 const toolbarRef = ref(null)
+const legendRef = ref(null)
 const isLoading = ref(true)
+
+// 空间分析状态
+const spatialResult = ref(null)
+const spatialResultsMap = new Map()
+const spatialPoiLayerId = 'spatial-result'
+const spatialLayerId = 'spatial-layer'
+const layerIdByDbName = {}
+const buildLayerIdByNameMap = () => {
+  Object.keys(layerIdByDbName).forEach(k => delete layerIdByDbName[k])
+  layerConfig.value.forEach(l => {
+    const m = l.url && l.url.match(/greenways\?name=([^&]+)/)
+    if (m) layerIdByDbName[decodeURIComponent(m[1])] = l.id
+  })
+}
 
 // 地图配置
 const mapConfig = reactive({
@@ -677,6 +715,7 @@ const rebuildLayerCaches = () => {
       interactiveLayerIds.add(layer.id)
     }
   })
+  buildLayerIdByNameMap()
 }
 
 const pickInteractiveFeature = (featuresWithLayers = []) => {
@@ -740,7 +779,8 @@ const popup = reactive({
   poiAddress: '',
   poiGreenway: '',
   poiDistance: '',
-  poiGreenwayId: null
+  poiGreenwayId: null,
+  greenwayId: null
 })
 
 const popupStyle = computed(() => ({
@@ -979,29 +1019,29 @@ const clearLayerHighlight = (layerId) => {
 
 // 要素点击
 const onFeatureClick = ({ featuresWithLayers, pixel }) => {
-  // 1. 检查是否点击了 POI 设施
+  // 0. 检查是否点击了空间分析多边形（可再次点击查看）
+  for (const item of (featuresWithLayers || [])) {
+    if (item.layerId === spatialLayerId) {
+      const analysisId = item.feature?.attributes?.analysisId
+      const saved = analysisId != null ? spatialResultsMap.get(analysisId) : null
+      if (saved) {
+        showSpatialResult(saved, pixel)
+      }
+      return
+    }
+  }
+
+  // 1. 检查是否点击了 POI 设施（UI 统一交给 GeoScene popup，这里只做埋点）
   for (const item of (featuresWithLayers || [])) {
     if (item.layerId === facilitiesLayerId) {
       const attr = item.feature?.attributes || {}
-      const cfg = FACILITY_CONFIG[attr.poi_type] || {}
-      const gwd = attr.greenway_id ? mapManager.value?.getLayer?.(null) : null
-      popup.isPoi = true
-      popup.poiName = attr.name || ''
-      popup.poiTypeName = attr.type_name || ''
-      popup.poiSvg = `/images/poi/${cfg.icon || 'subway.svg'}`
-      popup.poiColor = cfg.color || '#666'
-      popup.poiAddress = attr.address || ''
-      popup.poiDistance = attr.distance_m ? (attr.distance_m < 1000 ? attr.distance_m + 'm' : (attr.distance_m / 1000).toFixed(1) + 'km') : ''
-      popup.title = attr.name || ''
-      popup.content = ''
-      popup.data = attr
-      popup.position = { x: pixel[0], y: pixel[1] }
-      popup.visible = true
-      // 异步查绿道名
-      fetch(`/api/greenways/${attr.greenway_id}`).then(r => r.json()).then(d => {
-        if (d.data?.name) popup.poiGreenway = d.data.name
-      }).catch(() => {})
+      // 关闭自写自定义 popup，避免双 UI（GeoScene popup 自动弹出）
+      popup.visible = false
       tooltip.visible = false
+      if (attr.cluster_count == null) {
+        // 单个 POI 点击埋点
+        fetch('/api/poi/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poi_id: attr.id, poi_name: attr.name, poi_type: attr.poi_type, greenway_id: attr.greenway_id }) }).catch(() => {})
+      }
       return
     }
   }
@@ -1027,6 +1067,7 @@ const onFeatureClick = ({ featuresWithLayers, pixel }) => {
     popup.title = layerInfo.info.name
     popup.content = layerInfo.info.description
     popup.data = layerInfo
+    popup.greenwayId = greenwayFeature.feature?.attributes?.id ?? null
     popup.position = { x: pixel[0], y: pixel[1] }
     popup.visible = true
 
@@ -1048,6 +1089,11 @@ const onFeatureHover = ({ featuresWithLayers, pixel }) => {
   for (const item of (featuresWithLayers || [])) {
     if (item.layerId === facilitiesLayerId && !popup.visible) {
       const attr = item.feature?.attributes || {}
+      // 聚类命中：不显示自定义 tooltip，交给 GeoScene 处理
+      if (attr.cluster_count != null) {
+        tooltip.visible = false
+        return
+      }
       const cfg = FACILITY_CONFIG[attr.poi_type]
       tooltip.title = attr.name || ''
       tooltip.data = {
@@ -1179,6 +1225,7 @@ const toggleHeatmap = async (visible) => {
       })
 
       mapManager.value.addLayer(heatmapLayerId, layer)
+      legendRef.value?.refresh()
     } catch (e) {
       console.error('[热力图] 创建图层失败:', e)
       showHeatmap.value = false
@@ -1229,13 +1276,23 @@ const toggleFacilities = async (visible) => {
         title: '附近设施',
         url,
         visible: true,
-        outFields: ['id', 'name', 'poi_type', 'type_name', 'distance_m', 'greenway_id', 'address'],
+        outFields: ['id', 'name', 'poi_type', 'type_name', 'greenway_id', 'greenway_name', 'address'],
         minScale: 0,
         maxScale: 0,
         renderer: new UniqueValueRenderer({
           field: 'poi_type',
           uniqueValueInfos
-        })
+        }),
+        // 统一 GeoScene popup：content 函数区分聚合点/单点，含跳转按钮
+        popupTemplate: buildPoiPopupTemplate(FACILITY_CONFIG),
+        featureReduction: {
+          type: 'cluster',
+          clusterRadius: '60px',
+          clusterMaxSize: 40,
+          clusterMinSize: 12,
+          maxScale: 72224,
+          popupTemplate: buildClusterPopupTemplate(() => mapManager.value?.getLayer(facilitiesLayerId))
+        }
       })
       layer._zIndex = 250
       // 标记此图层仅供交互查询，GeoJSONLayer 不再通过 hitTest 响应时
@@ -1243,9 +1300,10 @@ const toggleFacilities = async (visible) => {
       layer.listMode = 'hide'
 
       mapManager.value.addLayer(facilitiesLayerId, layer)
+      legendRef.value?.refresh()
       console.log('[设施图层] 已添加, POI:', geojson.features.length)
 
-      // 缩放监听：zoom < 11 时隐藏设施图层
+      // 缩放监听：zoom < 11 时隐藏设施图层（太密），11~13 聚合，>13 散开单点
       const view = mapManager.value.getView()
       if (view) {
         const handleZoom = () => {
@@ -1271,17 +1329,25 @@ const toggleFacilities = async (visible) => {
   }
 }
 
-// 单独切换某类设施
+// 单独切换某类设施（同时过滤聚类：用 definitionExpression，聚类也遵循）
 function toggleFacilityType(typeCode, checked) {
   facilityTypeFilters[typeCode] = checked
   // 景点类需要同步 110100(公园广场) 和 110200(风景名胜)
   if (typeCode === '110100') facilityTypeFilters['110200'] = checked
   if (typeCode === '110200') facilityTypeFilters['110100'] = checked
   const layer = mapManager.value?.getLayer(facilitiesLayerId)
-  if (!layer?.renderer) return
+  if (!layer) return
 
-  const renderer = layer.renderer
-  if (renderer.type === 'unique-value') {
+  // definitionExpression 过滤数据源，聚类只聚合选中类型
+  const enabledCodes = Object.keys(FACILITY_CONFIG).filter(code => facilityTypeFilters[code])
+  if (enabledCodes.length === Object.keys(FACILITY_CONFIG).length) {
+    layer.definitionExpression = null
+  } else {
+    layer.definitionExpression = `poi_type IN (${enabledCodes.map(c => `'${c}'`).join(',')})`
+  }
+
+  // 同时更新渲染器（散开单点时图标跟随过滤）
+  if (layer.renderer?.type === 'unique-value') {
     const newInfos = Object.entries(FACILITY_CONFIG)
       .filter(([code]) => facilityTypeFilters[code])
       .map(([code, cfg]) => ({
@@ -1292,7 +1358,7 @@ function toggleFacilityType(typeCode, checked) {
           height: '26px'
         })
       }))
-    renderer.uniqueValueInfos = newInfos
+    layer.renderer.uniqueValueInfos = newInfos
   }
 }
 
@@ -1312,6 +1378,7 @@ const onLayerToggled = ({ layerId, visible }) => {
 const closePopup = () => {
   popup.visible = false
   popup.isPoi = false
+  popup.greenwayId = null
 
   if (selectedLayerId.value) {
     clearLayerHighlight(selectedLayerId.value)
@@ -1472,6 +1539,77 @@ const onToolActivated = (data) => {
   console.log('[GreenwayOverview] 工具激活:', data)
 }
 
+// ─── 空间分析 ─────────────────────────────────────────
+const onSpatialAnalysisComplete = async ({ polygon, analysis, analysisId }) => {
+  try {
+    const data = await analyzeSpatial(polygon)
+    const result = { summary: data.summary, greenways: data.greenways, pois: data.pois, analysis }
+    if (analysisId != null) spatialResultsMap.set(analysisId, result)
+    showSpatialResult(result)
+  } catch (e) {
+    console.error('[空间分析]', e.message)
+    alert('空间分析失败：' + e.message)
+  }
+}
+
+// 展示某次空间分析结果（新建或再次点击）
+const showSpatialResult = (result, pixel) => {
+  clearSpatialHighlights()
+  result.greenways.forEach(gw => {
+    const lid = layerIdByDbName[gw.name]
+    if (lid) highlightLayer(lid, '#FF5722', 5, false)
+  })
+  renderSpatialPoiMarkers(result.pois)
+  spatialResult.value = result
+}
+
+// 清除空间分析（来自工具栏按钮）
+const onSpatialAnalysisClear = () => {
+  spatialResultsMap.clear()
+  closeSpatialPanel()
+}
+
+const renderSpatialPoiMarkers = (pois) => {
+  const existing = mapManager.value?.getLayer(spatialPoiLayerId)
+  if (existing) mapManager.value.removeLayer(spatialPoiLayerId)
+  const layer = new GraphicsLayer({ id: spatialPoiLayerId, title: '空间分析结果', listMode: 'hide' })
+  pois.forEach(p => {
+    layer.add(new Graphic({
+      geometry: new Point({ longitude: p.lng, latitude: p.lat, spatialReference: { wkid: 4326 } }),
+      symbol: { type: 'simple-marker', color: '#4CAF50', size: 8, outline: { color: '#fff', width: 1.5 } }
+    }))
+  })
+  mapManager.value?.addLayer(spatialPoiLayerId, layer)
+}
+
+const clearSpatialHighlights = () => {
+  Object.values(layerIdByDbName).forEach(lid => {
+    if (lid) clearLayerHighlight(lid)
+  })
+}
+
+const closeSpatialPanel = () => {
+  spatialResult.value = null
+  clearSpatialHighlights()
+  const layer = mapManager.value?.getLayer(spatialPoiLayerId)
+  if (layer) mapManager.value.removeLayer(spatialPoiLayerId)
+}
+
+const locateSpatialPoi = (poi) => {
+  const view = mapManager.value?.getView()
+  if (view && poi.lng && poi.lat) view.goTo({ center: [poi.lng, poi.lat], zoom: 15 })
+}
+
+const locateSpatialGreenway = (gw) => {
+  const lid = layerIdByDbName[gw.name]
+  const layer = lid ? mapManager.value?.getLayer(lid) : null
+  if (layer) {
+    layer.queryExtent()
+      .then(r => { if (r?.extent) mapManager.value?.fitExtent(r.extent, { padding: [80, 80, 80, 80] }) })
+      .catch(() => {})
+  }
+}
+
 const onLayerAdded = (layerInfo) => {
   console.log('[GreenwayOverview] 图层已添加:', layerInfo)
   rebuildLayerCaches()
@@ -1482,6 +1620,8 @@ onMounted(() => {
   if (tooltipRef.value) {
     tooltipRef.value.style.transform = 'translate3d(-9999px, -9999px, 0)'
   }
+  // 绑定 POI popup 内"查看绿道详情"按钮的全局点击委托
+  unbindPoiPopupNav = bindPoiPopupNavigation(router)
 })
 
 // 监听路由变化，在导航时显示加载指示器
@@ -1495,7 +1635,10 @@ watch(
   }
 )
 
+let unbindPoiPopupNav = null
 onBeforeUnmount(() => {
+  unbindPoiPopupNav?.()
+  unbindPoiPopupNav = null
   if (tooltipMoveRaf) {
     cancelAnimationFrame(tooltipMoveRaf)
     tooltipMoveRaf = null

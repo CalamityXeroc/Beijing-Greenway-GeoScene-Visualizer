@@ -290,6 +290,12 @@ const routes = [
         name: 'AdminHeatmap',
         component: () => import('@/views/admin/HeatAdmin.vue'),
         meta: { title: '绿道热度管理', requiresAdmin: true }
+      },
+      {
+        path: 'poi-stats',
+        name: 'AdminPoiStats',
+        component: () => import('@/views/admin/PoiStats.vue'),
+        meta: { title: 'POI热度统计', requiresAdmin: true }
       }
     ]
   },
@@ -305,6 +311,12 @@ const routes = [
     name: 'UserRegister',
     component: () => import('@/views/UserRegister.vue'),
     meta: { title: '用户注册' }
+  },
+  {
+    path: '/favorites',
+    name: 'FavoritesPage',
+    component: () => import('@/views/FavoritesPage.vue'),
+    meta: { title: '我的收藏' }
   }
 ]
 

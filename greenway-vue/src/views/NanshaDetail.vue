@@ -18,6 +18,10 @@
 
       </div>
 
+    <div style="position:absolute;top:1.5rem;right:2rem;pointer-events:auto;z-index:1001">
+      <FavoriteButton :greenway-id="favGreenwayId" label />
+    </div>
+
     </header>
 
 
@@ -146,6 +150,10 @@ import DetailPoiPopup from '@/components/DetailPoiPopup.vue'
 
 import DetailPoiLayerControl from '@/components/DetailPoiLayerControl.vue'
 import { loadGreenwayDataByName, buildGreenwayInfo } from '@/utils/greenwayHelper'
+
+import FavoriteButton from '@/components/FavoriteButton.vue'
+
+const favGreenwayId = ref(null)
 
 import { useDetailPoi } from '@/composables/useDetailPoi.js'
 
@@ -285,6 +293,8 @@ const loadGreenwayData = async () => {
     const greenwayData = await loadGreenwayDataByName('南沙绿道', (data) => {
       const info = buildGreenwayInfo(data)
       Object.assign(greenwayInfo.value, info)
+
+      favGreenwayId.value = data.id
     })
     if (greenwayData) layers.value[0].data = greenwayData.geojson
   } catch (err) { console.error('[NanshaDetail] 加载绿道数据失败:', err) }
