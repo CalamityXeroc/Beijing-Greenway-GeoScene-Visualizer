@@ -9,7 +9,7 @@
     <div v-show="!showSplash" class="app-content">
       <router-view v-slot="{ Component }">
         <Transition name="page-slide" mode="out-in">
-          <keep-alive include="DiscoverView,MapView,ListView,ProfileView">
+          <keep-alive include="DiscoverView,MapView,ListView,ProfileView,FavoritesView">
             <component :is="Component" />
           </keep-alive>
         </Transition>

@@ -135,24 +135,28 @@ watch(() => props.modelValue, v => { activeTab.value = v })
 .nav-tab:active { transform: scale(0.93); }
 
 .nav-tab.active {
-  color: var(--color-primary);
+  color: #fff;
+}
+.nav-tab.active .tab-icon svg {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 .nav-tab.active .tab-label {
   font-weight: var(--font-weight-semibold);
+  color: #fff;
 }
 
 /* 活跃胶囊背景 */
 .tab-pill {
   position: absolute;
-  top: 6px;
+  top: 5px;
   left: 50%;
   transform: translateX(-50%);
-  width: 48px;
-  height: 32px;
-  border-radius: 16px;
+  width: 52px;
+  height: 34px;
+  border-radius: 17px;
   background: var(--gradient-brand);
   pointer-events: none;
-  box-shadow: 0 2px 12px rgba(33, 122, 50, 0.25);
+  box-shadow: 0 3px 14px rgba(33, 122, 50, 0.32);
   transition: all var(--transition-spring);
 }
 

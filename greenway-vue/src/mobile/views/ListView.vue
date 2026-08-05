@@ -178,15 +178,16 @@ const fetchGreenways = async () => {
       // 清洗描述文本（移除非法字符）
       const rawDesc = p.description || p.introduction || p.features || ''
       const cleanDesc = rawDesc.replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s，。！？、：；""''（）【】《》…\-\.]+/g, ' ').trim()
+      const len = parseFloat(p.length) || 0
       return {
         id: p.id || p.gid || Math.random(),
         name: p.name || '未知绿道',
         description: cleanDesc,
         color: p.color,
         image: null,
-        difficulty: 'medium',
-        length: parseFloat(p.length) || 0,
-        duration: '2-3小时',
+        difficulty: len >= 40 ? 'hard' : (len >= 10 ? 'medium' : 'easy'),
+        length: len,
+        duration: len >= 40 ? '5小时以上' : (len >= 10 ? '2-3小时' : '1小时以内'),
         lat: centroid?.lat ?? null,
         lng: centroid?.lng ?? null,
         tags: p.features ? p.features.split('、').slice(0, 2) : ['绿道'],
@@ -297,7 +298,7 @@ onMounted(async () => {
 }
 
 .icon-btn {
-  width: 36px; height: 36px;
+  width: 44px; height: 44px;
   border-radius: 50%; border: none;
   background: var(--color-surface-2);
   color: var(--color-text-secondary);
@@ -341,8 +342,8 @@ onMounted(async () => {
 }
 .search-input::placeholder { color: var(--color-text-tertiary); }
 .clear-btn {
-  position: absolute; right: 10px;
-  width: 22px; height: 22px; border-radius: 50%; border: none;
+  position: absolute; right: 8px;
+  width: 30px; height: 30px; border-radius: 50%; border: none;
   background: var(--color-text-tertiary); color: var(--color-surface);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;

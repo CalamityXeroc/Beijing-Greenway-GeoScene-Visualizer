@@ -127,6 +127,10 @@
             {{ loadingMore ? '加载中...' : '加载更多动态' }}
           </button>
         </div>
+
+        <!-- 空/错误态 -->
+        <div v-if="!feedLoading && !feedList.length && feedError" class="feed-hint error">{{ feedError }}</div>
+        <div v-else-if="!feedLoading && !feedList.length && !feedError" class="feed-hint">还没有动态，来发布第一条吧</div>
       </section>
 
       <!-- 底部安全区 -->
@@ -139,7 +143,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, onActivated, onDeactivated } from 'vue'
 import { useRouter } from 'vue-router'
 import MobileBottomNav from '../components/MobileBottomNav.vue'
 import { fetchGreenways, fetchRecentComments } from '../services/api'
@@ -151,6 +155,7 @@ const currentSlide = ref(0)
 const feedLoading = ref(true)
 const loadingMore = ref(false)
 const feedList = ref([])
+const feedError = ref('')
 const hotTrails = ref([])
 
 // 轮播图数据
@@ -239,24 +244,30 @@ const loadHotTrails = async () => {
   }
 }
 
+// 社区动态字段映射（loadFeed / loadMoreFeed 统一）
+const mapFeedItem = (c) => ({
+  id: c.id,
+  user: c.nickname || c.username || '绿道爱好者',
+  greenway_id: c.greenway_id,
+  greenway: c.greenway_name || `绿道#${c.greenway_id}`,
+  content: c.content,
+  rating: c.rating || 5,
+  time: c.created_at,
+  likes: c.like_count || 0,
+  liked: false
+})
+
 // 加载社区动态
 const loadFeed = async () => {
   feedLoading.value = true
+  feedError.value = ''
   try {
     const res = await fetchRecentComments(10)
-    feedList.value = (res.data?.list || []).map(c => ({
-      id: c.id,
-      user: c.nickname || c.username || '绿道爱好者',
-      greenway: c.greenway_name || `绿道#${c.greenway_id}`,
-      content: c.content,
-      rating: c.rating || 5,
-      time: c.created_at,
-      likes: c.like_count || 0,
-      liked: false
-    }))
+    feedList.value = (res.data?.list || []).map(mapFeedItem)
   } catch (e) {
     console.error('加载动态失败:', e)
     feedList.value = []
+    feedError.value = '动态加载失败，请稍后重试'
   } finally {
     feedLoading.value = false
   }
@@ -267,8 +278,9 @@ const loadMoreFeed = async () => {
   loadingMore.value = true
   try {
     const data = await fetchRecentComments(feedList.value.length + 10)
-    if (data.data?.length) {
-      feedList.value = [...feedList.value, ...data.data]
+    const more = data.data?.list || []
+    if (more.length) {
+      feedList.value = [...feedList.value, ...more.map(mapFeedItem)]
     }
   } catch (e) {
     console.error('加载更多动态失败:', e)
@@ -325,6 +337,10 @@ onMounted(() => {
 onUnmounted(() => {
   stopAutoSlide()
 })
+
+// keep-alive 下切 tab 停止/恢复轮播，避免后台空转
+onActivated(() => startAutoSlide())
+onDeactivated(() => stopAutoSlide())
 </script>
 
 <style scoped>
@@ -557,6 +573,13 @@ onUnmounted(() => {
   padding: 16px;
   text-align: center;
 }
+.feed-hint {
+  padding: 24px 16px;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+}
+.feed-hint.error { color: var(--color-error); }
 .load-more-btn {
   padding: 12px 32px;
   background: var(--color-surface);

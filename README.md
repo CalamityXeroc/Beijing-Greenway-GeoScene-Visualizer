@@ -67,7 +67,10 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  **Spatial Analysis Toolkit**: Draw a polygon on the map to run a backend PostGIS `ST_Intersects` spatial query, returning greenways and facilities within the area — highlighted on the map with a result list panel (including area, perimeter, and facility density analysis). Multiple analysis polygons supported; clicking a polygon again restores its results.
 -  **User Favorites + Personal Center**: Favorite greenways (backend `user_favorites` table + favorite button), desktop favorites page, mobile favorites page, and personal-center stats (favorites count, ride records, total distance, comment count) all wired to real data.
 -  **Layer Legend Widget**: Integrated official GeoScene Legend component (Expand collapsible panel) that automatically shows heatmap gradients and facility legends.
--  Capacitor-based mobile app (experimental)
+-  **Mobile POI Facilities**: Mobile map (OpenLayers) overlays 7 facility categories with SVG icons, zoom-linked visibility (facilities appear when zoomed to city/greenway level), per-type filter chips, tap-to-open bottom sheet with details + greenway jump, and a dedicated facility search page with type shortcuts and keyword search.
+-  **Follow-Time Theme**: The whole site auto-switches between day/night by Beijing time by default; users can pin a fixed theme or return to auto mode at any time (both desktop and mobile share one preference store).
+-  **AI Assistant Knowledge Base**: The greenway assistant's knowledge base is aligned with the platform's 17 greenways (lengths & coverage from the real database) and covers the full feature tutorial (POI, spatial analysis, favorites, etc.).
+-  Capacitor-based mobile app (enhanced UI/UX)
 
 ---
 
@@ -120,14 +123,14 @@ npm run dev       # http://localhost:5173
 |  **Real-time Weather** | Draggable weather widget (Amap API) |
 |  **AI Assistant** | Map/detail-only floating chatbot (DeepSeek-V4-Flash), conversations logged to DB |
 |  **AI Chat Analytics** | Admin: word cloud + daily trend + recent messages, dual day/night theme |
-|  **Day/Night Theme** | Full-site theme auto-switches by Beijing time; admin panel fully themed |
+|  **Day/Night Theme** | Auto-switches by Beijing time by default; user can pin day/night or return to follow-time mode (desktop & mobile shared preference) |
 |  **Heatmap Analytics** | Admin dashboard with ECharts: heat ranking, trend, comment stats, weight pie, detail table |
 |  **Admin Panel** | JWT auth (localStorage), dashboard, user management, logs |
 |  **Comment System** | Detail-page comments with optional rating and like interactions |
 |  **Comment Management** | Admin review panel with filtering, status actions, and batch updates |
 |  **Content Safety** | Sensitive-word check blocks disallowed comments before storage |
 |  **User Auth** | Public user registration and login |
-|  **Mobile App** | Capacitor + Vue 3, auto-detected on native platform |
+|  **Mobile App** | Capacitor + Vue 3, auto-detected on native platform; POI facilities, theme, and polished mobile UI |
 
 ---
 
@@ -200,6 +203,28 @@ npm run dev       # http://localhost:5173
           adminAuth.js             # Pinia store (JWT, localStorage)
           userAuth.js              # Public user auth
        router/index.js              # Routes + navigation guards
+
+    mobile/                         # Capacitor mobile app (Vue 3)
+       views/
+          MapView.vue              # Map page (greenways + POI facilities + bottom sheet)
+          DiscoverView.vue         # Discover/home page
+          ListView.vue             # Greenway list with search & filter
+          DetailView.vue           # Greenway detail (favorite persisted, comments)
+          PoiSearchView.vue        # POI facility search page
+          ProfileView.vue / SettingsView.vue / FavoritesView.vue  # Personal center
+       components/
+          MobileBottomNav.vue      # Bottom navigation bar
+          TrailCard.vue            # Greenway card with image fallback
+       composables/
+          useToast.js              # Global toast + confirm dialog (mobile UX)
+          useAppTheme.js           # Theme store (shares desktop preference)
+       constants/poi.js            # POI facility type config
+       services/api.js             # Mobile API client (POI + favorites + auth)
+       styles/design-system.css    # Mobile design system (dual theme)
+
+    scripts/
+       sync-android.sh             # Capacitor sync + custom plugin re-registration
+
     public/数据/                     # GeoJSON geometry files
     public/images/greenways/        # Greenway cover images (17 entries)
 

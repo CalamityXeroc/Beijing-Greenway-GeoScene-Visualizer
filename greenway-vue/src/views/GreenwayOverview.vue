@@ -70,9 +70,6 @@
       @locate-greenway="locateSpatialGreenway"
     />
 
-    <!-- 官方图例控件（右下角 Expand） -->
-    <MapLegend v-if="mapManager" ref="legendRef" :map-manager="mapManager" />
-
     <!-- 信息卡片区域 -->
     <div class="info-section">
       <div class="info-cards">
@@ -203,7 +200,6 @@
           </button>
         </div>
         <p>{{ popup.content }}</p>
-        <FavoriteButton v-if="popup.greenwayId" :greenway-id="popup.greenwayId" label style="margin-bottom:8px" />
         <button @click="viewPopupDetail" class="popup-btn">
           <i class="fas fa-external-link-alt"></i> 查看详情
         </button>
@@ -239,21 +235,6 @@
       </div>
     </div>
 
-    <!-- POI 图例面板 -->
-    <div v-show="showFacilities" class="facility-legend" :class="{ collapsed: legendCollapsed }">
-      <div class="legend-header" @click="legendCollapsed = !legendCollapsed">
-        <span>图例</span>
-        <i :class="legendCollapsed ? 'fas fa-chevron-up' : 'fas fa-chevron-down'"></i>
-      </div>
-      <div class="legend-body" v-show="!legendCollapsed">
-        <div v-for="(cfg, code) in FACILITY_CONFIG" :key="code" class="legend-row" @click="toggleFacilityType(code, !facilityTypeFilters[code])">
-          <img class="legend-icon" :src="`/images/poi/${cfg.icon}`" :alt="cfg.name" />
-          <span class="legend-label" :class="{ off: !facilityTypeFilters[code] }">{{ cfg.name }}</span>
-        </div>
-        <div v-if="allTypesOff" class="legend-empty" @click="closeAllFacilities">全部关闭 · 点击关闭图层</div>
-      </div>
-    </div>
-
     <!-- 3D 飞行漫游 -->
     <GreenwayFlyover
       :visible="showFlyover"
@@ -277,12 +258,10 @@ import { recordGreenwayClick, fetchHeatmapData, fetchHeatmapPoints } from '@/ser
 import { useUserAuth } from '@/stores/userAuth.js'
 import { sessionRef } from '@/utils/sessionRef.js'
 import GeoJSONLayer from '@geoscene/core/layers/GeoJSONLayer.js'
-import FavoriteButton from '@/components/FavoriteButton.vue'
 import UniqueValueRenderer from '@geoscene/core/renderers/UniqueValueRenderer.js'
 import PictureMarkerSymbol from '@geoscene/core/symbols/PictureMarkerSymbol.js'
 import PoiSearchBar from '@/components/PoiSearchBar.vue'
 import SpatialAnalysisPanel from '@/components/SpatialAnalysisPanel.vue'
-import MapLegend from '@/components/MapLegend.vue'
 import { analyzeSpatial } from '@/services/spatialApi.js'
 import GraphicsLayer from '@geoscene/core/layers/GraphicsLayer.js'
 import Graphic from '@geoscene/core/Graphic.js'
@@ -292,7 +271,6 @@ import { buildPoiPopupTemplate, buildClusterPopupTemplate, bindPoiPopupNavigatio
 const router = useRouter()
 const { isLoggedIn, currentUser } = useUserAuth()
 const toolbarRef = ref(null)
-const legendRef = ref(null)
 const isLoading = ref(true)
 
 // 空间分析状态
@@ -830,9 +808,6 @@ const stopDrag = () => {
 // 热力图状态
 const showHeatmap = sessionRef('gw_showHeatmap', false)
 const showFacilities = sessionRef('gw_showFacilities', false)
-const legendCollapsed = ref(false)
-const allTypesOff = computed(() => Object.values(facilityTypeFilters).every(v => !v))
-function closeAllFacilities() { toggleFacilities(false) }
 
 // POI 搜索选中处理
 function onPoiSearchSelect(poi) {
@@ -1225,7 +1200,6 @@ const toggleHeatmap = async (visible) => {
       })
 
       mapManager.value.addLayer(heatmapLayerId, layer)
-      legendRef.value?.refresh()
     } catch (e) {
       console.error('[热力图] 创建图层失败:', e)
       showHeatmap.value = false
@@ -1300,7 +1274,6 @@ const toggleFacilities = async (visible) => {
       layer.listMode = 'hide'
 
       mapManager.value.addLayer(facilitiesLayerId, layer)
-      legendRef.value?.refresh()
       console.log('[设施图层] 已添加, POI:', geojson.features.length)
 
       // 缩放监听：zoom < 11 时隐藏设施图层（太密），11~13 聚合，>13 散开单点
@@ -2032,35 +2005,8 @@ onBeforeUnmount(() => {
   /* 移动端: TopNavbar 组件自行处理响应式 */
 }
 
-/* === POI 图例面板 === */
-.facility-legend {
-  position: absolute;
-  left: 1rem; bottom: 2.5rem;
-  z-index: 100;
-  background: rgba(255,255,255,0.94);
-  backdrop-filter: blur(8px);
-  border-radius: 10px;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.1);
-  border: 1px solid rgba(76,175,80,0.12);
-  min-width: 140px; overflow: hidden; user-select: none;
-}
-.facility-legend.collapsed { min-width: 0; }
-.legend-header { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.7rem; cursor: pointer; font-size: 0.78rem; color: #666; font-weight: 600; }
-.legend-header:hover { background: rgba(76,175,80,0.05); }
-.legend-body { padding: 0 0.7rem 0.45rem; }
-.legend-row { display: flex; align-items: center; gap: 0.45rem; padding: 0.3rem 0; cursor: pointer; font-size: 0.75rem; }
-.legend-row:hover { opacity: 0.75; }
-.legend-icon { width: 20px; height: 20px; flex-shrink: 0; }
-.legend-label { color: #555; }
-.legend-label.off { color: #ccc; text-decoration: line-through; }
-.legend-empty { text-align: center; padding: 0.4rem 0 0.2rem; font-size: 0.7rem; color: #999; cursor: pointer; }
-.legend-empty:hover { color: #4CAF50; }
+/* === POI 弹窗类型标签 === */
 .popup--poi .poi-type-tag { display: inline-block; padding: 0.12rem 0.5rem; border-radius: 10px; font-size: 0.76rem; font-weight: 600; margin-right: 0.4rem; background: rgba(0,0,0,0.06); color: #666; }
-[data-theme="night"] .facility-legend { background: rgba(20,30,20,0.92); border-color: rgba(76,175,80,0.15); box-shadow: 0 2px 16px rgba(0,0,0,0.3); }
-[data-theme="night"] .legend-header { color: #aaa; }
-[data-theme="night"] .legend-header:hover { background: rgba(76,175,80,0.08); }
-[data-theme="night"] .legend-label { color: #bbb; }
-[data-theme="night"] .legend-label.off { color: #555; }
 
 /* 悬停提示框 - 性能优化 */
 .hover-tooltip {

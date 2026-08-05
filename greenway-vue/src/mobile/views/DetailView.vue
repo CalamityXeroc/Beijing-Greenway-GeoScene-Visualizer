@@ -222,11 +222,14 @@ import Stroke from 'ol/style/Stroke'
 import Fill from 'ol/style/Fill'
 import { fromLonLat } from 'ol/proj'
 import { useAppTheme } from '../composables/useAppTheme'
+import { toast, confirmDialog } from '../composables/useToast'
+import { useFavorites } from '@/stores/favorites'
 
 const router = useRouter()
 const route = useRoute()
 const { isDark } = useAppTheme()
 const { isLoggedIn, currentUser, token } = useUserAuth()
+const { isFavorite: storeIsFavorite, toggle: toggleFavoriteStore, loadIds } = useFavorites()
 
 const trailId = route.params.id
 const trail = ref(null)
@@ -361,18 +364,18 @@ async function loadComments() {
 
 async function submitComment() {
   if (!isLoggedIn.value) {
-    alert('请先登录后评论')
+    toast('请先登录后评论', 'warning')
     router.push('/mobile/login')
     return
   }
 
   const content = commentDraft.value.trim()
   if (!content) {
-    alert('请输入评论内容')
+    toast('请输入评论内容', 'warning')
     return
   }
   if (content.length > 500) {
-    alert('评论最多 500 字')
+    toast('评论最多 500 字', 'warning')
     return
   }
 
@@ -389,10 +392,10 @@ async function submitComment() {
 
     commentDraft.value = ''
     commentRating.value = 5
-    alert(resp.message || '评论发布成功，待审核后展示')
+    toast(resp.message || '评论发布成功，待审核后展示', 'success')
     await loadComments()
   } catch (err) {
-    alert(err.message || '评论发布失败')
+    toast(err.message || '评论发布失败', 'error')
   } finally {
     submittingComment.value = false
   }
@@ -400,7 +403,7 @@ async function submitComment() {
 
 async function toggleLike(comment) {
   if (!isLoggedIn.value) {
-    alert('请先登录后点赞')
+    toast('请先登录后点赞', 'warning')
     router.push('/mobile/login')
     return
   }
@@ -416,26 +419,42 @@ async function toggleLike(comment) {
       comment.like_count = Number(res.data?.likeCount ?? comment.like_count ?? 0)
     }
   } catch (err) {
-    alert(err.message || '操作失败')
+    toast(err.message || '操作失败', 'error')
   }
 }
 
 async function removeComment(comment) {
   if (!isCommentOwner(comment)) return
 
-  const confirmed = window.confirm('确定删除这条评论吗？')
+  const confirmed = await confirmDialog({ title: '删除评论', message: '确定删除这条评论吗？', confirmText: '删除', danger: true })
   if (!confirmed) return
 
   try {
     await deleteComment(comment.id, token.value)
+    toast('评论已删除', 'success')
     await loadComments()
   } catch (err) {
-    alert(err.message || '删除失败')
+    toast(err.message || '删除失败', 'error')
   }
 }
 
-function toggleFavorite() {
-  isFavorite.value = !isFavorite.value
+async function toggleFavorite() {
+  if (!isLoggedIn.value) {
+    toast('请先登录后收藏', 'warning')
+    router.push('/mobile/login')
+    return
+  }
+  const gid = trail.value?.id || trailId
+  if (!gid) return
+  const prev = isFavorite.value
+  isFavorite.value = !prev // 乐观更新
+  const ok = await toggleFavoriteStore(gid)
+  if (!ok) {
+    isFavorite.value = prev // 失败回滚
+    toast('操作失败，请稍后重试', 'error')
+    return
+  }
+  toast(prev ? '已取消收藏' : '收藏成功', 'success')
 }
 
 function navigateTo() {
@@ -449,7 +468,7 @@ function shareTrail() {
     navigator.share({ title: trail.value.name, text: trail.value.description || trail.value.introduction || '' }).catch(() => {})
   } else {
     const url = window.location.href
-    navigator.clipboard?.writeText(url).then(() => alert('链接已复制')).catch(() => {})
+    navigator.clipboard?.writeText(url).then(() => toast('链接已复制', 'success')).catch(() => {})
   }
 }
 
@@ -459,6 +478,11 @@ onMounted(async () => {
     await new Promise(r => setTimeout(r, 50))
     initMiniMap()
     await loadComments()
+    // 从 store 同步收藏初始状态
+    if (isLoggedIn.value) {
+      await loadIds()
+      isFavorite.value = storeIsFavorite(trail.value.id)
+    }
   }
 })
 

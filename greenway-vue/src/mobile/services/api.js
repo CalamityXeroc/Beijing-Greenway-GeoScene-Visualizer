@@ -11,8 +11,8 @@ export const getApiBaseUrl = () => {
      (window.location.protocol === 'http:' && window.location.hostname === 'localhost' && !import.meta.env.DEV))
 
   if (isCapacitor) {
-    // 使用您的实际后端地址 - 端口3001
-    const baseUrl = 'http://10.26.171.159:3001'
+    // 模拟器：10.0.2.2 指向宿主机；真机请改为局域网 IP
+    const baseUrl = 'http://10.0.2.2:3001'
     console.log('[API] Capacitor模式，使用后端地址:', baseUrl)
     return baseUrl
   }
@@ -341,4 +341,37 @@ export const registerUser = async (data) => {
     body: JSON.stringify(data)
   })
   return readJson(res)
+}
+
+/* ============ POI 设施 ============ */
+
+/**
+ * 获取全部 POI 设施 GeoJSON（地图叠加用）
+ * @returns {Promise<Object>} FeatureCollection，properties: id,name,poi_type,type_name,color,greenway_id,greenway_name,address
+ */
+export const fetchPoiFacilities = async () => {
+  const res = await fetch(buildUrl('/api/facilities/geojson'))
+  return readJson(res)
+}
+
+/**
+ * 关键词搜索 POI 设施
+ * @param {string} q 关键词
+ * @returns {Promise<Array>} [{id,name,poi_type,type_name,color,address,lng,lat,greenway_name}]
+ */
+export const searchPoi = async (q) => {
+  if (!q || !q.trim()) return []
+  const res = await fetch(buildUrl(`/api/poi/search?q=${encodeURIComponent(q.trim())}`))
+  const data = await readJson(res)
+  return data.results || []
+}
+
+/**
+ * 获取 POI 类型定义
+ * @returns {Promise<Array>} [{code,name,icon,color}]
+ */
+export const fetchPoiTypes = async () => {
+  const res = await fetch(buildUrl('/api/poi-types'))
+  const data = await readJson(res)
+  return data.data || data || []
 }

@@ -150,23 +150,18 @@ select:focus {
     padding-right: max(8px, var(--safe-area-inset-right));
   }
 
-  /* 触摸友好的按钮 */
-  button,
+  /* 触摸友好的按钮（仅限通用 .btn/.menu-item，避免污染 scoped 组件） */
   .btn,
   .menu-item {
-    min-height: 48px;
-    min-width: 48px;
+    min-height: 44px;
+    min-width: 44px;
     padding: 12px 16px;
     font-size: 14px;
-    margin: 4px;
   }
 
-  /* 地图容器优化 */
-  #map,
-  .map-container,
-  .ol-viewport {
-    width: 100% !important;
-    height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom) - 60px);
+  /* 地图容器优化（不强制高度，交给具体页面布局控制） */
+  #map {
+    width: 100%;
   }
 
   /* 弹窗/模态框优化 */

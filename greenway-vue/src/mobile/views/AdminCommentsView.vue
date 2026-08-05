@@ -132,6 +132,7 @@ import {
   deleteCommentPermanent,
   batchDeleteCommentsPermanent
 } from '../services/api'
+import { toast, confirmDialog } from '../composables/useToast'
 
 const router = useRouter()
 const { token, isLoggedIn } = useAdminAuth()
@@ -217,30 +218,33 @@ const toggleSelect = (id) => {
 const approveComment = async (comment) => {
   try {
     await updateCommentStatus(comment.id, 'visible', token.value)
+    toast('评论已通过', 'success')
     await loadComments()
     await loadStats()
   } catch (e) {
-    alert(e.message || '操作失败')
+    toast(e.message || '操作失败', 'error')
   }
 }
 
 const rejectComment = async (comment) => {
   try {
     await updateCommentStatus(comment.id, 'hidden', token.value)
+    toast('评论已下架', 'success')
     await loadComments()
     await loadStats()
   } catch (e) {
-    alert(e.message || '操作失败')
+    toast(e.message || '操作失败', 'error')
   }
 }
 
 const restoreComment = async (comment) => {
   try {
     await updateCommentStatus(comment.id, 'visible', token.value)
+    toast('评论已恢复', 'success')
     await loadComments()
     await loadStats()
   } catch (e) {
-    alert(e.message || '操作失败')
+    toast(e.message || '操作失败', 'error')
   }
 }
 
@@ -248,11 +252,12 @@ const batchApprove = async () => {
   if (!selectedIds.value.length) return
   try {
     await batchUpdateCommentStatus(selectedIds.value, 'visible', token.value)
+    toast('批量通过完成', 'success')
     selectedIds.value = []
     await loadComments()
     await loadStats()
   } catch (e) {
-    alert(e.message || '批量操作失败')
+    toast(e.message || '批量操作失败', 'error')
   }
 }
 
@@ -260,40 +265,53 @@ const batchReject = async () => {
   if (!selectedIds.value.length) return
   try {
     await batchUpdateCommentStatus(selectedIds.value, 'hidden', token.value)
+    toast('批量下架完成', 'success')
     selectedIds.value = []
     await loadComments()
     await loadStats()
   } catch (e) {
-    alert(e.message || '批量操作失败')
+    toast(e.message || '批量操作失败', 'error')
   }
 }
 
 const permanentlyDeleteComment = async (comment) => {
-  const ok = window.confirm('此操作会永久删除评论及关联回复/点赞/举报记录，无法恢复。确定继续吗？')
+  const ok = await confirmDialog({
+    title: '永久删除评论',
+    message: '此操作会永久删除评论及关联回复/点赞/举报记录，无法恢复。确定继续吗？',
+    confirmText: '删除',
+    danger: true
+  })
   if (!ok) return
 
   try {
     await deleteCommentPermanent(comment.id, token.value)
+    toast('评论已永久删除', 'success')
     selectedIds.value = selectedIds.value.filter((id) => id !== comment.id)
     await loadComments()
     await loadStats()
   } catch (e) {
-    alert(e.message || '永久删除失败')
+    toast(e.message || '永久删除失败', 'error')
   }
 }
 
 const batchPermanentDelete = async () => {
   if (!selectedIds.value.length) return
-  const ok = window.confirm(`将永久删除 ${selectedIds.value.length} 条评论及关联数据，无法恢复。确定继续吗？`)
+  const ok = await confirmDialog({
+    title: '批量永久删除',
+    message: `将永久删除 ${selectedIds.value.length} 条评论及关联数据，无法恢复。确定继续吗？`,
+    confirmText: '删除',
+    danger: true
+  })
   if (!ok) return
 
   try {
     await batchDeleteCommentsPermanent(selectedIds.value, token.value)
+    toast('批量删除完成', 'success')
     selectedIds.value = []
     await loadComments()
     await loadStats()
   } catch (e) {
-    alert(e.message || '批量永久删除失败')
+    toast(e.message || '批量永久删除失败', 'error')
   }
 }
 

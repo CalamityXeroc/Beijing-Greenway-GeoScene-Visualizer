@@ -16,6 +16,12 @@
       <button class="btn-primary" @click="$router.push('/mobile/login')">去登录</button>
     </div>
 
+    <!-- 加载中 -->
+    <div v-else-if="loading" class="empty-state">
+      <div class="loading-spinner-mini"></div>
+      <p>加载中…</p>
+    </div>
+
     <!-- 列表 -->
     <div class="scroll-area" v-else-if="favorites.length">
       <div class="card-list">
@@ -59,21 +65,27 @@ const activeTab = ref('favorites')
 const { isLoggedIn } = useUserAuth()
 const { loadIds } = useFavorites()
 const favorites = ref([])
+const loading = ref(false)
 
 const viewDetail = (trail) => router.push(`/mobile/detail/${trail.greenway_id}`)
 
 async function load() {
   if (!isLoggedIn.value) { favorites.value = []; return }
-  const data = await fetchFavorites().catch(() => [])
-  favorites.value = data.map(d => ({
-    greenway_id: d.greenway_id,
-    id: d.greenway_id,
-    name: d.name,
-    length: d.length,
-    description: d.description,
-    image: d.image,
-    location: d.location
-  }))
+  loading.value = true
+  try {
+    const data = await fetchFavorites().catch(() => [])
+    favorites.value = data.map(d => ({
+      greenway_id: d.greenway_id,
+      id: d.greenway_id,
+      name: d.name,
+      length: d.length,
+      description: d.description,
+      image: d.image,
+      location: d.location
+    }))
+  } finally {
+    loading.value = false
+  }
 }
 
 async function removeFav(trail) {
@@ -116,6 +128,14 @@ onMounted(load)
 .fav-remove:active { transform: scale(0.9); }
 .nav-spacer { height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom,0px) + 12px); }
 .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 32px; color: var(--color-text-tertiary); text-align: center; }
+.loading-spinner-mini {
+  width: 26px; height: 26px;
+  border: 3px solid var(--color-surface-3);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: fav-spin 0.8s linear infinite;
+}
+@keyframes fav-spin { to { transform: rotate(360deg); } }
 .empty-state svg { opacity: 0.35; }
 .empty-state h2 { font-size: var(--text-lg); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }
 .empty-state p { font-size: var(--text-sm); margin: 0; }

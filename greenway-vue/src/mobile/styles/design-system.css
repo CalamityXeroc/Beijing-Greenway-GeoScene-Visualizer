@@ -190,12 +190,6 @@
   --shadow-soft:   0 2px 16px rgba(0, 0, 0, 0.06);
   --shadow-deep:   0 20px 60px rgba(0, 0, 0, 0.15);
 
-  /* Premium 阴影（暗色） */
-  --shadow-glass:  0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-  --shadow-glow:   0 0 20px rgba(48, 209, 88, 0.25);
-  --shadow-soft:   0 2px 16px rgba(0, 0, 0, 0.15);
-  --shadow-deep:   0 20px 60px rgba(0, 0, 0, 0.4);
-
   /* 状态栏 */
   --status-bar-color: light;
 
@@ -252,6 +246,10 @@
   --shadow-lg:  0 8px 24px rgba(0,0,0,0.5);
   --shadow-xl:  0 16px 48px rgba(0,0,0,0.6);
   --shadow-fab: 0 4px 16px rgba(48, 209, 88, 0.3);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  --shadow-glow:  0 0 20px rgba(48, 209, 88, 0.25);
+  --shadow-soft:  0 2px 16px rgba(0, 0, 0, 0.2);
+  --shadow-deep:  0 20px 60px rgba(0, 0, 0, 0.5);
 
   --status-bar-color: dark;
   --fill-primary:  rgba(48, 209, 88, 0.15);

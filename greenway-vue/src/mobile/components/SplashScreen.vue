@@ -140,7 +140,7 @@ import { ref, onMounted } from 'vue'
 const props = defineProps({
   duration: {
     type: Number,
-    default: 5000
+    default: 2800
   }
 })
 
@@ -193,8 +193,8 @@ onMounted(async () => {
     // Web 环境无 Capacitor，忽略
   }
 
-  // 2秒后显示跳过按钮
-  const skipTimer = setTimeout(() => { showSkip.value = true }, 2000)
+  // 1.2秒后显示跳过按钮
+  const skipTimer = setTimeout(() => { showSkip.value = true }, 1200)
 
   const interval = setInterval(() => {
     progress.value += Math.random() * 30
@@ -529,12 +529,14 @@ const handleSkip = () => {
   top: calc(env(safe-area-inset-top, 20px) + 8px);
   right: 16px;
   z-index: 10;
-  padding: 6px 16px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 18px;
   border: 1px solid rgba(255,255,255,0.3);
   border-radius: var(--radius-full, 20px);
   background: rgba(255,255,255,0.1);
   color: rgba(255,255,255,0.8);
-  font-size: 13px;
+  font-size: 14px;
   font-family: inherit;
   cursor: pointer;
   backdrop-filter: blur(4px);

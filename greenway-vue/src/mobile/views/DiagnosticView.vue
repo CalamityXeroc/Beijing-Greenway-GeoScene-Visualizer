@@ -328,9 +328,11 @@ onMounted(() => {
 
 <style scoped>
 .diagnostic-page {
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow-y: auto;
   background: var(--color-bg);
   color: var(--color-text-primary);
+  -webkit-overflow-scrolling: touch;
 }
 
 .topbar {

@@ -319,7 +319,16 @@
         </button>
         <div class="dropdown" v-show="openMenuId === 'theme'">
           <div class="dropdown-section">地图主题</div>
-          <button class="dd-btn" :class="{ active: !isNight }"
+          <button class="dd-btn" :class="{ active: isAuto }"
+                  @click="callTool('switchTheme', 'auto')">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="4"/>
+              <polyline points="12 8 12 12 14.5 13.5"/>
+              <path d="M12 3a9 9 0 1 0 9 9"/>
+            </svg>
+            跟随时间
+          </button>
+          <button class="dd-btn" :class="{ active: !isNight && !isAuto }"
                   @click="callTool('switchTheme', 'day')">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="5"/>
@@ -328,7 +337,7 @@
             </svg>
             日间模式
           </button>
-          <button class="dd-btn" :class="{ active: isNight }"
+          <button class="dd-btn" :class="{ active: isNight && !isAuto }"
                   @click="callTool('switchTheme', 'night')">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
@@ -513,7 +522,7 @@ const facilityColors = {
   '110100': [230, 81, 0]
 }
 
-const { theme: globalTheme } = useGlobalTheme()
+const { theme: globalTheme, isAuto } = useGlobalTheme()
 const isNight = computed(() => globalTheme.value === 'night')
 
 // 过滤掉所有绿道路线图层，只保留北京市界/面等底图图层

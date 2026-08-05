@@ -1,7 +1,10 @@
 ﻿<template>
   <button class="trail-card" @click="handleClick" type="button">
     <div class="card-thumb">
-      <img :src="imgSrc" :alt="trail.name" class="thumb-img" @error="onImgError" />
+      <img v-if="imgSrc" :src="imgSrc" :alt="trail.name" class="thumb-img" @error="onImgError" />
+      <div v-else class="thumb-fallback" :style="{ background: fallbackBg }">
+        <span class="thumb-letter">{{ fallbackLetter }}</span>
+      </div>
       <span v-if="trail.difficulty" class="diff-badge" :class="'diff-' + trail.difficulty">{{ diffText }}</span>
     </div>
     <div class="card-body">
@@ -55,6 +58,19 @@ const imgSrc = computed(() => {
   return props.trail.image || null
 })
 
+// 无图时首字占位
+const fallbackLetter = computed(() => String(props.trail.name || '绿').slice(0, 1))
+const fallbackBg = computed(() => {
+  const colors = [
+    'linear-gradient(135deg, #2e9640, #52b562)',
+    'linear-gradient(135deg, #217a32, #7cba3a)',
+    'linear-gradient(135deg, #1a5c20, #2e9640)',
+    'linear-gradient(135deg, #52b562, #85cf8f)'
+  ]
+  const n = String(props.trail.name || '绿').charCodeAt(0) || 0
+  return colors[n % colors.length]
+})
+
 const handleClick = () => emit('click', props.trail)
 const onImgError = (e) => {
   e.target.style.display = 'none'
@@ -88,6 +104,14 @@ const onImgError = (e) => {
   background: var(--color-surface-3);
 }
 .thumb-img { width: 100%; height: 100%; object-fit: cover; }
+.thumb-fallback {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+.thumb-letter {
+  font-size: 34px; font-weight: 700; color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
 
 .diff-badge {
   position: absolute; bottom: 6px; left: 6px;

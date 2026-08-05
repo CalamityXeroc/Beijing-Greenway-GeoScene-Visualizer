@@ -3,6 +3,7 @@ import router from './router'
 import App from './App.vue'
 import { CapacitorPlugin, initializeApp, setupAppListeners } from './utils/capacitorPlugin'
 import { isMobileDevice } from './utils/useMobileOptimization'
+import { isBeiJingDayTime, readPreference, migrateLegacyKeys } from './utils/useTheme'
 
 // 导入全局样式
 import './assets/main.css'
@@ -12,16 +13,16 @@ import './mobile/styles/design-system.css'
 
 // ─── 提前同步初始化主题（在 Vue 挂载前执行，防止白屏闪烁）────────────────
 ;(function initThemeEarly() {
-  const pref = localStorage.getItem('greenway-theme')
+  migrateLegacyKeys()
+  const pref = readPreference()
   let mode
-  if (pref === 'light') {
+  if (pref === 'day') {
     mode = 'day'
-  } else if (pref === 'dark') {
+  } else if (pref === 'night') {
     mode = 'night'
   } else {
     // auto: 根据北京时间 (06:00-18:00 = 白天)
-    const hour = new Date().getHours()
-    mode = (hour >= 6 && hour < 18) ? 'day' : 'night'
+    mode = isBeiJingDayTime() ? 'day' : 'night'
   }
   document.documentElement.setAttribute('data-theme', mode)
   document.documentElement.classList.add(mode === 'night' ? 'theme-dark' : 'theme-light')

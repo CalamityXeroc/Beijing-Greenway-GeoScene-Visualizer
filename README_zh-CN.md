@@ -67,7 +67,10 @@
 -  **空间分析工具集**：地图上绘制多边形分析区域，调用后端 PostGIS `ST_Intersects` 空间查询，返回区域内命中的绿道与设施，地图高亮 + 结果列表面板（含面积、周长、设施密度分析）。支持绘制多个分析区域，再次点击多边形可恢复结果。
 -  **用户收藏 + 个人中心**：收藏绿道（后端 `user_favorites` 表 + 收藏按钮），桌面端收藏列表页、移动端收藏页与个人中心统计（收藏数、骑行记录、总里程、评论数）全部接入真实数据。
 -  **图层图例控件**：集成 GeoScene 官方 Legend 组件（Expand 折叠面板），自动展示热力图渐变与设施图例。
--  Capacitor 移动端应用（试验阶段）
+-  **移动端 POI 设施**：移动端地图（OpenLayers）叠加 7 类设施 SVG 图标，缩放联动显示（放大到城市/绿道级别才显示设施，避免低缩放密集），类型 chips 过滤，点击弹出底部信息卡（名称/类型/地址/所属绿道 + 跳详情），独立设施搜索页（类型快捷入口 + 关键词搜索）。
+-  **跟随时间主题**：全站默认按北京时间自动切换昼夜，用户可随时固定白天/夜间或切回跟随时间（桌面与移动端共享一套偏好）。
+-  **AI 助手知识库**：绿道小助手知识库与平台 17 条绿道对齐（长度/覆盖区域取自真实数据库），并覆盖全功能操作教程（POI、空间分析、收藏等）。
+-  Capacitor 移动端应用（UI/UX 全面优化）
 
 ---
 
@@ -120,14 +123,15 @@ npm run dev       # http://localhost:5173
 |  **实时天气** | 可拖动天气组件（高德地图 API） |
 |  **AI 助手** | 地图页浮窗，DeepSeek-V4-Flash 驱动，对话写入数据库 |
 |  **AI 对话分析** | 管理员：词云 + 折线图 + 最近提问，昼夜主题自动切换 |
-|  **昼夜主题** | 全站昼夜配色，按北京时间自动切换；管理后台双主题完整适配 |
+|  **昼夜主题** | 默认按北京时间自动切换，可固定白天/夜间或切回跟随时间（桌面/移动共享偏好） |
 |  **热度分析看板** | 管理后台 ECharts 图表：热度排名、趋势分析、评论统计、权重饼图、明细表格 |
 |  **管理后台** | JWT 认证（localStorage 持久化）、数据概览、用户管理、系统日志 |
 |  **评论系统** | 绿道详情页评论发布，支持可选评分与点赞交互 |
 |  **评论管理系统** | 管理端支持评论筛选、状态处理、批量审核/下架 |
 |  **内容安全** | 评论发布前执行敏感词检测，命中即拦截 |
 |  **用户系统** | 公众用户注册与登录 |
-|  **移动端** | Capacitor + Vue 3，原生平台自动跳转移动端布局 |
+|  **移动端 POI** | 移动端地图叠加 7 类设施图标，缩放联动 + 类型过滤 + 底部弹卡 + 独立搜索页 |
+|  **移动端** | Capacitor + Vue 3，原生平台自动跳转移动端布局，UI/UX 全面优化 |
 
 ---
 
@@ -200,6 +204,28 @@ npm run dev       # http://localhost:5173
           adminAuth.js             # 管理员 Auth（JWT，localStorage）
           userAuth.js              # 前台用户 Auth
        router/index.js              # 路由配置 + 导航守卫
+
+    mobile/                         # Capacitor 移动端（Vue 3）
+       views/
+          MapView.vue              # 地图页（绿道 + POI 设施 + 底部弹卡）
+          DiscoverView.vue         # 发现页/首页
+          ListView.vue             # 绿道列表（搜索 + 筛选）
+          DetailView.vue           # 绿道详情（收藏持久化、评论）
+          PoiSearchView.vue        # POI 设施搜索页
+          ProfileView.vue / SettingsView.vue / FavoritesView.vue  # 个人中心
+       components/
+          MobileBottomNav.vue      # 底部导航栏
+          TrailCard.vue            # 绿道卡片（无图首字占位）
+       composables/
+          useToast.js              # 全局轻提示 + 确认弹窗（手机端体验）
+          useAppTheme.js           # 主题（与桌面共享偏好）
+       constants/poi.js            # POI 设施类型配置
+       services/api.js             # 移动端 API 客户端（POI/收藏/认证）
+       styles/design-system.css    # 移动端设计系统（双主题）
+
+ scripts/
+    sync-android.sh                # Capacitor 同步 + 自定义插件重新注册
+
     public/数据/                     # GeoJSON 几何数据文件
     public/images/greenways/        # 绿道封面图片（17 张）
 

@@ -40,6 +40,9 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+
+    // GeoScene Maps SDK for Kotlin（本地 Maven）
+    implementation 'com.geoscene:geoscene-maps-kotlin:200.8.0'
 }
 
 apply from: 'capacitor.build.gradle'

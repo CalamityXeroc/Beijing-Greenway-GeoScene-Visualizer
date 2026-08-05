@@ -127,6 +127,15 @@
         <p v-if="fieldErrors.confirm" class="field-error">{{ fieldErrors.confirm }}</p>
       </div>
 
+      <!-- 协议勾选 -->
+      <label class="agree-row" @click.stop>
+        <input type="checkbox" class="agree-check" v-model="agreeTerms" />
+        <span class="agree-text">我已阅读并同意
+          <a @click.stop="$router.push('/mobile/agreement')">《用户协议》</a>
+          和<a @click.stop="$router.push('/mobile/privacy')">《隐私政策》</a>
+        </span>
+      </label>
+
       <!-- 注册按钮 -->
       <button class="btn-submit" :class="{ loading: isLoading }" @click="handleRegister" :disabled="isLoading">
         <span v-if="!isLoading">创建账号</span>
@@ -164,6 +173,7 @@ const fieldErrors = reactive({ username: '', email: '', password: '', confirm: '
 const errorMsg = ref('')
 const successMsg = ref('')
 const isLoading = ref(false)
+const agreeTerms = ref(false)
 const showPwd = ref(false)
 const focusField = ref('')
 
@@ -206,6 +216,10 @@ const validate = () => {
 }
 
 const handleRegister = async () => {
+  if (!agreeTerms.value) {
+    errorMsg.value = '请先阅读并同意用户协议和隐私政策'
+    return
+  }
   if (!validate()) return
   isLoading.value = true
   errorMsg.value = ''
@@ -316,6 +330,29 @@ const goLogin = () => router.push('/mobile/login')
 .fair .strength-fill, .fair { color: var(--color-warning); background: var(--color-warning); }
 .good .strength-fill, .good { color: #007aff; background: #007aff; }
 .strong .strength-fill, .strong { color: var(--color-success); background: var(--color-success); }
+
+.agree-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 2px 0 14px;
+  cursor: pointer;
+}
+.agree-check {
+  flex: 0 0 auto;
+  width: 18px; height: 18px;
+  margin-top: 2px;
+  accent-color: var(--color-primary);
+}
+.agree-text {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+.agree-text a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
 
 .btn-submit {
   height: 52px; background: var(--color-primary); color: #fff;

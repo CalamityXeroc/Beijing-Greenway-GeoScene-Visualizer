@@ -168,6 +168,7 @@ import MobileBottomNav from '../components/MobileBottomNav.vue'
 import { useAppTheme } from '../composables/useAppTheme'
 import { useUserAuth } from '@/stores/userAuth'
 import { fetchUserStats } from '@/services/favoritesApi'
+import { toast } from '../composables/useToast'
 
 const router = useRouter()
 const activeTab = ref('profile')
@@ -229,14 +230,17 @@ const goToPage = (p) => {
     return
   }
   if (p === 'help') {
-    alert('帮助文档即将上线')
+    toast('帮助文档即将上线', 'info')
     return
   }
   if (p === 'about') {
     router.push('/mobile/settings')
     return
   }
-  console.log('go', p)
+  if (p === 'rides') {
+    toast('骑行记录功能即将上线', 'info')
+    return
+  }
 }
 </script>
 
@@ -310,13 +314,14 @@ const goToPage = (p) => {
 .user-name {
   font-size: 28px;
   font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
+  color: #ffffff;
   margin: 0;
   letter-spacing: -0.5px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 .user-sub {
   font-size: var(--text-sm);
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.85);
   margin: 4px 0 0;
 }
 .auth-btns {

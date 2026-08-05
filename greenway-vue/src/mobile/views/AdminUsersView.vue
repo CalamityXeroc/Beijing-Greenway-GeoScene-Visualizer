@@ -140,6 +140,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminAuth } from '@/stores/adminAuth'
 import { fetchAdminUsers, updateUserStatus, updateUser, deleteUser } from '../services/api'
+import { toast, confirmDialog } from '../composables/useToast'
 
 const router = useRouter()
 const { token, isLoggedIn } = useAdminAuth()
@@ -212,7 +213,7 @@ const showUserActions = (user) => {
 }
 
 const editUser = () => {
-  alert('编辑功能即将推出，请前往Web管理后台操作')
+  toast('编辑功能即将推出，请前往Web管理后台操作', 'info')
   showActions.value = false
 }
 
@@ -220,13 +221,20 @@ const toggleUserStatus = async () => {
   if (!selectedUser.value) return
   const newStatus = selectedUser.value.status === 'active' ? 'disabled' : 'active'
   const label = newStatus === 'disabled' ? '禁用' : '启用'
-  if (!confirm(`确定要${label}用户 "${selectedUser.value.username}" 吗？`)) return
+  const ok = await confirmDialog({
+    title: `${label}用户`,
+    message: `确定要${label}用户 "${selectedUser.value.username}" 吗？`,
+    confirmText: label,
+    danger: newStatus === 'disabled'
+  })
+  if (!ok) return
   try {
     await updateUserStatus(selectedUser.value.id, newStatus, token.value)
     showActions.value = false
+    toast(`用户已${label}`, 'success')
     await loadUsers()
   } catch (e) {
-    alert(e.message || '操作失败')
+    toast(e.message || '操作失败', 'error')
   }
 }
 
@@ -234,26 +242,39 @@ const toggleUserRole = async () => {
   if (!selectedUser.value) return
   const newRole = selectedUser.value.role === 'admin' ? 'user' : 'admin'
   const label = newRole === 'admin' ? '升为管理员' : '降为普通用户'
-  if (!confirm(`确定要将用户 "${selectedUser.value.username}" ${label}吗？`)) return
+  const ok = await confirmDialog({
+    title: `${label}`,
+    message: `确定要将用户 "${selectedUser.value.username}" ${label}吗？`,
+    confirmText: '确定'
+  })
+  if (!ok) return
   try {
     await updateUser(selectedUser.value.id, { role: newRole }, token.value)
     showActions.value = false
+    toast('用户角色已更新', 'success')
     await loadUsers()
   } catch (e) {
-    alert(e.message || '操作失败')
+    toast(e.message || '操作失败', 'error')
   }
 }
 
 const confirmDeleteUser = async () => {
   if (!selectedUser.value) return
-  if (!confirm(`确定要删除用户 "${selectedUser.value.username}"？此操作不可撤销！`)) return
+  const ok = await confirmDialog({
+    title: '删除用户',
+    message: `确定要删除用户 "${selectedUser.value.username}"？此操作不可撤销！`,
+    confirmText: '删除',
+    danger: true
+  })
+  if (!ok) return
   try {
     await deleteUser(selectedUser.value.id, token.value)
     showActions.value = false
     page.value = 1
+    toast('用户已删除', 'success')
     await loadUsers()
   } catch (e) {
-    alert(e.message || '删除失败')
+    toast(e.message || '删除失败', 'error')
   }
 }
 

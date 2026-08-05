@@ -1,120 +1,125 @@
-import { ref, watch, onMounted } from 'vue'
+import { computed, ref } from 'vue'
+
+const STORAGE_KEY = 'appTheme' // 'day' | 'night' | 'auto'；缺失/非法视为 auto
 
 /**
  * 判断北京时间是否为白天 (06:00-18:00)
  */
-function isBeiJingDayTime(now = new Date()) {
+export function isBeiJingDayTime(now = new Date()) {
   const beijingTime = new Date(now.getTime() + (8 - (-now.getTimezoneOffset() / 60)) * 3600000)
   const hour = beijingTime.getHours()
   return hour >= 6 && hour < 18
 }
 
 /**
+ * 读取持久化主题偏好（统一 key：appTheme = day / night / auto）
+ */
+export function readPreference() {
+  try {
+    const v = localStorage.getItem(STORAGE_KEY)
+    if (v === 'day' || v === 'night' || v === 'auto') return v
+  } catch {}
+  return 'auto'
+}
+
+function writePreference(mode) {
+  try { localStorage.setItem(STORAGE_KEY, mode) } catch {}
+}
+
+/**
+ * 迁移历史 key，统一收敛到 appTheme = day / night / auto：
+ * - 移动端旧版用 greenway-theme（dark / light）
+ * - 桌面端旧版用 appThemeLockTime（sessionStorage 12h 锁）
+ * 手动选择按新语义永久保留，不再受锁过期影响
+ */
+export function migrateLegacyKeys() {
+  try {
+    const cur = localStorage.getItem(STORAGE_KEY)
+    if (cur !== 'day' && cur !== 'night' && cur !== 'auto') {
+      const legacyMobile = localStorage.getItem('greenway-theme')
+      if (legacyMobile === 'dark' || legacyMobile === 'light') {
+        localStorage.setItem(STORAGE_KEY, legacyMobile === 'dark' ? 'night' : 'day')
+      }
+    }
+    localStorage.removeItem('greenway-theme')
+    sessionStorage.removeItem('appThemeLockTime')
+    sessionStorage.removeItem('appThemeLock')
+  } catch {}
+}
+
+/**
  * 全局主题管理 composable
- * 控制整个应用的黑夜/白天模式
+ * 控制整个应用的黑夜/白天模式：
+ * - auto：按北京时间 (06:00-18:00=白天) 自动切换，每 5 分钟检查
+ * - day / night：用户手动固定，持久保留，不再自动切换
  */
 export function useTheme() {
-  const theme = ref('day')
-  const isAutoMode = ref(false)
+  const theme = ref('day')    // 当前实际显示的主题
+  const mode = ref('auto')    // 用户偏好：auto | day | night
   let autoThemeTimer = null
   let initialized = false
 
+  const isAuto = computed(() => mode.value === 'auto')
+
+  function applyMode(m) {
+    const valid = m === 'night' ? 'night' : 'day'
+    theme.value = valid
+    document.documentElement.setAttribute('data-theme', valid)
+    document.documentElement.classList.add(valid === 'night' ? 'theme-dark' : 'theme-light')
+    document.documentElement.classList.remove(valid === 'night' ? 'theme-light' : 'theme-dark')
+  }
+
   /**
-   * 初始化主题
+   * 设置主题偏好。mode: 'day' | 'night' | 'auto'
    */
-  function initTheme() {
-    if (initialized) return
-    initialized = true
-    // 检查 localStorage 中是否有用户的主题选择
-    const userPref = localStorage.getItem('appTheme')
-    const lockTime = parseInt(sessionStorage.getItem('appThemeLockTime') || '0'); const isLocked = Date.now() - lockTime < 12 * 60 * 60 * 1000
+  function setTheme(nextMode) {
+    const m = nextMode === 'day' || nextMode === 'night' || nextMode === 'auto' ? nextMode : 'auto'
+    mode.value = m
 
-    let initialMode
-    if (userPref && isLocked) {
-      // 用户之前手动选择过，使用用户选择
-      initialMode = userPref
-      isAutoMode.value = false
-      console.log(`[useTheme] 使用已保存的用户主题偏好: ${userPref}`)
-    } else {
-      // 从移动端主题同步
-      const mobilePref = localStorage.getItem('greenway-theme')
-      if (mobilePref === 'dark' || mobilePref === 'light') {
-        initialMode = mobilePref === 'dark' ? 'night' : 'day'
-        localStorage.setItem('appTheme', initialMode)
-        console.log(`[useTheme] 从移动端同步主题: ${initialMode}`)
-      } else {
-        // 使用北京时间自动判断
-        initialMode = isBeiJingDayTime() ? 'day' : 'night'
-        isAutoMode.value = !isLocked
-        console.log(`[useTheme] 根据北京时间初始化主题: ${initialMode}`)
-      }
-    }
-
-    setTheme(initialMode, false)
-
-    // 如果没有被锁定，启动自动切换
-    if (!isLocked) {
+    if (m === 'auto') {
+      applyMode(isBeiJingDayTime() ? 'day' : 'night')
+      writePreference('auto')
       startAutoSwitch()
-    }
-  }
-
-  /**
-   * 设置主题
-   */
-  function setTheme(mode, isManual = false) {
-    const validMode = mode === 'night' ? 'night' : 'day'
-    theme.value = validMode
-
-    // 修改 HTML 元素的 data-theme 属性
-    document.documentElement.setAttribute('data-theme', validMode)
-    console.log(`[useTheme] 主题已切换为: ${validMode}`)
-
-    // 如果是用户手动切换
-    if (isManual) {
-      localStorage.setItem('appTheme', validMode)
-      sessionStorage.setItem('appThemeLockTime', Date.now().toString())  // 锁定只在当前会话生效，下次打开新页面恢复自动检测
-      isAutoMode.value = false
+    } else {
+      applyMode(m)
+      writePreference(m)
       stopAutoSwitch()
-      console.log(`[useTheme] 用户手动切换主题为: ${validMode}, 已停止自动切换`)
     }
-
-    return validMode
+    return theme.value
   }
 
   /**
-   * 切换主题 (调用时为手动切换)
+   * 手动切换主题（当前实际主题取反，永久保留）
    */
   function toggleTheme() {
-    const newMode = theme.value === 'day' ? 'night' : 'day'
-    return setTheme(newMode, true)
+    const next = theme.value === 'day' ? 'night' : 'day'
+    return setTheme(next)
   }
 
   /**
-   * 启动自动主题切换
+   * 重置为自动模式（跟随北京时间）
+   */
+  function resetToAutoMode() {
+    return setTheme('auto')
+  }
+
+  /**
+   * 启动自动主题切换（每 5 分钟检查一次）
    */
   function startAutoSwitch() {
     if (autoThemeTimer) {
       clearInterval(autoThemeTimer)
     }
-
-    console.log('[useTheme] 启动自动主题切换 (每5分钟检查一次)')
-    isAutoMode.value = true
-
     autoThemeTimer = setInterval(() => {
-      // 检查是否被用户锁定
-      const lockTime2 = parseInt(sessionStorage.getItem('appThemeLockTime') || '0'); if (Date.now() - lockTime2 < 12 * 60 * 60 * 1000) {
-        console.log('[useTheme] 自动切换已被用户锁定，停止检查')
+      if (mode.value !== 'auto') {
         stopAutoSwitch()
         return
       }
-
-      const shouldBeNight = !isBeiJingDayTime()
-      const targetMode = shouldBeNight ? 'night' : 'day'
-
-      if (targetMode !== theme.value) {
-        setTheme(targetMode, false)
+      const target = isBeiJingDayTime() ? 'day' : 'night'
+      if (target !== theme.value) {
+        applyMode(target)
       }
-    }, 5 * 60 * 1000) // 每 5 分钟检查一次
+    }, 5 * 60 * 1000)
   }
 
   /**
@@ -124,38 +129,37 @@ export function useTheme() {
     if (autoThemeTimer) {
       clearInterval(autoThemeTimer)
       autoThemeTimer = null
-      console.log('[useTheme] 已停止自动主题切换')
     }
-    isAutoMode.value = false
   }
 
   /**
-   * 重置为自动模式
+   * 初始化主题（单例由 useGlobalTheme 调用一次）
    */
-  function resetToAutoMode() {
-    localStorage.removeItem('appTheme')
-    sessionStorage.removeItem('appThemeLockTime')
-    isAutoMode.value = true
-    startAutoSwitch()
-    const initialMode = isBeiJingDayTime() ? 'day' : 'night'
-    setTheme(initialMode, false)
-    console.log('[useTheme] 已重置为自动模式')
+  function initTheme() {
+    if (initialized) return
+    initialized = true
+    migrateLegacyKeys()
+    const pref = readPreference()
+    if (pref === 'auto') {
+      mode.value = 'auto'
+      applyMode(isBeiJingDayTime() ? 'day' : 'night')
+      startAutoSwitch()
+    } else {
+      mode.value = pref
+      applyMode(pref)
+    }
   }
-
-  onMounted(() => {
-    // 组件级使用时自动初始化；单例由 useGlobalTheme 直接调用 initTheme
-    initTheme()
-  })
 
   return {
     theme,
-    isAutoMode,
+    mode,
+    isAuto,
     setTheme,
     toggleTheme,
     startAutoSwitch,
     stopAutoSwitch,
     resetToAutoMode,
-    initTheme   // 供 useGlobalTheme 直接调用
+    initTheme
   }
 }
 

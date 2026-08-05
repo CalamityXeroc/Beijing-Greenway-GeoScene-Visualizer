@@ -75,9 +75,11 @@ const goBack = () => router.back()
 
 <style scoped>
 .agreement-page {
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow-y: auto;
   background: var(--color-bg);
   color: var(--color-text-primary);
+  -webkit-overflow-scrolling: touch;
 }
 
 .topbar {
@@ -111,7 +113,7 @@ const goBack = () => router.back()
 .placeholder { width: 36px; }
 
 .content {
-  padding: 16px;
+  padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px));
   line-height: 1.8;
 }
 .last-updated {

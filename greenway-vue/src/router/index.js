@@ -35,6 +35,12 @@ const routes = [
         meta: { title: '绿道列表' }
       },
       {
+        path: 'poi-search',
+        name: 'MobilePoiSearch',
+        component: () => import('@/mobile/views/PoiSearchView.vue'),
+        meta: { title: '设施搜索' }
+      },
+      {
         path: 'detail/:id',
         name: 'MobileDetail',
         component: () => import('@/mobile/views/DetailView.vue'),

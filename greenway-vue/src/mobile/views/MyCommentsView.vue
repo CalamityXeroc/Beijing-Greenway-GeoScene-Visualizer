@@ -101,6 +101,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchMyComments, deleteComment } from '../services/api'
 import { useUserAuth } from '@/stores/userAuth'
+import { toast, confirmDialog } from '../composables/useToast'
 
 const router = useRouter()
 const { isLoggedIn, token } = useUserAuth()
@@ -164,14 +165,15 @@ async function loadMyComments() {
 }
 
 async function removeComment(id) {
-  const confirmed = window.confirm('确定删除这条评论吗？')
+  const confirmed = await confirmDialog({ title: '删除评论', message: '确定删除这条评论吗？', confirmText: '删除', danger: true })
   if (!confirmed) return
 
   try {
     await deleteComment(id, token.value)
+    toast('评论已删除', 'success')
     await loadMyComments()
   } catch (err) {
-    alert(err.message || '删除失败')
+    toast(err.message || '删除失败', 'error')
   }
 }
 

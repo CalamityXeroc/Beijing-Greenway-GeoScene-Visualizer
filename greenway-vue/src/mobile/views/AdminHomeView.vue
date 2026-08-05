@@ -129,6 +129,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminAuth } from '@/stores/adminAuth'
 import { fetchDashboardStats } from '../services/api'
+import { toast } from '../composables/useToast'
 
 const router = useRouter()
 const { token, isLoggedIn } = useAdminAuth()
@@ -166,8 +167,9 @@ const refreshStats = async () => {
 }
 
 const clearCache = () => {
-  ;['greenway-theme', 'fontSize', 'appTheme', 'appThemeLock', 'theme'].forEach(k => localStorage.removeItem(k))
-  alert('缓存已清除')
+  // 只清非主题类缓存，保留用户主题偏好（appTheme / greenway-theme）
+  ;['fontSize', 'theme'].forEach(k => localStorage.removeItem(k))
+  toast('缓存已清除', 'success')
 }
 
 onMounted(() => {

@@ -488,12 +488,19 @@ const toggleBaseLayer = (layerId, visible) => {
   emit('layer-toggled', { layerId, visible })
 }
 
-const switchTheme = (theme) => {
+const switchTheme = (mode) => {
   const manager = getMapManager()
   if (!manager) return
-  currentTheme.value = theme
-  setGlobalTheme(theme, true)
-  manager.setBaseTheme(theme, true)
+  if (mode === 'auto') {
+    // 跟随时间：立即按北京时间应用，后续由 useTheme 定时器自动切换
+    setGlobalTheme('auto')
+    currentTheme.value = globalTheme.value
+    manager.setBaseTheme(globalTheme.value, false)
+  } else {
+    setGlobalTheme(mode)
+    currentTheme.value = mode
+    manager.setBaseTheme(mode, true)
+  }
 }
 
 watch(globalTheme, (newTheme) => {

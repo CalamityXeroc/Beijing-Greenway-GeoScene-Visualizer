@@ -69,7 +69,16 @@
             <span class="item-label">深色模式</span>
             <div class="item-right">
               <label class="switch">
-                <input type="checkbox" :checked="darkMode" @change="toggleDarkMode" aria-label="切换深色模式">
+                <input type="checkbox" :checked="darkMode && !isAuto" :disabled="isAuto" @change="toggleDarkMode" aria-label="切换深色模式">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-item">
+            <span class="item-label">跟随时间</span>
+            <div class="item-right">
+              <label class="switch">
+                <input type="checkbox" :checked="isAuto" @change="onAutoChange" aria-label="跟随时间自动切换">
                 <span class="slider"></span>
               </label>
             </div>
@@ -88,6 +97,15 @@
             <span class="item-label">语言</span>
             <div class="item-right">
               <span class="item-hint">简体中文</span>
+            </div>
+          </div>
+          <div class="setting-item" @click="checkNativeGeoScene" :class="{ 'native-active': nativeInfo }">
+            <span class="item-label">GeoScene 原生引擎</span>
+            <div class="item-right">
+              <span class="item-hint">{{ nativeInfo ? `已连接 · ${nativeInfo.version}` : '点击检测' }}</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
             </div>
           </div>
         </div>
@@ -260,11 +278,33 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserAuth } from '@/stores/userAuth'
 import { useAppTheme } from '@/mobile/composables/useAppTheme'
+import { initGeoScene, getGeoSceneSdkInfo } from '@/mobile/services/geoSceneNative'
+import { toast, confirmDialog } from '@/mobile/composables/useToast'
 
 const router = useRouter()
 const { isLoggedIn, clearSession, currentUser } = useUserAuth()
-const { isDark: darkMode, toggleTheme } = useAppTheme()
+const { isDark: darkMode, isAuto, toggleTheme, setTheme } = useAppTheme()
 const toggleDarkMode = toggleTheme
+
+// GeoScene 原生引擎检测
+const nativeInfo = ref(null)
+async function checkNativeGeoScene() {
+  try {
+    await initGeoScene()
+    nativeInfo.value = await getGeoSceneSdkInfo()
+  } catch (e) {
+    nativeInfo.value = { version: '不可用', error: e.message || String(e) }
+  }
+}
+
+// 跟随时间开关：开启回到 auto，关闭固定当前实际模式
+function onAutoChange(e) {
+  if (e.target.checked) {
+    setTheme(false, true) // auto
+  } else {
+    setTheme(darkMode.value, false) // 固定当前实际模式
+  }
+}
 
 // 设置状态
 const fontSizeLevel = ref(1)
@@ -307,15 +347,15 @@ function goBack() {
 }
 
 function editProfile() {
-  alert('个人资料编辑功能即将上线')
+  toast('个人资料编辑功能即将上线', 'info')
 }
 
 function changePassword() {
-  alert('修改密码功能即将上线')
+  toast('修改密码功能即将上线', 'info')
 }
 
 function bindPhone() {
-  alert('手机绑定功能即将上线')
+  toast('手机绑定功能即将上线', 'info')
 }
 
 // toggleDarkMode 由 useAppTheme 提供
@@ -336,17 +376,29 @@ function increaseFontSize() {
 
 function applyFontSize() {
   const sizes = ['14px', '16px', '18px']
-  document.documentElement.style.setProperty('--base-font-size', sizes[fontSizeLevel.value])
+  const size = sizes[fontSizeLevel.value]
+  // 覆盖设计系统正文变量，确保全局字体缩放实际生效
+  const root = document.documentElement
+  root.style.setProperty('--text-base', size)
+  root.style.setProperty('--text-md', size)
+  root.style.setProperty('--text-sm', size === '14px' ? '13px' : (size === '16px' ? '14px' : '16px'))
+  root.style.setProperty('--text-lg', size === '14px' ? '16px' : (size === '16px' ? '17px' : '20px'))
   localStorage.setItem('fontSize', fontSizeLevel.value)
 }
 
 function clearCache() {
-  if (confirm('确定清除所有缓存数据吗？')) {
-    ;['greenway-theme', 'fontSize', 'appTheme', 'appThemeLock', 'theme'].forEach(k => localStorage.removeItem(k))
+  confirmDialog({
+    title: '清除缓存',
+    message: '确定清除所有缓存数据吗？',
+    confirmText: '清除'
+  }).then((ok) => {
+    if (!ok) return
+    // 保留用户主题偏好（appTheme / greenway-theme），只清字体等非主题缓存
+    ;['fontSize', 'theme'].forEach(k => localStorage.removeItem(k))
     sessionStorage.clear()
     calcCacheSize()
-    alert('缓存已清除')
-  }
+    toast('缓存已清除', 'success')
+  })
 }
 
 function showPrivacyPolicy() {
@@ -358,7 +410,7 @@ function showUserAgreement() {
 }
 
 function checkUpdate() {
-  alert('当前已是最新版本')
+  toast('当前已是最新版本', 'success')
 }
 
 function showFeedback() {
@@ -370,20 +422,22 @@ function showAbout() {
 }
 
 function confirmLogout() {
-  if (confirm('确定要退出登录吗？')) {
+  confirmDialog({
+    title: '退出登录',
+    message: '确定要退出登录吗？',
+    confirmText: '退出',
+    danger: true
+  }).then((ok) => {
+    if (!ok) return
     clearSession()
+    toast('已退出登录', 'info')
     router.push('/mobile/login')
-  }
+  })
 }
 
 onMounted(() => {
-  // 恢复深色模式设置
-  const savedTheme = localStorage.getItem('theme')
-  if (savedTheme === 'dark') {
-    darkMode.value = true
-    document.documentElement.classList.add('dark-theme')
-  }
-  
+  // 主题由 useAppTheme 统一管理，此处不重复读取旧 key
+
   // 恢复字体大小设置
   const savedFontSize = localStorage.getItem('fontSize')
   if (savedFontSize !== null) {
@@ -398,9 +452,11 @@ onMounted(() => {
 
 <style scoped>
 .settings-page {
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow-y: auto;
   background: var(--color-bg);
   color: var(--color-text-primary);
+  -webkit-overflow-scrolling: touch;
 }
 
 /* 顶部栏 */
