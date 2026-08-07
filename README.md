@@ -70,6 +70,13 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  **Mobile POI Facilities**: Mobile map (OpenLayers) overlays 7 facility categories with SVG icons, zoom-linked visibility (facilities appear when zoomed to city/greenway level), per-type filter chips, tap-to-open bottom sheet with details + greenway jump, and a dedicated facility search page with type shortcuts and keyword search.
 -  **Follow-Time Theme**: The whole site auto-switches between day/night by Beijing time by default; users can pin a fixed theme or return to auto mode at any time (both desktop and mobile share one preference store).
 -  **AI Assistant Knowledge Base**: The greenway assistant's knowledge base is aligned with the platform's 17 greenways (lengths & coverage from the real database) and covers the full feature tutorial (POI, spatial analysis, favorites, etc.).
+-  **Mobile Floating Glass Bottom Bar**: Floating glassmorphism tab bar with rounded corners and backdrop blur; active tab icon rises & scales with a spring animation, selected indicator removed for a clean look.
+-  **Mobile Discover (Content-Feed Style)**: Real-photo hero banner carousel + featured greenway cards using actual route photos + community feed posts with cover images — a picture-driven home page.
+-  **Real Photo Trail Cards**: Greenway & favorites cards now render actual route photos (`/images/greenways/…`) with graceful placeholder fallback, replacing flat gradient placeholders.
+-  **Mobile POI Search & Locate**: Search a facility → tap result → map flies to the point (zoom 16) with a highlighted glow ring around the selected POI; POI layer only shows when zoomed in or after search.
+-  **Backend Response Caching**: In-memory cache for `/api/greenways` & `/api/facilities/geojson` (60s TTL, single-flight dedup, warm-up on boot) — mobile map data loads in ~0.2s instead of 4–7s.
+-  **Community Feed API**: New `/api/comments/recent` endpoint returns the latest cross-greenway top-level comments for the Discover feed.
+-  **Global Toast Fix & Favorites Refresh**: Toast prompts now display their message text (were blank colored blocks); favorites page reloads on every entry (keep-alive aware) so new favorites appear immediately.
 -  Capacitor-based mobile app (enhanced UI/UX)
 
 ---
@@ -141,6 +148,7 @@ npm run dev       # http://localhost:5173
     src/
        index.js            # API entry point
        db.js               # PostgreSQL connection pool
+       cache.js            # In-memory response cache (greenways/facilities, single-flight + warm-up)
        routes/
           ai.js            # DeepSeek chat API + chat_logs INSERT
           adminAiStats.js  # Admin AI analytics (word cloud & trends)
@@ -206,15 +214,16 @@ npm run dev       # http://localhost:5173
 
     mobile/                         # Capacitor mobile app (Vue 3)
        views/
-          MapView.vue              # Map page (greenways + POI facilities + bottom sheet)
-          DiscoverView.vue         # Discover/home page
-          ListView.vue             # Greenway list with search & filter
+          MapView.vue              # Map page (greenways + POI facilities + locate/highlight + bottom sheet)
+          DiscoverView.vue         # Discover/home page (photo banner carousel + community feed)
+          ListView.vue             # Greenway list with search & filter (real photo cards)
           DetailView.vue           # Greenway detail (favorite persisted, comments)
           PoiSearchView.vue        # POI facility search page
           ProfileView.vue / SettingsView.vue / FavoritesView.vue  # Personal center
        components/
-          MobileBottomNav.vue      # Bottom navigation bar
-          TrailCard.vue            # Greenway card with image fallback
+          MobileBottomNav.vue      # Floating glass bottom navigation bar
+          BottomSheet.vue          # Half-screen bottom sheet drawer (peek/expanded + drag)
+          TrailCard.vue            # Greenway card with real-photo thumbnail + fallback
        composables/
           useToast.js              # Global toast + confirm dialog (mobile UX)
           useAppTheme.js           # Theme store (shares desktop preference)
@@ -307,6 +316,7 @@ POST /api/ai/chat               # AI conversation (DeepSeek-V4-Flash)
 DELETE /api/ai/context/:id      # clear conversation history
 POST /api/comments              # create a comment (sensitive-word check + optional rating)
 GET /api/comments               # query comments by greenway
+GET /api/comments/recent        # latest cross-greenway top-level comments (Discover feed)
 GET /api/gaode/search            # Amap POI search (proxy)
 GET /api/gaode/walking           # Amap walking directions (proxy)
 GET /api/gaode/bicycling         # Amap cycling directions (proxy)

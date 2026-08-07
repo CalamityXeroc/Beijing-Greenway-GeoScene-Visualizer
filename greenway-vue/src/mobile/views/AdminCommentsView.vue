@@ -503,7 +503,7 @@ onMounted(() => {
   gap: 12px;
   margin-bottom: 8px;
 }
-.stars { color: #f5a623; font-size: 12px; }
+.stars { color: var(--color-warning); font-size: 12px; }
 .likes { font-size: var(--text-xs); color: var(--color-text-tertiary); }
 
 .comment-content {

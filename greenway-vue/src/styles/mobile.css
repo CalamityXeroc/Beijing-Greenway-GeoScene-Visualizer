@@ -61,19 +61,7 @@ input[type="search"] {
    3. 触摸交互优化
    ============================================ */
 
-/* 增加触摸按钮尺寸 */
-button, 
-a,
-input[type="button"],
-input[type="submit"],
-.clickable {
-  /* 最小触摸区域44x44px */
-  min-height: 44px;
-  min-width: 44px;
-  padding: 12px 16px;
-}
-
-/* 移除默认点击反馈延迟 */
+/* 移除默认点击反馈延迟（触控尺寸交给移动端设计系统统一管理） */
 button,
 a,
 input[type="button"] {
@@ -89,16 +77,6 @@ textarea,
 select {
   /* 防止在iOS上自动放大 */
   font-size: 16px;
-  border-radius: 4px;
-  padding: 12px;
-}
-
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-  border-color: #1a5c20;
-  box-shadow: 0 0 0 3px rgba(26, 92, 32, 0.1);
 }
 
 /* ============================================
@@ -179,17 +157,12 @@ select:focus {
     overflow-x: hidden;
   }
 
-  /* 优化文本大小 */
-  h1 { font-size: 20px; }
-  h2 { font-size: 18px; }
-  h3 { font-size: 16px; }
-  h4 { font-size: 14px; }
-  p, span { font-size: 14px; }
-
-  /* 列表项优化 */
-  li {
-    padding: 12px 16px;
-  }
+  /* 优化文本大小（仅桌面 App 容器内，避免污染移动端设计系统字号） */
+  .app-container h1 { font-size: 20px; }
+  .app-container h2 { font-size: 18px; }
+  .app-container h3 { font-size: 16px; }
+  .app-container h4 { font-size: 14px; }
+  .app-container p, .app-container span { font-size: 14px; }
 
   /* 表格应用垂直滚动 */
   table {
@@ -204,15 +177,6 @@ select:focus {
   select {
     width: 100%;
     box-sizing: border-box;
-  }
-
-  /* 卡片/面板优化 */
-  .card,
-  .panel,
-  .details {
-    margin: 8px;
-    padding: 12px;
-    border-radius: 8px;
   }
 }
 
@@ -241,20 +205,6 @@ select:focus {
     padding-top: max(12px, var(--safe-area-inset-top));
   }
 
-  /* 地图容器优化 */
-  #map,
-  .map-container,
-  .ol-viewport {
-    height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom) - 80px);
-  }
-
-  /* 按钮间距 */
-  button,
-  .btn {
-    min-height: 44px;
-    padding: 12px 20px;
-  }
-
   /* 网格优化 */
   .grid-2 {
     display: grid;
@@ -278,19 +228,6 @@ select:focus {
     height: auto;
     padding-top: max(4px, var(--safe-area-inset-top));
     padding-bottom: 4px;
-  }
-
-  /* 地图全屏处理 */
-  #map,
-  .map-container,
-  .ol-viewport {
-    height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom) - 40px);
-  }
-
-  /* 隐藏不必要的信息（仅移动端横屏） */
-  .description,
-  .details-info {
-    display: none;
   }
 }
 

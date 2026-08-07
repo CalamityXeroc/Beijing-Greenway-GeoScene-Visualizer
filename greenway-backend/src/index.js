@@ -15,6 +15,8 @@ import osrmRouter from './routes/osrmRoute.js'
 import poiRouter from './routes/poi.js';
 import favoritesRouter from './routes/favorites.js';
 import spatialRouter from './routes/spatial.js';
+import { cached, invalidate } from './cache.js';
+import { preloadFacilitiesCache } from './routes/poi.js';
 
 dotenv.config({ path: '.env.local' });
 
@@ -112,68 +114,79 @@ const greenwayColors = {
 };
 
 // 获取所有绿道列表
+// greenways 列表（远程库简化+序列化极慢 ~7s，缓存后秒开；管理后台写操作后失效）
+const GREENWAYS_TTL = 60_000;
+
 app.get('/api/greenways', async (req, res) => {
   try {
     const { name } = req.query;
-    
-    let query = `
-      SELECT 
-        id,
-        name,
-        description,
-        length,
-        introduction,
-        location,
-        coverage_area,
-        construction_area,
-        features,
-        image,
-        ST_AsGeoJSON(geometry)::json as geometry,
-        created_at,
-        updated_at
-      FROM greenways
-    `;
-    
-    const params = [];
-    if (name) {
-      query += ` WHERE name = $1`;
-      params.push(name);
+
+    // name 参数为详情查询，不入列表缓存
+    if (!name) {
+      const payload = await cached('gw:list', GREENWAYS_TTL, () => queryGreenways(pool, null));
+      return res.json(payload);
     }
-    
-    query += ` ORDER BY name`;
-    
-    const result = await pool.query(query, params);
 
-    // 转换为标准 GeoJSON FeatureCollection 格式
-    const features = result.rows.map(row => ({
-      type: 'Feature',
-      id: row.id,
-      geometry: row.geometry,
-      properties: {
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        length: row.length,
-        introduction: row.introduction,
-        location: row.location,
-        coverage_area: row.coverage_area,
-        construction_area: row.construction_area,
-        features: row.features,
-        image: row.image || null,
-        color: greenwayColors[row.name] || '#4CAF50',
-        created_at: row.created_at,
-        updated_at: row.updated_at
-      }
-    }));
-
-    res.json({
-      type: 'FeatureCollection',
-      features: features
-    });
+    const payload = await queryGreenways(pool, name);
+    res.json(payload);
   } catch (err) {
     res.status(500).json({ type: 'FeatureCollection', features: [] });
   }
 });
+
+async function queryGreenways(pool, name) {
+  let query = `
+    SELECT
+      id,
+      name,
+      description,
+      length,
+      introduction,
+      location,
+      coverage_area,
+      construction_area,
+      features,
+      image,
+      ST_AsGeoJSON(ST_SimplifyPreserveTopology(geometry, 0.0005))::json as geometry,
+      created_at,
+      updated_at
+    FROM greenways
+  `;
+
+  const params = [];
+  if (name) {
+    query += ` WHERE name = $1`;
+    params.push(name);
+  }
+
+  query += ` ORDER BY name`;
+
+  const result = await pool.query(query, params);
+
+  // 转换为标准 GeoJSON FeatureCollection 格式
+  const features = result.rows.map(row => ({
+    type: 'Feature',
+    id: row.id,
+    geometry: row.geometry,
+    properties: {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      length: row.length,
+      introduction: row.introduction,
+      location: row.location,
+      coverage_area: row.coverage_area,
+      construction_area: row.construction_area,
+      features: row.features,
+      image: row.image || null,
+      color: greenwayColors[row.name] || '#4CAF50',
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    }
+  }));
+
+  return { type: 'FeatureCollection', features };
+}
 
 // 获取单个绿道详情
 app.get('/api/greenways/:id', async (req, res) => {
@@ -254,6 +267,8 @@ app.post('/api/greenways', async (req, res) => {
       RETURNING id, name, description, length, introduction, location, ST_AsGeoJSON(geometry)::json as geometry, created_at, updated_at
     `, [name, description, length, introduction, location, geoJsonInput]);
 
+    invalidate('gw:');
+    invalidate('poi:');
     res.json({
       status: 'success',
       data: result.rows[0]
@@ -673,6 +688,14 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`[服务器] 健康检查: http://${localIP}:${PORT}/health`);
   console.log(`[服务器] 绿道列表: http://${localIP}:${PORT}/api/greenways`);
   console.log(`${'='.repeat(60)}\n`);
+
+  // 预热静态数据缓存（远程库查询 3-7s），避免重启后首次请求拖慢地图
+  cached('gw:list', GREENWAYS_TTL, () => queryGreenways(pool, null))
+    .then(() => console.log('[缓存] 绿道列表已预热'))
+    .catch(e => console.error('[缓存] 绿道预热失败:', e.message));
+  preloadFacilitiesCache(pool)
+    .then(() => console.log('[缓存] 设施列表已预热'))
+    .catch(e => console.error('[缓存] 设施预热失败:', e.message));
 });
 
 pool.on('error', (err) => {

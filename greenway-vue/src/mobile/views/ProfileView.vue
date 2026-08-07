@@ -29,11 +29,6 @@
 
     <!-- 统计卡片 -->
     <div class="stats-card">
-      <div class="stat-item" @click="goToPage('rides')">
-        <span class="stat-val">{{ userStats.ride_count ?? 0 }}</span>
-        <span class="stat-key">骑行记录</span>
-      </div>
-      <div class="stat-divider"></div>
       <div class="stat-item" @click="goToPage('favorites')">
         <span class="stat-val">{{ userStats.favorite_count ?? 0 }}</span>
         <span class="stat-key">我的收藏</span>
@@ -198,10 +193,10 @@ const avatarLetter = computed(() => {
 })
 const avatarBg = computed(() => {
   const colors = [
-    'linear-gradient(135deg, #217a32, #52b562)',
-    'linear-gradient(135deg, #1a5c20, #2e9640)',
-    'linear-gradient(135deg, #2e9640, #85cf8f)',
-    'linear-gradient(135deg, #134516, #217a32)'
+    'linear-gradient(135deg, #15803d, #4ade80)',
+    'linear-gradient(135deg, #166534, #16a34a)',
+    'linear-gradient(135deg, #16a34a, #86efac)',
+    'linear-gradient(135deg, #14532d, #15803d)'
   ]
   const name = username.value || ''
   return colors[(name.charCodeAt(0) || 0) % colors.length]
@@ -237,10 +232,6 @@ const goToPage = (p) => {
     router.push('/mobile/settings')
     return
   }
-  if (p === 'rides') {
-    toast('骑行记录功能即将上线', 'info')
-    return
-  }
 }
 </script>
 
@@ -258,7 +249,10 @@ const goToPage = (p) => {
   left: 0;
   right: 0;
   height: 160px;
-  background: var(--gradient-brand);
+  background:
+    radial-gradient(ellipse at 18% 0%, rgba(45, 212, 191, 0.45), transparent 55%),
+    radial-gradient(ellipse at 85% 15%, rgba(14, 165, 233, 0.32), transparent 50%),
+    linear-gradient(160deg, #059669 0%, #16a34a 60%, #0d9488 100%);
   border-radius: 0 0 36px 36px;
 }
 .hero-content {
@@ -377,7 +371,7 @@ const goToPage = (p) => {
   box-shadow: var(--shadow-md);
 }
 .theme-dark .stats-card {
-  background: rgba(28, 28, 30, 0.78);
+  background: var(--color-surface);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
   backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -392,6 +386,8 @@ const goToPage = (p) => {
   cursor: pointer;
 }
 .stat-val {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
   font-size: 24px;
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
@@ -536,5 +532,5 @@ const goToPage = (p) => {
   background: var(--color-surface-2);
 }
 
-.nav-spacer { height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom,0px) + 16px); }
+.nav-spacer { height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom,0px) + 36px); }
 </style>

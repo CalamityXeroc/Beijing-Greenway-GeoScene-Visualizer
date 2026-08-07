@@ -209,6 +209,38 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
+// 社区动态：全局最近评论流（不按绿道过滤，只显示顶级评论）
+router.get('/recent', async (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const pageSize = Math.min(50, Math.max(1, parseInt(req.query.pageSize, 10) || 20));
+  const offset = (page - 1) * pageSize;
+  try {
+    const listResult = await req.pool.query(
+      `SELECT c.id, c.greenway_id, c.user_id, c.parent_comment_id, c.content, c.rating, c.like_count, c.created_at,
+              u.username, u.nickname, g.name AS greenway_name
+       FROM greenway_comments c
+       LEFT JOIN users u ON u.id = c.user_id
+       LEFT JOIN greenways g ON g.id = c.greenway_id
+       WHERE c.status = 'visible' AND c.parent_comment_id IS NULL
+       ORDER BY c.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [pageSize, offset]
+    );
+    res.json({
+      code: 200,
+      data: {
+        list: listResult.rows,
+        total: listResult.rowCount,
+        page,
+        pageSize
+      }
+    });
+  } catch (err) {
+    console.error('[comments/recent]', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+});
+
 router.get('/', optionalAuth, async (req, res) => {
   return handleList(req, res, req.query.greenwayId);
 });

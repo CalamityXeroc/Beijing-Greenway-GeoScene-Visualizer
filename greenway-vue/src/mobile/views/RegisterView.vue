@@ -294,7 +294,7 @@ const goLogin = () => router.push('/mobile/login')
   padding: 10px 14px; border-radius: var(--radius-md); font-size: var(--text-sm);
 }
 .alert-error { background: var(--fill-error); color: var(--color-error); }
-.alert-success { background: rgba(52,199,89,0.12); color: #34c759; }
+.alert-success { background: var(--fill-primary); color: var(--color-primary); }
 
 .field-group { display: flex; flex-direction: column; gap: 6px; }
 .field-label { font-size: var(--text-sm); font-weight: var(--font-weight-medium); color: var(--color-text-secondary); }
@@ -328,7 +328,7 @@ const goLogin = () => router.push('/mobile/login')
 .strength-label { font-size: var(--text-xs); font-weight: 600; min-width: 28px; }
 .weak .strength-fill, .weak { color: var(--color-error); background: var(--color-error); }
 .fair .strength-fill, .fair { color: var(--color-warning); background: var(--color-warning); }
-.good .strength-fill, .good { color: #007aff; background: #007aff; }
+.good .strength-fill, .good { color: var(--color-primary); background: var(--color-primary); }
 .strong .strength-fill, .strong { color: var(--color-success); background: var(--color-success); }
 
 .agree-row {

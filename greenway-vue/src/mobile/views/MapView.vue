@@ -25,6 +25,14 @@
       </button>
     </div>
 
+    <!-- 地图数据加载失败提示（不遮挡地图瓦片） -->
+    <Transition name="fade">
+      <div v-if="mapLoadError" class="map-error-bar" role="alert">
+        <span>{{ mapLoadError }}，请检查网络或后端</span>
+        <button class="map-error-retry" @click="retryMapLoad">重试</button>
+      </div>
+    </Transition>
+
     <!-- 低缩放时提示放大地图查看设施 -->
     <Transition name="fade">
       <div v-if="showPoi && !zoomOk" class="poi-zoom-hint">
@@ -53,15 +61,62 @@
       </div>
     </Transition>
 
-    <!-- 底部渐变遮罩 + 导航栏 -->
+    <!-- 底部渐变遮罩 -->
     <div class="bottom-gradient"></div>
+
+    <!-- 底部抽屉：绿道列表（上滑展开 / 下滑收起） -->
+    <BottomSheet
+      v-if="drawerVisible"
+      v-model="sheetOpen"
+      title="探索绿道"
+      :peek-height="76"
+      expanded-height="58%"
+      :bottom-offset="'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 28px)'"
+      @dismiss="sheetOpen = false"
+    >
+      <template #header="{ close }">
+        <div class="bs-title-wrap">
+          <span class="bs-title">{{ allTrails.length }} 条绿道</span>
+          <span class="bs-sub">上滑查看全部线路</span>
+        </div>
+        <button class="bs-close-btn" @click="close" aria-label="收起">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </template>
+
+      <!-- 抽屉正文：绿道列表 -->
+      <div class="trail-list">
+        <div
+          v-for="t in allTrails"
+          :key="t.id"
+          class="trail-list-item"
+          @click="selectTrailFromList(t)"
+        >
+          <span class="tl-dot" :style="{ background: t.color, boxShadow: `0 0 8px ${t.color}` }"></span>
+          <div class="tl-body">
+            <div class="tl-name">{{ t.name }}</div>
+            <div class="tl-meta">
+              <span v-if="t.length" class="tl-chip">{{ t.length }} km</span>
+              <span v-if="t.area" class="tl-chip">{{ t.area }}</span>
+              <span v-if="trailDistance(t) != null" class="tl-dist">{{ formatDistance(trailDistance(t)) }}</span>
+            </div>
+          </div>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="tl-chevron">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+        <div v-if="!allTrails.length" class="tl-empty">正在加载绿道数据…</div>
+      </div>
+    </BottomSheet>
 
     <!-- 绿道信息面板 -->
     <Transition name="trail-sheet">
       <div v-if="selectedTrail" class="trail-sheet">
         <div class="sheet-drag-bar"></div>
         <div class="sheet-row">
-          <div class="sheet-color-dot" :style="{ background: selectedTrail.color }"></div>
+          <div class="sheet-color-dot" :style="{ background: selectedTrail.color, boxShadow: `0 0 8px ${selectedTrail.color}` }"></div>
           <div class="sheet-text">
             <h3 class="sheet-name">{{ selectedTrail.name }}</h3>
             <p v-if="selectedTrail.area" class="sheet-area">{{ selectedTrail.area }}</p>
@@ -90,12 +145,12 @@
       <div v-if="selectedPoi" class="trail-sheet poi-sheet">
         <div class="sheet-drag-bar"></div>
         <div class="sheet-row">
-          <span class="poi-sheet-icon" :style="{ background: selectedPoi.color }">
-            <img :src="poiIconUrl(selectedPoi.poi_type)" alt="" />
+          <span class="poi-sheet-icon">
+            <img :src="poiIconUrl(selectedPoi.poi_type)" alt="" class="poi-sheet-img" />
           </span>
           <div class="sheet-text">
             <h3 class="sheet-name">{{ selectedPoi.name }}</h3>
-            <span class="poi-sheet-type" :style="{ color: selectedPoi.color }">{{ selectedPoi.type_name }}</span>
+            <span class="poi-sheet-type" :style="{ color: poiTypeColor(selectedPoi.poi_type) }">{{ selectedPoi.type_name }}</span>
           </div>
           <button class="sheet-close-btn" @click="selectedPoi = null" aria-label="关闭">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -122,6 +177,7 @@
 import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import MobileBottomNav from '../components/MobileBottomNav.vue'
+import BottomSheet from '../components/BottomSheet.vue'
 import { fetchGreenways } from '../services/api'
 import { Map, View } from 'ol'
 import TileLayer from 'ol/layer/Tile'
@@ -131,11 +187,20 @@ import VectorSource from 'ol/source/Vector'
 import GeoJSON from 'ol/format/GeoJSON'
 import Overlay from 'ol/Overlay'
 import { Style, Stroke, Icon, Fill, Text } from 'ol/style'
-import { fromLonLat } from 'ol/proj'
+import CircleStyle from 'ol/style/Circle'
+import { fromLonLat, toLonLat } from 'ol/proj'
 import { useAppTheme } from '../composables/useAppTheme'
-import { useLocation } from '../composables/useLocation'
+import { useLocation, haversineDistance, formatDistance } from '../composables/useLocation'
 import { fetchPoiFacilities } from '../services/api'
 import { POI_TYPE_CONFIG, poiTypeName, poiTypeColor, poiIconUrl } from '../constants/poi'
+
+// hex → rgba（用于发光折线外层辉光）
+const hexToRgba = (hex, alpha) => {
+  const h = (hex || '').replace('#', '')
+  if (h.length !== 6) return `rgba(22, 163, 74, ${alpha})`
+  const n = parseInt(h, 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -149,6 +214,24 @@ const { isDark } = useAppTheme()
 const selectedTrail = ref(null)
 const selectedPoi = ref(null)
 const { fetchLocation, isLocating, hasLocation, userLocation, locationStatus } = useLocation()
+
+// 底部抽屉：绿道列表
+const sheetOpen = ref(false)
+const allTrails = ref([])     // [{id,name,length,area,color,description,features,clng,clat}]
+const drawerVisible = computed(() => !selectedTrail.value && !selectedPoi.value)
+
+const trailDistance = (t) => {
+  if (!userLocation.value || t.clng == null || t.clat == null) return null
+  return haversineDistance(userLocation.value.lat, userLocation.value.lng, t.clat, t.clng)
+}
+
+// 地图数据加载状态（绿道/POI 任一失败时提示，避免静默空白）
+const mapLoadError = ref('')
+const retryMapLoad = () => {
+  mapLoadError.value = ''
+  loadAllGreenways()
+  loadPoiFacilities()
+}
 
 // POI 设施状态
 const MIN_POI_ZOOM = 13             // zoom >= 13 才显示 POI（避免低缩放密集）
@@ -165,6 +248,17 @@ const anyPoiTypeOn = computed(() => poiTypeList.value.some(t => poiTypeFilter.va
 const goToDetail = (id) => { if (id) router.push(`/mobile/detail/${id}`) }
 const goToPoiDetail = (id) => { if (id) router.push(`/mobile/detail/${id}`) }
 
+/* 从抽屉列表选中绿道：收起抽屉 + 地图定位 + 弹出详情卡 */
+const selectTrailFromList = (t) => {
+  if (!t.id) return
+  sheetOpen.value = false
+  selectedPoi.value = null
+  selectedTrail.value = t
+  if (t.clng != null && t.clat != null) {
+    map?.getView().animate({ center: fromLonLat([t.clng, t.clat]), zoom: 14, duration: 600 })
+  }
+}
+
 // 设施悬浮按钮：切换 POI 图层显示；首次点击加载
 const onPoiFab = async () => {
   if (!poiLayer.value) {
@@ -179,15 +273,8 @@ const allPoiTypesOn = computed(() => poiTypeList.value.length > 0 && poiTypeList
 const initMap = () => {
   if (!mapContainer.value) return
   const rect = mapContainer.value.getBoundingClientRect()
-  if (rect.width === 0 || rect.height === 0) {
-    if (!initMap.retryCount) initMap.retryCount = 0
-    initMap.retryCount++
-    if (initMap.retryCount < 3) {
-      setTimeout(() => initMap(), 500)
-    }
-    return
-  }
-  initMap.retryCount = 0
+  // 容器无尺寸（如启动屏期间 keep-alive 挂载、display:none）则等待 ResizeObserver 触发
+  if (rect.width === 0 || rect.height === 0) return
 
   map = new Map({
     target: mapContainer.value,
@@ -243,15 +330,41 @@ const loadAllGreenways = async () => {
   try {
     const geojson = await fetchGreenways()
 
-    const vectorSource = new VectorSource({
-      features: new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' })
+    const features = new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' })
+
+    // 收集绿道列表数据（用于底部抽屉），计算质心经纬度供距离排序
+    allTrails.value = features.map(f => {
+      const p = f.getProperties()
+      const ext = f.getGeometry()?.getExtent()
+      let clng = null, clat = null
+      if (ext && ext.length === 4 && !ext.includes(Infinity)) {
+        const [x, y] = toLonLat([(ext[0] + ext[2]) / 2, (ext[1] + ext[3]) / 2])
+        clng = x; clat = y
+      }
+      return {
+        id: p.id || p.gid || null,
+        name: p.name || '未知绿道',
+        length: p.length,
+        area: p.area || p.district || '',
+        color: p.color || '#16a34a',
+        description: p.description || p.introduction || '',
+        features: p.features || '',
+        clng, clat
+      }
     })
 
+    const vectorSource = new VectorSource({ features })
+
+    // 发光折线：外层宽线辉光 + 内层亮线
     const vectorLayer = new VectorLayer({
       source: vectorSource,
-      style: (feature) => new Style({
-        stroke: new Stroke({ color: feature.get('color') || '#2E7D32', width: 4 })
-      }),
+      style: (feature) => {
+        const c = feature.get('color') || '#16a34a'
+        return [
+          new Style({ stroke: new Stroke({ color: hexToRgba(c, 0.35), width: 12 }) }),
+          new Style({ stroke: new Stroke({ color: c, width: 4 }) })
+        ]
+      },
       zIndex: 10
     })
 
@@ -289,7 +402,7 @@ const loadAllGreenways = async () => {
         name: p.name || '未知绿道',
         length: p.length,
         area: p.area || p.district || '',
-        color: p.color || '#2E9640',
+        color: p.color || '#16a34a',
         description: p.description || p.introduction || '',
         features: p.features || ''
       }
@@ -300,6 +413,7 @@ const loadAllGreenways = async () => {
     })
   } catch (e) {
     console.error('加载绿道失败:', e)
+    if (!mapLoadError.value) mapLoadError.value = '绿道数据加载失败'
   }
 }
 
@@ -339,21 +453,43 @@ const loadPoiFacilities = async () => {
     map.addLayer(poiLayer.value)
   } catch (e) {
     console.error('加载 POI 设施失败:', e)
+    if (!mapLoadError.value) mapLoadError.value = '设施数据加载失败'
   }
 }
 
-/* POI 分类图标样式 */
+/* POI 分类图标样式；搜索定位的选中 POI 放大 + 绿色光晕圈高亮 */
 const poiStyleFunction = (feature) => {
   const code = String(feature.get('poi_type') || '')
-  const color = poiTypeColor(code)
   const labelColor = isDark.value ? '#e5e7eb' : '#333'
   const haloColor = isDark.value ? 'rgba(0,0,0,0.8)' : '#fff'
+  const isSelected = !!selectedPoi.value && feature.get('id') === selectedPoi.value.id
+  if (isSelected) {
+    return [
+      new Style({
+        image: new CircleStyle({
+          radius: 18,
+          fill: new Fill({ color: 'rgba(34, 197, 94, 0.28)' }),
+          stroke: new Stroke({ color: '#16a34a', width: 2.5 })
+        })
+      }),
+      new Style({
+        image: new Icon({ src: poiIconUrl(code), scale: 1.5, anchor: [0.5, 1] }),
+        text: new Text({
+          text: feature.get('name') || '',
+          font: '12px "Noto Sans SC", sans-serif',
+          fill: new Fill({ color: labelColor }),
+          stroke: new Stroke({ color: haloColor, width: 3 }),
+          offsetY: 22,
+          overflow: false
+        })
+      })
+    ]
+  }
   return new Style({
     image: new Icon({
       src: poiIconUrl(code),
       scale: 0.9,
-      anchor: [0.5, 1],
-      color: color
+      anchor: [0.5, 1]
     }),
     text: new Text({
       text: feature.get('name') || '',
@@ -419,14 +555,22 @@ const applyPoiTypeFilter = () => {
   }
 }
 
-/* 定位到某 POI（搜索/类型跳转用） */
-const locatePoi = (poi) => {
+/* 定位到某 POI（搜索/类型跳转用）：POI 图层未就绪先加载，再缩放并高亮选中点 */
+const locatePoi = async (poi) => {
+  if (!poiLayer.value) {
+    try { await loadPoiFacilities() } catch (e) { console.error('定位前加载POI失败:', e) }
+  }
   togglePoi(true)
   selectedPoi.value = poi
   if (poi.lng != null && poi.lat != null) {
-    map?.getView().animate({ center: fromLonLat([poi.lng, poi.lat]), zoom: 15, duration: 500 })
+    map?.getView().animate({ center: fromLonLat([poi.lng, poi.lat]), zoom: 16, duration: 500 })
   }
 }
+
+// 选中 POI 变化时刷新图层样式（高亮圈）
+watch(selectedPoi, () => {
+  poiLayer.value?.changed()
+})
 
 /* ---- 定位 ---- */
 const locateUser = async (silent = false) => {
@@ -447,8 +591,23 @@ const locateUser = async (silent = false) => {
 
 const showSearch = () => router.push('/mobile/poi-search')
 
+let resizeObserver = null
+
 onMounted(async () => {
   await nextTick()
+  // 启动屏期间 keep-alive 挂载的容器尺寸为 0：用 ResizeObserver 等容器就绪再初始化
+  if (typeof ResizeObserver !== 'undefined' && mapContainer.value) {
+    resizeObserver = new ResizeObserver(() => {
+      const rect = mapContainer.value?.getBoundingClientRect()
+      if (rect && rect.width > 0 && rect.height > 0) {
+        resizeObserver?.disconnect()
+        resizeObserver = null
+        initMap()
+      }
+    })
+    resizeObserver.observe(mapContainer.value)
+  }
+  // 兜底：容器已有尺寸时立即初始化
   setTimeout(initMap, 300)
 })
 
@@ -472,7 +631,11 @@ watch(() => route.query.poi, (val) => {
   }
 }, { immediate: true })
 
-onUnmounted(() => { map?.dispose() })
+onUnmounted(() => {
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  map?.dispose()
+})
 </script>
 
 <style scoped>
@@ -487,7 +650,7 @@ onUnmounted(() => { map?.dispose() })
 .map-container {
   position: absolute;
   inset: 0;
-  background: #e8f0e8;
+  background: #edf2ea;
 }
 
 /* ---- 用户位置标记 ---- */
@@ -569,6 +732,40 @@ onUnmounted(() => { map?.dispose() })
 .theme-dark  .search-pill { background: rgba(44,44,46,0.92); }
 .search-pill:active { transform: scale(0.97); }
 
+/* 地图数据加载失败提示条 */
+.map-error-bar {
+  position: absolute;
+  top: calc(var(--safe-top) + 66px);
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 10px 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: #b91c1c;
+  z-index: var(--z-float);
+  box-shadow: var(--shadow-md);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.theme-light .map-error-bar { background: rgba(255,255,255,0.94); }
+.theme-dark  .map-error-bar { background: rgba(45,45,50,0.94); color: #fca5a5; }
+.map-error-retry {
+  flex: 0 0 auto;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.map-error-retry:active { opacity: 0.85; }
+
 /* 设施悬浮按钮（flex 项，与搜索 pill 并列） */
 .poi-fab {
   pointer-events: auto;
@@ -596,7 +793,7 @@ onUnmounted(() => { map?.dispose() })
 /* POI 类型过滤 chips 栏（底部导航上方） */
 .poi-type-bar {
   position: absolute;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 12px);
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 40px);
   left: 0; right: 0;
   display: flex;
   gap: 8px;
@@ -632,7 +829,7 @@ onUnmounted(() => { map?.dispose() })
 /* 低缩放提示条（底部导航上方） */
 .poi-zoom-hint {
   position: absolute;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 64px);
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 92px);
   left: 50%;
   transform: translateX(-50%);
   display: inline-flex;
@@ -652,13 +849,16 @@ onUnmounted(() => { map?.dispose() })
 /* POI 底部弹卡 */
 .poi-sheet-icon {
   width: 36px; height: 36px;
-  border-radius: 10px;
   flex: 0 0 36px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.poi-sheet-icon img { width: 20px; height: 20px; object-fit: contain; filter: brightness(0) invert(1); }
+.poi-sheet-img {
+  width: 30px; height: 30px;
+  object-fit: contain;
+  filter: none;
+}
 .poi-sheet-type {
   font-size: 12px;
   font-weight: var(--font-weight-semibold);
@@ -672,7 +872,7 @@ onUnmounted(() => { map?.dispose() })
 /* 底部渐变遮罩（平滑过渡到底部导航） */
 .bottom-gradient {
   position: absolute;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) - 1px);
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 27px);
   left: 0;
   right: 0;
   height: 48px;
@@ -686,7 +886,7 @@ onUnmounted(() => { map?.dispose() })
 .trail-sheet {
   position: absolute;
   left: 0; right: 0;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 28px);
   z-index: var(--z-overlay);
   border-radius: 20px 20px 0 0;
   padding: 8px 16px 16px;
@@ -696,11 +896,11 @@ onUnmounted(() => { map?.dispose() })
   background: rgba(255, 255, 255, 0.82);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   backdrop-filter: blur(24px) saturate(180%);
-  border-top: 1px solid rgba(255, 255, 255, 0.3);
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
   box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
 }
 .theme-dark .trail-sheet {
-  background: rgba(28, 28, 30, 0.82);
+  background: var(--color-surface);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   backdrop-filter: blur(24px) saturate(180%);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -792,4 +992,99 @@ onUnmounted(() => { map?.dispose() })
 /* chips 栏淡入淡出 */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-6px); }
+
+/* ---- 底部抽屉头部 ---- */
+.bs-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bs-title {
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  letter-spacing: -0.2px;
+}
+.bs-sub {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+.bs-close-btn {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-surface-2);
+  color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* ---- 抽屉正文：绿道列表 ---- */
+.trail-list {
+  padding: 2px 16px 12px;
+}
+.trail-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 4px;
+  border-bottom: 0.5px solid var(--color-divider);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  -webkit-user-select: none;
+  user-select: none;
+}
+.trail-list-item:active { background: var(--color-surface-2); }
+.trail-list-item:last-child { border-bottom: none; }
+.tl-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: 0 0 14px;
+}
+.tl-body {
+  flex: 1;
+  min-width: 0;
+}
+.tl-name {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tl-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+.tl-chip {
+  padding: 2px 8px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+.tl-dist {
+  font-family: var(--font-number);
+  font-size: 11px;
+  color: var(--color-ocean, var(--color-text-tertiary));
+  margin-left: auto;
+}
+.tl-chevron {
+  color: var(--color-text-tertiary);
+  flex: 0 0 16px;
+}
+.tl-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-sm);
+}
 </style>

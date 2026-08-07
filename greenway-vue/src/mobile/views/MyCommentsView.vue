@@ -336,7 +336,7 @@ onMounted(() => {
   margin-bottom: 10px;
 }
 .stars {
-  color: #f5a623;
+  color: var(--color-warning);
   font-size: 14px;
   letter-spacing: 1px;
 }

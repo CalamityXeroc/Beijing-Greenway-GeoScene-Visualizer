@@ -8,8 +8,12 @@
 
     <!-- 未登录 -->
     <div v-if="!isLoggedIn" class="empty-state">
-      <svg viewBox="0 0 24 24" width="60" height="60" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
-        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+      <svg class="empty-illustration" viewBox="0 0 120 120" width="120" height="120" fill="none">
+        <circle cx="60" cy="60" r="56" fill="var(--fill-primary)" opacity="0.5"/>
+        <path d="M10 88 L40 52 L58 76 L72 60 L110 88 Z" fill="var(--green-200)" opacity="0.55"/>
+        <path d="M18 92 L48 66 L70 92 Z" fill="var(--green-300)" opacity="0.65"/>
+        <path d="M52 94 Q58 78 60 72 Q62 78 68 94" stroke="var(--color-primary)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M60 68 c-6-5-10-9-10-13 a5.5 5.5 0 0 1 10-3 a5.5 5.5 0 0 1 10 3 c0 4-4 8-10 13z" fill="var(--color-primary)"/>
       </svg>
       <h2>请先登录</h2>
       <p>登录后即可收藏你喜欢的绿道</p>
@@ -39,8 +43,12 @@
 
     <!-- 空状态 -->
     <div v-else class="empty-state">
-      <svg viewBox="0 0 24 24" width="60" height="60" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
-        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+      <svg class="empty-illustration" viewBox="0 0 120 120" width="120" height="120" fill="none">
+        <circle cx="60" cy="60" r="56" fill="var(--fill-primary)" opacity="0.5"/>
+        <path d="M10 88 L40 52 L58 76 L72 60 L110 88 Z" fill="var(--green-200)" opacity="0.55"/>
+        <path d="M18 92 L48 66 L70 92 Z" fill="var(--green-300)" opacity="0.65"/>
+        <path d="M52 94 Q58 78 60 72 Q62 78 68 94" stroke="var(--color-primary)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M60 68 c-6-5-10-9-10-13 a5.5 5.5 0 0 1 10-3 a5.5 5.5 0 0 1 10 3 c0 4-4 8-10 13z" fill="var(--color-primary)"/>
       </svg>
       <h2>还没有收藏</h2>
       <p>在绿道列表中点击收藏按钮</p>
@@ -52,7 +60,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onActivated, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TrailCard from '../components/TrailCard.vue'
 import MobileBottomNav from '../components/MobileBottomNav.vue'
@@ -97,6 +105,8 @@ async function removeFav(trail) {
 watch(isLoggedIn, (val) => { if (val) load() })
 
 onMounted(load)
+// keep-alive 缓存下每次进入收藏页都重新加载（否则用户从详情页收藏后回来看到旧列表）
+onActivated(load)
 </script>
 
 <style scoped>
@@ -104,29 +114,29 @@ onMounted(load)
 .page-header {
   flex: 0 0 auto;
   display: flex; align-items: center; gap: 10px;
-  padding: max(14px, var(--safe-top)) 16px 12px;
-  background: var(--color-surface);
-  border-bottom: 0.5px solid var(--color-border);
+  padding: max(14px, var(--safe-top)) 16px 10px;
+  background: transparent;
 }
-.page-title { font-size: var(--text-xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
-.count-badge { background: var(--color-primary); color: #fff; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+.page-title { font-size: 26px; font-weight: 800; letter-spacing: 0.5px; color: var(--color-text-primary); margin: 0; }
+.count-badge { background: var(--gradient-brand); color: #fff; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 99px; box-shadow: 0 2px 8px rgba(5,150,105,0.3); }
 .scroll-area { flex: 1; overflow-y: auto; }
 .card-list { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
 .fav-item { position: relative; }
 .fav-remove {
   position: absolute;
   top: 8px; right: 8px;
-  width: 32px; height: 32px;
+  width: 34px; height: 34px;
   border-radius: 50%;
   border: none;
   display: flex; align-items: center; justify-content: center;
-  color: #ef4444;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  color: var(--color-error);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
   z-index: 2;
+  transition: transform var(--transition-fast);
 }
-.fav-remove:active { transform: scale(0.9); }
-.nav-spacer { height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom,0px) + 12px); }
+.fav-remove:active { transform: scale(0.88); }
+.nav-spacer { height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom,0px) + 32px); }
 .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 32px; color: var(--color-text-tertiary); text-align: center; }
 .loading-spinner-mini {
   width: 26px; height: 26px;
@@ -136,8 +146,8 @@ onMounted(load)
   animation: fav-spin 0.8s linear infinite;
 }
 @keyframes fav-spin { to { transform: rotate(360deg); } }
-.empty-state svg { opacity: 0.35; }
+.empty-illustration { margin-bottom: 8px; }
 .empty-state h2 { font-size: var(--text-lg); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }
 .empty-state p { font-size: var(--text-sm); margin: 0; }
-.btn-primary { background: var(--color-primary); color: #fff; border: none; border-radius: var(--radius-full); padding: 10px 28px; font-size: var(--text-base); font-weight: 600; cursor: pointer; }
+.btn-primary { background: var(--gradient-brand); color: #fff; border: none; border-radius: var(--radius-full); padding: 12px 30px; font-size: var(--text-base); font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px rgba(5,150,105,0.32); }
 </style>

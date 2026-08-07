@@ -70,6 +70,13 @@
 -  **移动端 POI 设施**：移动端地图（OpenLayers）叠加 7 类设施 SVG 图标，缩放联动显示（放大到城市/绿道级别才显示设施，避免低缩放密集），类型 chips 过滤，点击弹出底部信息卡（名称/类型/地址/所属绿道 + 跳详情），独立设施搜索页（类型快捷入口 + 关键词搜索）。
 -  **跟随时间主题**：全站默认按北京时间自动切换昼夜，用户可随时固定白天/夜间或切回跟随时间（桌面与移动端共享一套偏好）。
 -  **AI 助手知识库**：绿道小助手知识库与平台 17 条绿道对齐（长度/覆盖区域取自真实数据库），并覆盖全功能操作教程（POI、空间分析、收藏等）。
+-  **移动端浮动玻璃底栏**：毛玻璃悬浮式底部导航（四周留白 + 大圆角 + backdrop blur），激活 tab 图标上浮放大弹性动画，简洁无多余装饰
+-  **移动端发现页（内容社区风）**：真实照片大图 banner 轮播 + 精选绿道卡（真实绿道照片）+ 带封面图的社区动态贴，首页以图片驱动
+-  **真实照片绿道卡片**：绿道列表与收藏页卡片缩略图渲染真实绿道照片（`/images/greenways/…`），无图时优雅回退占位，替代纯渐变占位
+-  **移动端 POI 搜索定位**：搜索设施 → 点击结果 → 地图平滑飞到目标点（zoom 16）并在选中 POI 上叠加高亮光圈；POI 图层仅在缩放到位或搜索后才显示，避免低缩放密集
+-  **后端响应缓存**：`/api/greenways` 与 `/api/facilities/geojson` 接入内存缓存（60s TTL、并发单飞去重、启动预热）——移动端地图数据由 4~7s 提速至约 0.2s
+-  **社区动态接口**：新增 `/api/comments/recent`，返回跨绿道的最新顶级评论，供发现页社区动态流使用
+-  **全局 Toast 修复 + 收藏即时刷新**：Toast 提示补全文字内容（此前为空白色块）；收藏页每次进入自动重新加载（兼容 keep-alive 缓存），收藏后立即显示
 -  Capacitor 移动端应用（UI/UX 全面优化）
 
 ---
@@ -142,6 +149,7 @@ npm run dev       # http://localhost:5173
     src/
        index.js            # API 入口
        db.js               # PostgreSQL 连接池
+       cache.js            # 内存响应缓存（绿道/设施，单飞去重 + 启动预热）
        routes/
           ai.js            # DeepSeek 对话 API + 对话日志入库
           adminAiStats.js  # 管理员 AI 分析（词云 & 趋势）
@@ -207,15 +215,16 @@ npm run dev       # http://localhost:5173
 
     mobile/                         # Capacitor 移动端（Vue 3）
        views/
-          MapView.vue              # 地图页（绿道 + POI 设施 + 底部弹卡）
-          DiscoverView.vue         # 发现页/首页
-          ListView.vue             # 绿道列表（搜索 + 筛选）
+          MapView.vue              # 地图页（绿道 + POI 设施 + 定位高亮 + 底部弹卡）
+          DiscoverView.vue         # 发现页/首页（照片 banner 轮播 + 社区动态流）
+          ListView.vue             # 绿道列表（搜索 + 筛选，真实照片卡片）
           DetailView.vue           # 绿道详情（收藏持久化、评论）
           PoiSearchView.vue        # POI 设施搜索页
           ProfileView.vue / SettingsView.vue / FavoritesView.vue  # 个人中心
        components/
-          MobileBottomNav.vue      # 底部导航栏
-          TrailCard.vue            # 绿道卡片（无图首字占位）
+          MobileBottomNav.vue      # 浮动玻璃底部导航栏
+          BottomSheet.vue          # 半屏抽屉（peek/展开两档 + 拖拽）
+          TrailCard.vue            # 绿道卡片（真实照片缩略图 + 无图回退）
        composables/
           useToast.js              # 全局轻提示 + 确认弹窗（手机端体验）
           useAppTheme.js           # 主题（与桌面共享偏好）
@@ -308,6 +317,7 @@ POST /api/ai/chat               # AI 对话（DeepSeek-V4-Flash）
 DELETE /api/ai/context/:id      # 清除对话历史
 POST /api/comments              # 发布评论（含敏感词检测、可选评分）
 GET /api/comments               # 按绿道查询评论
+GET /api/comments/recent        # 跨绿道最新顶级评论（发现页社区动态流）
 GET /api/gaode/search            # 高德POI搜索（代理）
 GET /api/gaode/walking           # 高德步行路径规划（代理）
 GET /api/gaode/bicycling         # 高德骑行路径规划（代理）

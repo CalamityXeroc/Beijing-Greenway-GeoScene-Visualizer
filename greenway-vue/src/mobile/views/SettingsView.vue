@@ -263,7 +263,7 @@
             <p class="version">版本 {{ appVersion }}</p>
           </div>
           <div class="about-body">
-            <p>北京绿道是一款专为骑行爱好者打造的绿道导览应用，提供北京市各区绿道信息查询、路线规划、社区互动等功能。</p>
+            <p>北京绿道是一款城市绿道导览应用，提供北京市各区绿道信息查询、路线规划、社区互动等功能。</p>
             <p class="copyright">© 2024 北京绿道团队</p>
           </div>
           <button class="modal-close" @click="showAboutModal = false">关闭</button>

@@ -156,7 +156,7 @@ export const setupStatusBar = async () => {
 
   try {
     await StatusBar.setStyle({ style: Style.Dark })
-    await StatusBar.setBackgroundColor({ color: '#1a5c20' })
+    await StatusBar.setBackgroundColor({ color: '#0d1420' })
     await StatusBar.setOverlaysWebView({ overlay: false })
   } catch (error) {
     console.warn('设置状态栏失败:', error)

@@ -10,20 +10,16 @@
         :aria-label="item.label"
         :aria-current="activeTab === item.id ? 'page' : undefined"
       >
-        <!-- 活跃态胶囊背景 -->
-        <span class="tab-pill" v-if="activeTab === item.id"></span>
         <!-- SVG 图标 -->
         <span class="tab-icon" v-html="item.svg"></span>
         <span class="tab-label">{{ item.label }}</span>
       </button>
     </div>
-    <!-- 底部安全区域填充 -->
-    <div class="safe-fill"></div>
   </nav>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
@@ -34,7 +30,11 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue', 'change'])
 
-const activeTab = ref(props.modelValue)
+// activeTab 由当前路由派生：组件被 keep-alive 缓存后实例不重置，本地 ref 会残留上次高亮
+const activeTab = computed(() => {
+  const item = navItems.find(i => route.path.startsWith(i.path))
+  return item?.id || props.modelValue
+})
 
 const navItems = [
   {
@@ -76,43 +76,61 @@ const navItems = [
 ]
 
 const handleTabChange = (tabId) => {
-  activeTab.value = tabId
   emit('update:modelValue', tabId)
   emit('change', tabId)
   const item = navItems.find(i => i.id === tabId)
   if (item?.path) router.push(item.path)
 }
-
-watch(() => props.modelValue, v => { activeTab.value = v })
 </script>
 
 <style scoped>
+/* 浮动玻璃底栏：四周留白 + 大圆角 + 毛玻璃 */
 .bottom-nav {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  left: 14px;
+  right: 14px;
   z-index: var(--z-fixed);
-  box-shadow: 0 -1px 20px rgba(0, 0, 0, 0.06);
-}
-
-.theme-light .bottom-nav {
-  background: rgba(255, 255, 255, 0.82);
-  -webkit-backdrop-filter: blur(30px) saturate(200%);
-  backdrop-filter: blur(30px) saturate(200%);
-  border-top: 1px solid rgba(255, 255, 255, 0.3);
-}
-.theme-dark .bottom-nav {
-  background: rgba(28, 28, 30, 0.82);
-  -webkit-backdrop-filter: blur(30px) saturate(200%);
-  backdrop-filter: blur(30px) saturate(200%);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  pointer-events: none;  /* 容器不拦截点击，按钮内层接管 */
 }
 
 .nav-inner {
+  pointer-events: auto;
+  position: relative;
   display: flex;
-  height: 56px;
-  padding: 0 4px;
+  height: 62px;
+  padding: 0 8px;
+  border-radius: 26px;
+  box-shadow: var(--shadow-glass);
+}
+
+/* 毛玻璃背景 */
+.theme-light .nav-inner {
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+}
+.theme-dark .nav-inner {
+  background: rgba(22, 30, 26, 0.72);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 顶部内高光线 */
+.nav-inner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+}
+.theme-dark .nav-inner::before {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .nav-tab {
@@ -127,37 +145,27 @@ watch(() => props.modelValue, v => { activeTab.value = v })
   border: none;
   padding: 6px 4px;
   color: var(--color-text-tertiary);
-  transition: color var(--transition-fast);
   -webkit-user-select: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.nav-tab:active { transform: scale(0.93); }
+.nav-tab:active { transform: scale(0.92); }
 
 .nav-tab.active {
-  color: #fff;
+  color: var(--color-primary);
+}
+/* 选中图标上浮 + 放大 + 弹性动画 */
+.nav-tab.active .tab-icon {
+  transform: translateY(-4px) scale(1.12);
 }
 .nav-tab.active .tab-icon svg {
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  filter: drop-shadow(0 4px 10px rgba(22, 163, 74, 0.45));
 }
 .nav-tab.active .tab-label {
-  font-weight: var(--font-weight-semibold);
-  color: #fff;
-}
-
-/* 活跃胶囊背景 */
-.tab-pill {
-  position: absolute;
-  top: 5px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 52px;
-  height: 34px;
-  border-radius: 17px;
-  background: var(--gradient-brand);
-  pointer-events: none;
-  box-shadow: 0 3px 14px rgba(33, 122, 50, 0.32);
-  transition: all var(--transition-spring);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+  transform: translateY(1px);
 }
 
 .tab-icon {
@@ -168,7 +176,10 @@ watch(() => props.modelValue, v => { activeTab.value = v })
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 2px;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.tab-icon svg {
+  transition: filter 0.3s ease;
 }
 
 .tab-label {
@@ -178,9 +189,7 @@ watch(() => props.modelValue, v => { activeTab.value = v })
   font-weight: var(--font-weight-medium);
   line-height: 1;
   letter-spacing: 0.2px;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), font-weight 0.2s;
 }
 
-.safe-fill {
-  height: env(safe-area-inset-bottom, 0px);
-}
 </style>

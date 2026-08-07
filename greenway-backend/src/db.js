@@ -8,7 +8,10 @@ const pool = new pg.Pool({
   port: process.env.DB_PORT || 5432,
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
-  database: process.env.DB_NAME || 'greenway'
+  database: process.env.DB_NAME || 'greenway',
+  max: 10,
+  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 30000
 });
 
 pool.on('error', (err) => {

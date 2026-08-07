@@ -1,68 +1,57 @@
 <template>
   <div class="discover-page">
-    <!-- 顶部大标题 -->
-    <div class="page-header-large">
-      <h1 class="page-title-large">发现</h1>
-      <p class="page-subtitle">探索北京绿道，发现美好生活</p>
-    </div>
-
     <!-- 可滚动内容区 -->
     <div class="scroll-area" ref="scrollEl">
-      <!-- 装饰性光晕 -->
-      <div class="hero-glow" aria-hidden="true"></div>
-      <!-- 轮播图 -->
-      <div class="carousel-section">
-        <div class="carousel" @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd">
-          <div class="carousel-track" :style="{ transform: `translateX(-${currentSlide * 100}%)` }">
-            <div class="carousel-slide" v-for="(item, idx) in banners" :key="idx" @click="viewDetail(item)">
-              <div class="slide-bg" :style="{ background: item.gradient }"></div>
-              <div class="slide-content">
-                <span class="slide-badge">{{ item.badge }}</span>
-                <h3 class="slide-title">{{ item.title }}</h3>
-                <p class="slide-desc">{{ item.desc }}</p>
+      <!-- 顶部搜索栏 -->
+      <div class="discover-top">
+        <h1 class="page-title">发现</h1>
+        <button class="top-search" @click="showSearch" aria-label="搜索">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- 大图 Banner 轮播（社区风） -->
+      <section class="banner-section">
+        <div class="banner" @touchstart="onTouchStart" @touchend="onTouchEnd">
+          <div class="banner-track" :style="{ transform: `translateX(-${currentSlide * 100}%)` }">
+            <div class="banner-slide" v-for="b in bannerTrails" :key="b.id" @click="viewTrailDetail(b)">
+              <img :src="`/images/greenways/${b.image}`" :alt="b.name" class="banner-img" loading="lazy"
+                @error="e => e.target.src = '/images/greenways/placeholder.svg'" />
+              <div class="banner-overlay"></div>
+              <div class="banner-caption">
+                <span class="banner-badge">精选</span>
+                <h2 class="banner-name">{{ b.name }}</h2>
+                <p class="banner-meta">{{ b.length }}km · {{ b.area }}</p>
               </div>
-              <div class="slide-icon" v-html="item.icon"></div>
             </div>
           </div>
-          <div class="carousel-dots">
-            <span v-for="(_, idx) in banners" :key="idx" 
-              class="carousel-dot" :class="{ active: idx === currentSlide }"></span>
+          <div class="banner-dots">
+            <span v-for="(_, idx) in bannerTrails" :key="idx"
+              class="banner-dot" :class="{ active: idx === currentSlide }"></span>
           </div>
         </div>
+      </section>
+
+      <!-- 数据总览小字 -->
+      <div class="stats-line">
+        <span>{{ totalStats.count }} 条绿道</span>
+        <span class="sl-sep">·</span>
+        <span>{{ totalStats.km }} km 总里程</span>
+        <span class="sl-sep">·</span>
+        <span>{{ totalStats.poi }} 个设施</span>
       </div>
 
-      <!-- 快捷入口 -->
-      <div class="quick-section">
-        <div class="quick-grid">
-          <button class="quick-item" v-for="entry in quickEntries" :key="entry.id" @click="handleQuickEntry(entry)">
-            <span class="quick-item-icon" :style="{ background: entry.bg }" v-html="entry.icon"></span>
-            <span class="quick-item-label">{{ entry.label }}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 热门绿道 -->
-      <section class="section">
+      <!-- 精选绿道 横滑大卡（复用 TrailCard） -->
+      <section class="section featured-section">
         <div class="section-header">
-          <span class="section-title">热门绿道</span>
+          <span class="section-title">精选绿道</span>
           <button class="section-action" @click="goToList">查看全部</button>
         </div>
-        <div class="hot-trails">
-          <button class="hot-trail-card" v-for="trail in hotTrails" :key="trail.id" @click="viewTrailDetail(trail)" type="button">
-            <div class="hot-trail-rank" :class="{ top: trail.rank <= 3 }">{{ trail.rank }}</div>
-            <div class="hot-trail-info">
-              <h4 class="hot-trail-name">{{ trail.name }}</h4>
-              <p class="hot-trail-meta">
-                <span>{{ trail.length }}km</span>
-                <span class="dot">·</span>
-                <span>{{ trail.area }}</span>
-              </p>
-            </div>
-            <div class="hot-trail-score">
-              <span class="score-value">{{ trail.score }}</span>
-              <span class="score-star">★</span>
-            </div>
-          </button>
+        <div class="card-rail">
+          <TrailCard v-for="trail in hotTrails" :key="trail.id" :trail="trail" variant="card"
+            @click="viewTrailDetail" />
         </div>
       </section>
 
@@ -104,6 +93,10 @@
               <span class="feed-rating">{{ renderStars(feed.rating) }}</span>
             </div>
             <p class="feed-card-content">{{ feed.content }}</p>
+            <div v-if="feed.cover" class="feed-cover" @click="viewComment(feed)">
+              <img :src="`/images/greenways/${feed.cover}`" :alt="feed.greenway" class="feed-cover-img" loading="lazy"
+                @error="e => e.target.style.display = 'none'" />
+            </div>
             <div class="feed-card-actions">
               <button class="feed-action-btn" :class="{ active: feed.liked }" @click="toggleFeedLike(feed)">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -143,106 +136,96 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, onActivated, onDeactivated } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import MobileBottomNav from '../components/MobileBottomNav.vue'
+import TrailCard from '../components/TrailCard.vue'
 import { fetchGreenways, fetchRecentComments } from '../services/api'
 
 const router = useRouter()
 const activeTab = ref('discover')
 const scrollEl = ref(null)
-const currentSlide = ref(0)
 const feedLoading = ref(true)
 const loadingMore = ref(false)
 const feedList = ref([])
 const feedError = ref('')
 const hotTrails = ref([])
+const allFeatures = ref([])
+const currentSlide = ref(0)
 
-// 轮播图数据
-const banners = [
-  {
-    title: '温榆河绿道',
-    desc: '京城最美滨河骑行线',
-    badge: '精选推荐',
-    icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/></svg>',
-    gradient: 'linear-gradient(135deg, #1a5c20 0%, #2e9640 50%, #52b562 100%)',
-    id: 1
-  },
-  {
-    title: '奥林匹克森林公园',
-    desc: '感受绿色奥运遗产',
-    badge: '热门打卡',
-    icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9z"/><path d="M12 7v5l3 3"/></svg>',
-    gradient: 'linear-gradient(135deg, #0c2e0e 0%, #217a32 50%, #2e9640 100%)',
-    id: 9
-  },
-  {
-    title: '亮马河绿道',
-    desc: '城市夜景最佳观赏地',
-    badge: '新鲜上线',
-    icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
-    gradient: 'linear-gradient(135deg, #134516 0%, #1a5c20 50%, #2e9640 100%)',
-    id: 3
+// 首页数据总览（实时统计，突出 WebGIS 数据特色）
+const totalStats = computed(() => {
+  const feats = allFeatures.value
+  const km = feats.reduce((s, f) => s + (parseFloat(f.properties?.length) || 0), 0)
+  return {
+    count: feats.length || 17,
+    km: Math.round(km),
+    poi: poiCount.value
   }
-]
-
-// 快捷入口
-const quickEntries = [
-  { id: 'nearby', icon: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>', label: '附近', bg: 'linear-gradient(135deg, #2e9640, #52b562)' },
-  { id: 'hot', icon: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>', label: '热门', bg: 'linear-gradient(135deg, #d4a017, #f5c542)' },
-  { id: 'riding', icon: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>', label: '骑行', bg: 'linear-gradient(135deg, #217a32, #2e9640)' },
-  { id: 'running', icon: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="3"/><path d="M12 8v5l-3 3m0 0l-3 5m3-5h6l3 5"/></svg>', label: '跑步', bg: 'linear-gradient(135deg, #b8860b, #d4a017)' }
-]
-
-// 轮播自动播放
-let slideTimer = null
-const startAutoSlide = () => {
-  slideTimer = setInterval(() => {
-    currentSlide.value = (currentSlide.value + 1) % banners.length
-  }, 4000)
-}
-const stopAutoSlide = () => {
-  if (slideTimer) clearInterval(slideTimer)
-}
-
-// 触摸滑动
-let touchStartX = 0
-const onTouchStart = (e) => {
-  stopAutoSlide()
-  touchStartX = e.touches[0].clientX
-}
-const onTouchMove = () => {}
-const onTouchEnd = (e) => {
-  const diff = touchStartX - e.changedTouches[0].clientX
-  if (Math.abs(diff) > 50) {
-    if (diff > 0 && currentSlide.value < banners.length - 1) {
-      currentSlide.value++
-    } else if (diff < 0 && currentSlide.value > 0) {
-      currentSlide.value--
-    }
+})
+const poiCount = ref(0)
+const loadPoiCount = async () => {
+  try {
+    const { fetchPoiFacilities } = await import('../services/api')
+    const data = await fetchPoiFacilities()
+    poiCount.value = (data.features || []).length || 0
+  } catch (e) {
+    poiCount.value = 0
   }
-  startAutoSlide()
 }
 
-// 加载热门绿道
+// banner 数据：热门绿道前 3 张
+const bannerTrails = computed(() => hotTrails.value.slice(0, 3))
+
+// 时长估算（骑行 ~15km/h，短途按步行换算）——TrailCard 的 durationNum 解析需要"X小时"格式
+const calcDuration = (len) => {
+  if (!len) return '--'
+  if (len < 5) return `${Math.max(15, Math.round((len / 5) * 60 / 15) * 15)}分钟`
+  if (len < 20) return `${Math.round((len / 15) * 2) / 2}小时`
+  return `${Math.round(len / 15)}小时`
+}
+// 难度分级（按里程）→ 英文 key 供 TrailCard diffText 映射
+const calcDifficulty = (len) => {
+  if (!len) return 'medium'
+  if (len < 8) return 'easy'
+  if (len < 25) return 'medium'
+  return 'hard'
+}
+
+// 加载热门绿道（同时记录全量用于统计与封面映射）
 const loadHotTrails = async () => {
   try {
     const geojson = await fetchGreenways()
     const features = geojson.features || []
+    allFeatures.value = features
     hotTrails.value = features
       .slice(0, 5)
-      .map((f, idx) => ({
-        id: f.properties?.id || idx,
-        name: f.properties?.name || '未知绿道',
-        length: parseFloat(f.properties?.length) || 0,
-        area: f.properties?.area || f.properties?.district || '北京',
-        score: (4 + Math.random()).toFixed(1),
-        rank: idx + 1
-      }))
+      .map((f, idx) => {
+        const len = parseFloat(f.properties?.length) || 0
+        return {
+          id: f.properties?.id || idx,
+          name: f.properties?.name || '未知绿道',
+          length: len,
+          area: f.properties?.area || f.properties?.district || '北京',
+          image: f.properties?.image || '',
+          difficulty: calcDifficulty(len),
+          duration: calcDuration(len)
+        }
+      })
   } catch (e) {
     console.error('加载热门绿道失败:', e)
   }
 }
+
+// 社区动态封面映射：greenway_id → image（用全量绿道数据）
+const coverByGreenwayId = computed(() => {
+  const map = {}
+  allFeatures.value.forEach(f => {
+    const p = f.properties
+    if (p?.id != null && p?.image) map[String(p.id)] = p.image
+  })
+  return map
+})
 
 // 社区动态字段映射（loadFeed / loadMoreFeed 统一）
 const mapFeedItem = (c) => ({
@@ -254,7 +237,8 @@ const mapFeedItem = (c) => ({
   rating: c.rating || 5,
   time: c.created_at,
   likes: c.like_count || 0,
-  liked: false
+  liked: false,
+  cover: coverByGreenwayId.value[String(c.greenway_id)] || ''
 })
 
 // 加载社区动态
@@ -315,32 +299,44 @@ const formatTime = (iso) => {
 }
 
 // 交互
-const viewDetail = (item) => router.push(`/mobile/detail/${item.id}`)
 const viewTrailDetail = (trail) => router.push(`/mobile/detail/${trail.id}`)
 const goToList = () => router.push('/mobile/list')
-const handleQuickEntry = (entry) => {
-  if (entry.id === 'nearby' || entry.id === 'hot') {
-    router.push({ path: '/mobile/list', query: { filter: entry.id } })
-  } else {
-    router.push('/mobile/list')
-  }
-}
+const showSearch = () => router.push('/mobile/poi-search')
 const toggleFeedLike = (feed) => { feed.liked = !feed.liked; feed.likes += feed.liked ? 1 : -1 }
 const viewComment = (feed) => router.push(`/mobile/detail/${feed.greenway_id || 1}`)
 
-onMounted(() => {
-  startAutoSlide()
-  loadHotTrails()
-  loadFeed()
-})
-
-onUnmounted(() => {
+// Banner 自动轮播 + 触摸滑动
+let slideTimer = null
+const startAutoSlide = () => {
+  slideTimer = setInterval(() => {
+    if (bannerTrails.value.length > 1) currentSlide.value = (currentSlide.value + 1) % bannerTrails.value.length
+  }, 4500)
+}
+const stopAutoSlide = () => { if (slideTimer) clearInterval(slideTimer) }
+let touchStartX = 0
+const onTouchStart = (e) => {
   stopAutoSlide()
+  touchStartX = e.touches[0].clientX
+}
+const onTouchEnd = (e) => {
+  const diff = touchStartX - e.changedTouches[0].clientX
+  if (Math.abs(diff) > 40) {
+    if (diff > 0 && currentSlide.value < bannerTrails.value.length - 1) currentSlide.value++
+    else if (diff < 0 && currentSlide.value > 0) currentSlide.value--
+  }
+  startAutoSlide()
+}
+
+onMounted(() => {
+  // 先加载绿道（封面映射依赖 allFeatures），完成后再加载社区动态
+  loadHotTrails().then(() => {
+    loadFeed()
+    startAutoSlide()
+  })
+  loadPoiCount()
 })
 
-// keep-alive 下切 tab 停止/恢复轮播，避免后台空转
-onActivated(() => startAutoSlide())
-onDeactivated(() => stopAutoSlide())
+onUnmounted(() => stopAutoSlide())
 </script>
 
 <style scoped>
@@ -360,213 +356,190 @@ onDeactivated(() => stopAutoSlide())
   overscroll-behavior: contain;
 }
 
-/* 装饰性光晕 */
-.hero-glow {
-  position: absolute;
-  top: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 280px;
-  height: 280px;
+/* ─────────── 顶部搜索栏 ─────────── */
+.discover-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(14px, var(--safe-top)) 16px 8px;
+}
+.page-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+.top-search {
+  width: 38px;
+  height: 38px;
+  border: none;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(46,150,64,0.08), transparent 70%);
-  pointer-events: none;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
+.top-search:active { background: var(--color-surface-2); }
 
-/* 区块错位入场动画 */
-.carousel-section { animation: fadeSlideUp 0.6s ease-out both; }
-.quick-section { animation: fadeSlideUp 0.6s ease-out 0.1s both; }
-.section:nth-of-type(1) { animation: fadeSlideUp 0.6s ease-out 0.2s both; }
-.section:nth-of-type(2) { animation: fadeSlideUp 0.6s ease-out 0.3s both; }
-
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* ─────────── 大图 Banner 轮播 ─────────── */
+.banner-section {
+  padding: 6px 16px 0;
 }
-
-/* 轮播图 */
-.carousel-section {
-  padding: 0 16px 16px;
-}
-.carousel {
+.banner {
+  position: relative;
   border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: var(--shadow-lg);
+  height: 196px;
 }
-.carousel-track {
+.banner-track {
   display: flex;
-  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  height: 100%;
+  transition: transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
-.carousel-slide {
+.banner-slide {
   flex: 0 0 100%;
   position: relative;
-  height: 180px;
   cursor: pointer;
+  height: 100%;
 }
-.slide-bg {
+.banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.banner-overlay {
   position: absolute;
   inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.05) 40%, rgba(0,0,0,0.55));
 }
-.slide-content {
+.banner-caption {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 20px;
+  left: 18px;
+  right: 18px;
+  bottom: 16px;
   color: #fff;
 }
-.slide-badge {
+.banner-badge {
   display: inline-block;
-  padding: 4px 10px;
-  background: rgba(255,255,255,0.2);
+  padding: 3px 9px;
   border-radius: var(--radius-full);
-  font-size: 11px;
+  background: rgba(255,255,255,0.22);
+  border: 1px solid rgba(255,255,255,0.3);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  font-size: 10px;
   font-weight: 600;
+  letter-spacing: 1px;
   margin-bottom: 8px;
-  backdrop-filter: blur(8px);
 }
-.slide-title {
-  font-size: 26px;
+.banner-name {
+  font-size: 21px;
   font-weight: 700;
   margin: 0;
-  letter-spacing: -0.3px;
-  text-shadow: 0 2px 12px rgba(0,0,0,0.35);
+  letter-spacing: 0.3px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.4);
 }
-.slide-desc {
-  font-size: 13px;
-  margin: 6px 0 0;
-  opacity: 0.9;
+.banner-meta {
+  font-size: 12px;
+  margin: 4px 0 0;
+  opacity: 0.85;
 }
-.slide-icon {
+.banner-dots {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  opacity: 0.3;
-  color: #fff;
-  line-height: 1;
-}
-.slide-icon svg {
-  width: 40px;
-  height: 40px;
-}
-.carousel-dots {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 10px;
+  right: 16px;
   display: flex;
-  gap: 6px;
+  gap: 5px;
 }
-.carousel-dot {
+.banner-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: rgba(255,255,255,0.5);
   transition: all 0.3s;
 }
-.carousel-dot.active {
-  width: 20px;
+.banner-dot.active {
+  width: 18px;
   border-radius: 3px;
   background: #fff;
 }
 
-/* 快捷入口 */
-.quick-section {
-  padding: 8px 0 20px;
-}
-
-/* 热门绿道 */
-.hot-trails {
-  padding: 0 16px;
-}
-.hot-trail-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  margin-bottom: 10px;
-  border-left: 3px solid transparent;
-  box-shadow: var(--shadow-soft);
-  cursor: pointer;
-  transition: transform var(--transition-fast), border-color var(--transition-fast);
-}
-.hot-trail-card:nth-child(-n+3) {
-  border-left-color: var(--color-primary);
-}
-.hot-trail-card:active {
-  transform: scale(0.98);
-}
-.hot-trail-rank {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--color-surface-2);
-  color: var(--color-text-secondary);
-  font-size: 14px;
-  font-weight: 700;
+/* 数据总览小字 */
+.stats-line {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  gap: 6px;
+  padding: 12px 16px 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
 }
-.hot-trail-rank.top {
-  background: linear-gradient(135deg, #f5af19, #f12711);
-  color: #fff;
-}
-.hot-trail-info {
-  flex: 1;
-  min-width: 0;
-}
-.hot-trail-name {
-  font-size: var(--text-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.hot-trail-meta {
-  font-size: var(--text-xs);
-  color: var(--color-text-tertiary);
-  margin: 4px 0 0;
-}
-.hot-trail-meta .dot {
-  margin: 0 4px;
-}
-.hot-trail-score {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-.score-value {
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-.score-star {
-  color: #f5a623;
-  font-size: 14px;
+.sl-sep { color: var(--color-text-tertiary); opacity: 0.6; }
+
+/* 区块错位入场动画 */
+.banner-section { animation: fadeSlideUp 0.6s ease-out both; }
+.featured-section { animation: fadeSlideUp 0.6s ease-out 0.12s both; }
+.section:nth-of-type(2) { animation: fadeSlideUp 0.6s ease-out 0.2s both; }
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* 动态 */
+/* 精选绿道 横滑大卡（TrailCard card-rail，仿 ListView） */
+.section.featured-section {
+  padding: 22px 0 4px;
+}
+.card-rail {
+  display: flex;
+  gap: 14px;
+  padding: 0 16px 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.card-rail::-webkit-scrollbar { display: none; }
+
+
+/* 动态（社区贴） */
 .feed-list {
   padding: 0 16px;
 }
 .feed-card {
   background: var(--color-surface);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   padding: 16px;
-  margin-bottom: 12px;
-  box-shadow: var(--shadow-sm);
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--color-border-light);
 }
 .feed-rating {
-  color: #f5a623;
+  color: var(--color-warning);
   font-size: 12px;
 }
+/* 社区贴封面图 */
+.feed-cover {
+  margin: 12px 0 2px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+}
+.feed-cover-img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+.feed-cover:active .feed-cover-img { transform: scale(1.03); }
 
 /* 加载更多 */
 .load-more {
@@ -622,6 +595,6 @@ onDeactivated(() => stopAutoSlide())
 }
 
 .nav-spacer {
-  height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 36px);
 }
 </style>

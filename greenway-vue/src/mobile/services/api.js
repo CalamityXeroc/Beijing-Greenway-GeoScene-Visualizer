@@ -355,13 +355,16 @@ export const fetchPoiFacilities = async () => {
 }
 
 /**
- * 关键词搜索 POI 设施
- * @param {string} q 关键词
+ * 搜索 POI 设施（支持关键词 q 或类型 code 精确过滤）
+ * @param {{q?: string, type?: string}} params
  * @returns {Promise<Array>} [{id,name,poi_type,type_name,color,address,lng,lat,greenway_name}]
  */
-export const searchPoi = async (q) => {
-  if (!q || !q.trim()) return []
-  const res = await fetch(buildUrl(`/api/poi/search?q=${encodeURIComponent(q.trim())}`))
+export const searchPoi = async ({ q, type } = {}) => {
+  const query = new URLSearchParams()
+  if (q && q.trim()) query.set('q', q.trim())
+  if (type) query.set('type', type)
+  if (!query.size) return []
+  const res = await fetch(buildUrl(`/api/poi/search?${query}`))
   const data = await readJson(res)
   return data.results || []
 }

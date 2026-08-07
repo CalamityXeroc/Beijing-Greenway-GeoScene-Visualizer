@@ -37,7 +37,7 @@
           :key="t.code"
           class="type-shortcut"
           :style="{ '--tc': t.color }"
-          @click="quickSearch(t.name)"
+          @click="quickSearch(t.code, t.name)"
         >
           <img :src="t.icon" alt="" class="ts-icon" />
           <span>{{ t.name }}</span>
@@ -58,13 +58,13 @@
         class="result-item"
         @click="selectResult(r)"
       >
-        <span class="res-icon" :style="{ background: r.color }">
-          <img :src="poiIconUrl(r.poi_type)" alt="" />
+        <span class="res-icon">
+          <img :src="poiIconUrl(r.poi_type)" alt="" class="res-icon-img" />
         </span>
         <div class="res-body">
           <div class="res-name">
             {{ r.name }}
-            <span class="res-type" :style="{ color: r.color }">{{ r.type_name }}</span>
+            <span class="res-type" :style="{ color: poiTypeColor(r.poi_type) }">{{ r.type_name }}</span>
           </div>
           <div class="res-meta">
             <span v-if="r.greenway_name" class="res-gw">{{ r.greenway_name }}</span>
@@ -83,7 +83,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { searchPoi, fetchPoiTypes } from '../services/api'
-import { POI_TYPE_CONFIG, poiIconUrl } from '../constants/poi'
+import { POI_TYPE_CONFIG, poiIconUrl, poiTypeColor } from '../constants/poi'
 import { toast } from '../composables/useToast'
 
 const router = useRouter()
@@ -93,6 +93,7 @@ const loading = ref(false)
 const searchError = ref('')
 const searched = ref(false)
 const typeList = ref([])
+const searchMode = ref('')   // '' = 关键词搜索，否则为类型 code
 
 onMounted(async () => {
   try {
@@ -118,6 +119,7 @@ onMounted(async () => {
 })
 
 function onInput() {
+  searchMode.value = ''   // 手动输入关键词时退出类型模式
   searched.value = false
   clearTimeout(onInput.t)
   onInput.t = setTimeout(doSearch, 300)
@@ -125,12 +127,12 @@ function onInput() {
 
 async function doSearch() {
   const q = keyword.value.trim()
-  if (!q) { results.value = []; searched.value = false; searchError.value = ''; return }
+  if (!q && !searchMode.value) { results.value = []; searched.value = false; searchError.value = ''; return }
   loading.value = true
   searched.value = true
   searchError.value = ''
   try {
-    results.value = await searchPoi(q)
+    results.value = await searchPoi(searchMode.value ? { type: searchMode.value } : { q })
   } catch (e) {
     console.error('POI 搜索失败:', e)
     results.value = []
@@ -143,21 +145,23 @@ async function doSearch() {
 
 function clearSearch() {
   keyword.value = ''
+  searchMode.value = ''
   results.value = []
   searched.value = false
   searchError.value = ''
 }
 
-function quickSearch(name) {
+function quickSearch(code, name) {
   keyword.value = name
+  searchMode.value = code
   doSearch()
 }
 
 function selectResult(r) {
-  // 跳回地图页并定位到该设施（通过 query 传参）
+  // 跳回地图页并定位到该设施（通过 query 传参），颜色统一用前端类型色
   router.push({
     path: '/mobile/map',
-    query: { poi: JSON.stringify({ id: r.id, name: r.name, lng: r.lng, lat: r.lat, poi_type: r.poi_type, type_name: r.type_name, color: r.color, address: r.address, greenway_id: r.greenway_id, greenway_name: r.greenway_name }) }
+    query: { poi: JSON.stringify({ id: r.id, name: r.name, lng: r.lng, lat: r.lat, poi_type: r.poi_type, type_name: r.type_name, color: poiTypeColor(r.poi_type), address: r.address, greenway_id: r.greenway_id, greenway_name: r.greenway_name }) }
   })
 }
 
@@ -245,11 +249,12 @@ function goBack() {
   color: var(--color-text-primary);
   font-size: 12px;
   cursor: pointer;
+  box-shadow: var(--shadow-sm);
   transition: all var(--transition-fast);
 }
 .type-shortcut:active { transform: scale(0.96); }
 .ts-icon {
-  width: 22px; height: 22px;
+  width: 26px; height: 26px;
   object-fit: contain;
   filter: none;
 }
@@ -282,10 +287,13 @@ function goBack() {
 .res-icon {
   width: 34px; height: 34px;
   flex: 0 0 34px;
-  border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
 }
-.res-icon img { width: 18px; height: 18px; object-fit: contain; filter: brightness(0) invert(1); }
+.res-icon-img {
+  width: 30px; height: 30px;
+  object-fit: contain;
+  filter: none;
+}
 .res-body { flex: 1; min-width: 0; }
 .res-name {
   font-size: var(--text-base);

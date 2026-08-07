@@ -1,6 +1,9 @@
 import express from 'express'
 import { authMiddleware, adminOnly } from '../auth.js'
+import { cached, invalidate } from '../cache.js'
 const router = express.Router()
+
+// 设施/绿道写入接口在 index.js 创建 POI 时调用 invalidate('poi:')，这里仅读取缓存
 
 // POI 类型映射
 const POI_TYPE_MAP = {
@@ -166,34 +169,44 @@ router.get('/greenways/:id/nearby-facilities/geojson', async (req, res) => {
 })
 
 // 所有绿道的设施汇总 GeoJSON（地图总览用）
+// 用 ST_X/ST_Y 取坐标（比 ST_AsGeoJSON 快得多，规避远程库序列化瓶颈）
+// 远程库慢 + 移动端反复进入地图页 → 缓存秒开
+const FACILITIES_TTL = 60_000;
+
+async function queryAllFacilities(pool) {
+  const result = await pool.query(`
+    SELECT
+      poi.id, poi.name, poi.poi_type, poi.description AS address,
+      poi.greenway_id, g.name AS greenway_name,
+      ST_X(poi.geometry) AS lng, ST_Y(poi.geometry) AS lat
+    FROM points_of_interest poi
+    LEFT JOIN greenways g ON g.id = poi.greenway_id
+    ORDER BY poi.id
+    LIMIT 2000
+  `)
+
+  const features = result.rows.map(r => ({
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [Number(r.lng), Number(r.lat)] },
+    properties: {
+      id: r.id,
+      name: r.name,
+      poi_type: r.poi_type,
+      type_name: POI_TYPE_MAP[r.poi_type]?.name || r.poi_type,
+      color: POI_TYPE_MAP[r.poi_type]?.color || '#999',
+      greenway_id: r.greenway_id,
+      greenway_name: r.greenway_name,
+      address: r.address
+    }
+  }))
+
+  return { type: 'FeatureCollection', features }
+}
+
 router.get('/facilities/geojson', async (req, res) => {
   try {
-    const result = await req.pool.query(`
-      SELECT
-        poi.id, poi.name, poi.poi_type, poi.description AS address,
-        poi.greenway_id, g.name AS greenway_name,
-        ST_AsGeoJSON(poi.geometry)::json AS geometry
-      FROM points_of_interest poi
-      LEFT JOIN greenways g ON g.id = poi.greenway_id
-      LIMIT 2000
-    `)
-
-    const features = result.rows.map(r => ({
-      type: 'Feature',
-      geometry: r.geometry,
-      properties: {
-        id: r.id,
-        name: r.name,
-        poi_type: r.poi_type,
-        type_name: POI_TYPE_MAP[r.poi_type]?.name || r.poi_type,
-        color: POI_TYPE_MAP[r.poi_type]?.color || '#999',
-        greenway_id: r.greenway_id,
-        greenway_name: r.greenway_name,
-        address: r.address
-      }
-    }))
-
-    res.json({ type: 'FeatureCollection', features })
+    const payload = await cached('poi:facilities', FACILITIES_TTL, () => queryAllFacilities(req.pool))
+    res.json(payload)
   } catch (err) {
     console.error('[POI-All] 查询失败:', err.message)
     res.status(500).json({ type: 'FeatureCollection', features: [] })
@@ -201,21 +214,31 @@ router.get('/facilities/geojson', async (req, res) => {
 })
 
 // POI 全局搜索
+// q=关键词（名称/地址模糊）；type=类型 code（精确过滤，与 q 可组合）
 router.get('/poi/search', async (req, res) => {
   try {
-    const { q } = req.query
-    if (!q || q.length < 1) return res.json({ results: [] })
-    const kw = `%${q}%`
+    const { q, type } = req.query
+    const conditions = []
+    const params = []
+    if (q && q.trim().length) {
+      params.push(`%${q.trim()}%`)
+      conditions.push(`(poi.name ILIKE $${params.length} OR poi.description ILIKE $${params.length})`)
+    }
+    if (type) {
+      params.push(String(type))
+      conditions.push(`poi.poi_type = $${params.length}`)
+    }
+    if (conditions.length === 0) return res.json({ results: [] })
     const result = await req.pool.query(`
       SELECT poi.id, poi.name, poi.poi_type, poi.description AS address,
         ST_X(poi.geometry) AS lng, ST_Y(poi.geometry) AS lat,
         g.name AS greenway_name
       FROM points_of_interest poi
       JOIN greenways g ON g.id = poi.greenway_id
-      WHERE poi.name ILIKE $1 OR poi.description ILIKE $1
-      ORDER BY poi.poi_type
-      LIMIT 20
-    `, [kw])
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY poi.poi_type, poi.id
+      LIMIT 50
+    `, params)
     res.json({
       results: result.rows.map(r => ({
         id: r.id, name: r.name, poi_type: r.poi_type,
@@ -380,6 +403,11 @@ router.post('/poi/click', async (req, res) => {
     res.status(500).json({ code: 1, message: '记录失败' })
   }
 })
+
+// 服务启动时预热设施缓存（复用与路由相同的 key，避免重复查询）
+export function preloadFacilitiesCache(pool) {
+  return cached('poi:facilities', FACILITIES_TTL, () => queryAllFacilities(pool))
+}
 
 // POI 类型定义（供前端使用）
 router.get('/poi-types', (_req, res) => {

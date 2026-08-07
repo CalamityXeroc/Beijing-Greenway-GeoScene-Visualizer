@@ -20,10 +20,13 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { App } from '@capacitor/app'
 import SplashScreen from './components/SplashScreen.vue'
-import { initializeCapacitor } from './composables/useCapacitor'
+import { initializeCapacitor, setupBackButton } from './composables/useCapacitor'
 import { useAppTheme } from './composables/useAppTheme'
 
+const router = useRouter()
 const showSplash = ref(true)
 const { init: initTheme, isDark } = useAppTheme()
 
@@ -37,6 +40,15 @@ onMounted(async () => {
 
   // 初始化 Capacitor 插件
   await initializeCapacitor()
+
+  // Android 返回键/滑动返回：有历史则回退上一页，否则退出 app
+  setupBackButton(() => {
+    if (window.history.state?.back) {
+      router.back()
+    } else {
+      App.exitApp()
+    }
+  })
 })
 </script>
 

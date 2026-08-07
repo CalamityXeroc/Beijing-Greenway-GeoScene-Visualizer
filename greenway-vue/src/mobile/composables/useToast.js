@@ -25,9 +25,10 @@ export function toast(message, type = 'info') {
     line-height: 1.5; text-align: center; box-shadow: 0 6px 24px rgba(0,0,0,0.25);
     opacity: 0; transform: translateY(12px); transition: opacity .25s, transform .25s;
   `
-  if (type === 'success') el.style.background = 'rgba(46, 150, 64, 0.95)'
-  if (type === 'error') el.style.background = 'rgba(255, 69, 58, 0.95)'
-  if (type === 'warning') el.style.background = 'rgba(255, 159, 10, 0.95)'
+  if (type === 'success') el.style.background = 'rgba(22, 163, 74, 0.96)'
+  if (type === 'error') el.style.background = 'rgba(239, 68, 68, 0.96)'
+  if (type === 'warning') el.style.background = 'rgba(245, 158, 11, 0.96)'
+  el.textContent = message || ''
   ensureContainer().appendChild(el)
   requestAnimationFrame(() => {
     el.style.opacity = '1'
@@ -63,7 +64,7 @@ export function confirmDialog({ title = '确认操作', message = '', confirmTex
       </div>
       <div style="display: flex; border-top: 0.5px solid var(--color-divider, rgba(0,0,0,0.1));">
         <button data-a="cancel" style="flex:1; padding: 14px; border:none; background:none; font-size:16px; color: var(--color-text-secondary, #636366); cursor:pointer;">${cancelText}</button>
-        <button data-a="ok" style="flex:1; padding: 14px; border:none; background:none; font-size:16px; font-weight:600; cursor:pointer; ${danger ? 'color:#ff3b30;' : 'color: var(--color-primary, #217a32);'}">${confirmText}</button>
+        <button data-a="ok" style="flex:1; padding: 14px; border:none; background:none; font-size:16px; font-weight:600; cursor:pointer; ${danger ? 'color: var(--color-error, #ef4444);' : 'color: var(--color-primary, #16a34a);'}">${confirmText}</button>
       </div>
     `
     mask.appendChild(box)

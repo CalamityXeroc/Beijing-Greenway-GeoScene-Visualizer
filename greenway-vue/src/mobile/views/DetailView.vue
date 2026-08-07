@@ -39,6 +39,46 @@
         <p class="trail-area" v-if="trail.area || trail.district">{{ trail.area || trail.district }}</p>
       </div>
 
+      <!-- 数据可视化指标卡 -->
+      <div class="metric-grid" :style="{ '--tc': trailColor }">
+        <div class="metric-card metric-ring">
+          <div class="ring-progress">
+            <svg viewBox="0 0 48 48" width="56" height="56">
+              <circle class="ring-progress-track" cx="24" cy="24" r="20"></circle>
+              <circle class="ring-progress-bar" cx="24" cy="24" r="20"
+                :class="{ 'is-full': lengthRatio >= 0.999 }"
+                :stroke-dasharray="125.6" :stroke-dashoffset="125.6 * (1 - lengthRatio)"></circle>
+            </svg>
+            <div class="ring-progress-center">
+              <span class="ring-value" :style="{ fontSize: lengthFontSize }">{{ formattedLength }}</span>
+              <span class="ring-unit">km</span>
+            </div>
+          </div>
+          <span class="metric-label">总里程</span>
+        </div>
+
+        <div class="metric-card metric-ring">
+          <div class="ring-progress">
+            <svg viewBox="0 0 48 48" width="56" height="56">
+              <circle class="ring-progress-track" cx="24" cy="24" r="20"></circle>
+              <circle class="ring-progress-bar" cx="24" cy="24" r="20"
+                :class="{ 'is-full': durationRatio >= 0.999 }"
+                :stroke-dasharray="125.6" :stroke-dashoffset="125.6 * (1 - durationRatio)"></circle>
+            </svg>
+            <div class="ring-progress-center">
+              <span class="ring-value" :style="{ fontSize: durationFontSize }">{{ formattedDuration }}</span>
+              <span class="ring-unit">h</span>
+            </div>
+          </div>
+          <span class="metric-label">预计耗时</span>
+        </div>
+
+        <div class="metric-card metric-diff">
+          <span class="diff-value" :class="'diff-' + difficulty">{{ diffLabel }}</span>
+          <span class="metric-label">难度</span>
+        </div>
+      </div>
+
       <!-- 信息芯片 -->
       <div class="info-chips">
         <div class="chip" v-if="trail.length">
@@ -249,12 +289,52 @@ const commentDraft = ref('')
 const commentRating = ref(5)
 let miniMap = null
 
-const trailColor = computed(() => trail.value?.color || '#2E9640')
+const trailColor = computed(() => trail.value?.color || '#16a34a')
 
 const featureList = computed(() => {
   if (!trail.value?.features) return []
   return trail.value.features.split(/[,，、;；]/).map(s => s.trim()).filter(Boolean)
 })
+
+// 数据可视化：里程 / 耗时 / 难度（从长度推断）
+const trailLength = computed(() => Number(trail.value?.length) || 0)
+const lengthRatio = computed(() => Math.min(1, trailLength.value / 108))
+const durationNum = computed(() => {
+  if (!trailLength.value) return '—'
+  if (trailLength.value < 10) return 1
+  if (trailLength.value < 40) return 2.5
+  return 5
+})
+const durationRatio = computed(() => Math.min(1, (Number(durationNum.value) || 0) / 5))
+
+// 环形图内数字：去掉多余小数，长数字自适应字号（避免超出圆环）
+const formattedLength = computed(() => {
+  if (!trailLength.value) return '—'
+  const n = Math.round(trailLength.value * 10) / 10
+  return Number.isInteger(n) ? String(n) : n.toFixed(1)
+})
+const lengthFontSize = computed(() => {
+  const s = formattedLength.value.length
+  if (s >= 5) return '11px'
+  if (s === 4) return '12px'
+  return '14px'
+})
+const formattedDuration = computed(() => {
+  if (durationNum.value === '—') return '—'
+  const n = Number(durationNum.value)
+  return Number.isInteger(n) ? String(n) : String(n)
+})
+const durationFontSize = computed(() => {
+  const s = formattedDuration.value.length
+  return s >= 4 ? '11px' : '14px'
+})
+const difficulty = computed(() => {
+  if (trail.value?.difficulty) return trail.value.difficulty
+  if (trailLength.value >= 40) return 'hard'
+  if (trailLength.value >= 10) return 'medium'
+  return 'easy'
+})
+const diffLabel = computed(() => ({ easy: '简单', medium: '中等', hard: '困难' })[difficulty.value] || '—')
 
 async function loadTrail() {
   loading.value = true
@@ -523,7 +603,7 @@ onUnmounted(() => {
   flex: 0 0 40px;
 }
 .icon-btn:active { background: var(--color-surface-2); }
-.fav-btn.active { color: #e53935; }
+.fav-btn.active { color: var(--color-error); }
 .header-title {
   flex: 1;
   font-size: var(--text-lg);
@@ -589,11 +669,24 @@ onUnmounted(() => {
 
 /* 绿道标题区 */
 .trail-hero {
+  position: relative;
   padding: 16px 16px 8px;
   border-left: 4px solid var(--trail-color, var(--color-primary));
-  margin: 12px 16px;
-  background: var(--color-surface-2);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  margin: 12px 16px 8px;
+  background: var(--color-surface);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.trail-hero::after {
+  content: '';
+  position: absolute;
+  top: 0; right: -30px;
+  width: 90px; height: 90px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--trail-color, var(--color-primary)) 12%, transparent);
+  filter: blur(18px);
+  pointer-events: none;
 }
 .trail-color-bar { display: none; }
 .trail-name {
@@ -607,6 +700,75 @@ onUnmounted(() => {
   color: var(--color-text-secondary);
   margin: 0;
 }
+
+/* 数据可视化指标卡 */
+.metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  padding: 0 16px 16px;
+}
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: 12px 6px;
+  box-shadow: var(--shadow-sm);
+}
+.ring-progress { position: relative; width: 56px; height: 56px; }
+.ring-progress svg { transform: rotate(-90deg); }
+.ring-progress-track {
+  fill: none;
+  stroke: var(--color-surface-3);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+.ring-progress-bar {
+  fill: none;
+  stroke: var(--tc, var(--color-primary));
+  stroke-width: 7;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ring-progress-bar.is-full {
+  stroke-linecap: butt;
+}
+.ring-progress-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.ring-value {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+.ring-unit {
+  font-size: 9px;
+  color: var(--color-text-tertiary);
+}
+.metric-label {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+.metric-diff .diff-value {
+  font-size: 15px;
+  font-weight: var(--font-weight-bold);
+}
+.diff-easy   { color: var(--color-success); }
+.diff-medium { color: var(--color-warning); }
+.diff-hard   { color: var(--color-error); }
 
 /* 信息芯片 */
 .info-chips {
@@ -662,15 +824,15 @@ onUnmounted(() => {
 
 /* 信息表格 */
 .info-table {
-  background: rgba(255, 255, 255, 0.65);
+  background: var(--color-surface);
   -webkit-backdrop-filter: blur(12px) saturate(150%);
   backdrop-filter: blur(12px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
 .theme-dark .info-table {
-  background: rgba(28, 28, 30, 0.65);
+  background: var(--color-surface);
   border-color: rgba(255, 255, 255, 0.08);
 }
 .info-row {
@@ -720,7 +882,7 @@ onUnmounted(() => {
 }
 
 .rating-stars {
-  color: #f5a623;
+  color: var(--color-warning);
   letter-spacing: 0.5px;
 }
 
@@ -749,7 +911,7 @@ onUnmounted(() => {
 }
 
 .rating-star-btn.active {
-  color: #f5a623;
+  color: var(--color-warning);
 }
 
 .rating-label {
@@ -827,7 +989,7 @@ onUnmounted(() => {
 }
 
 .comment-state.error {
-  color: var(--color-error, #e53935);
+  color: var(--color-error);
 }
 
 .comment-list {
@@ -866,13 +1028,13 @@ onUnmounted(() => {
 }
 
 .comment-stars {
-  color: #f5a623;
+  color: var(--color-warning);
 }
 
 .comment-delete {
   border: none;
   background: transparent;
-  color: var(--color-error, #e53935);
+  color: var(--color-error);
   font-size: 12px;
   cursor: pointer;
 }
@@ -927,8 +1089,9 @@ onUnmounted(() => {
 }
 .action-btn:active { opacity: 0.8; }
 .action-btn.primary {
-  background: var(--color-primary);
+  background: var(--gradient-brand);
   color: #fff;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.32);
 }
 .action-btn.secondary {
   background: var(--color-surface-2);

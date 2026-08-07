@@ -4,22 +4,24 @@
     <div class="list-header">
       <div class="header-inner">
         <h1 class="header-title">北京绿道</h1>
-        <!-- 定位状态指示 -->
-        <div class="loc-badge" :class="{ 'loc-active': hasLocation, 'loc-loading': isLocating }" @click="!isLocating && fetchLocation(false)">
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-          </svg>
-          <span v-if="isLocating">定位中…</span>
-          <span v-else-if="hasLocation">已定位</span>
-          <span v-else>获取位置</span>
+        <div class="header-actions">
+          <!-- 定位状态指示 -->
+          <div class="loc-badge" :class="{ 'loc-active': hasLocation, 'loc-loading': isLocating }" @click="!isLocating && fetchLocation(false)">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+            </svg>
+            <span v-if="isLocating">定位中…</span>
+            <span v-else-if="hasLocation">已定位</span>
+            <span v-else>获取位置</span>
+          </div>
+          <button class="icon-btn filter-btn" :class="{ active: showFilter }" @click="toggleFilter" aria-label="筛选">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="4" y1="6" x2="20" y2="6"></line>
+              <line x1="8" y1="12" x2="16" y2="12"></line>
+              <line x1="11" y1="18" x2="13" y2="18"></line>
+            </svg>
+          </button>
         </div>
-        <button class="icon-btn filter-btn" :class="{ active: showFilter }" @click="toggleFilter" aria-label="筛选">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <line x1="4" y1="6" x2="20" y2="6"></line>
-            <line x1="8" y1="12" x2="16" y2="12"></line>
-            <line x1="11" y1="18" x2="13" y2="18"></line>
-          </svg>
-        </button>
       </div>
 
       <!-- 搜索框 -->
@@ -41,7 +43,7 @@
 
       <!-- 筛选面板 -->
       <Transition name="filter-slide">
-        <div v-if="showFilter" class="filter-panel">
+        <div v-if="showFilter" class="filter-panel glass-card-subtle">
           <div class="filter-row">
             <span class="filter-label">难度</span>
             <div class="filter-chips">
@@ -53,7 +55,7 @@
             </div>
           </div>
           <div class="filter-row" v-if="hasLocation">
-            <span class="filter-label">距您内 {{ maxDistance }}km</span>
+            <span class="filter-label">距您 {{ maxDistance }}km 内</span>
             <input v-model.number="maxDistance" type="range" min="1" max="100" class="range-slider" />
           </div>
           <div class="filter-row">
@@ -81,15 +83,15 @@
       </div>
 
       <template v-else>
-        <!-- 推荐 -->
+        <!-- 推荐（横向滑动大卡） -->
         <div v-if="!searchQuery && featuredTrails.length" class="section">
           <div class="section-header">
-            <span class="section-title">推荐</span>
+            <span class="section-title">为你推荐</span>
             <span class="section-count">{{ featuredTrails.length }} 条</span>
           </div>
-          <div class="card-list">
+          <div class="card-rail">
             <TrailCard v-for="trail in featuredTrails" :key="trail.id" :trail="trail"
-              :distanceKm="trail.distKm"
+              :distanceKm="trail.distKm" variant="card"
               @click="viewDetail" @toggle-favorite="handleFav" />
           </div>
         </div>
@@ -184,7 +186,7 @@ const fetchGreenways = async () => {
         name: p.name || '未知绿道',
         description: cleanDesc,
         color: p.color,
-        image: null,
+        image: p.image || '',
         difficulty: len >= 40 ? 'hard' : (len >= 10 ? 'medium' : 'easy'),
         length: len,
         duration: len >= 40 ? '5小时以上' : (len >= 10 ? '2-3小时' : '1小时以内'),
@@ -279,9 +281,8 @@ onMounted(async () => {
 /* 顶部固定栏 */
 .list-header {
   flex: 0 0 auto;
-  background: var(--color-surface);
-  border-bottom: 0.5px solid var(--color-border);
-  padding-top: max(12px, var(--safe-top));
+  background: transparent;
+  padding-top: max(14px, var(--safe-top));
   z-index: var(--z-sticky);
 }
 
@@ -292,9 +293,15 @@ onMounted(async () => {
   padding: 0 16px 10px;
 }
 .header-title {
-  font-size: var(--text-xl);
-  font-weight: var(--font-weight-bold);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
   color: var(--color-text-primary);
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .icon-btn {
@@ -351,8 +358,8 @@ onMounted(async () => {
 
 /* 筛选面板 */
 .filter-panel {
-  padding: 12px 16px 14px;
-  border-top: 0.5px solid var(--color-divider);
+  margin: 0 12px 12px;
+  padding: 12px 14px 14px;
   display: flex; flex-direction: column; gap: 10px;
 }
 .filter-row { display: flex; align-items: center; gap: 12px; }
@@ -392,6 +399,17 @@ onMounted(async () => {
 
 .card-list { display: flex; flex-direction: column; gap: 10px; }
 
+/* 推荐横向滑动 */
+.card-rail {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.card-rail::-webkit-scrollbar { display: none; }
+
 /* 加载状态 */
 .loading-state {
   display: flex; flex-direction: column; align-items: center;
@@ -415,5 +433,5 @@ onMounted(async () => {
 .empty-state svg { opacity: 0.4; }
 
 /* 底部导航留空 */
-.nav-spacer { height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px); }
+.nav-spacer { height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 36px); }
 </style>

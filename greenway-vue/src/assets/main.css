@@ -251,23 +251,22 @@ input::placeholder, textarea::placeholder {
   color: var(--text-tertiary);
 }
 
-/* 按钮 */
-button {
+/* 按钮 / 链接（仅桌面 App 容器内，避免污染移动端设计系统） */
+.app-container button {
   color: var(--text-primary);
   transition: all 0.3s ease;
 }
 
-button:hover {
+.app-container button:hover {
   background-color: var(--button-hover-bg);
 }
 
-/* 链接 */
-a {
+.app-container a {
   color: var(--theme-blue);
   transition: color 0.3s ease;
 }
 
-a:hover {
+.app-container a:hover {
   color: #1e88e5;
 }
 
