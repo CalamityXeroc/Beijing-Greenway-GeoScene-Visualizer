@@ -201,6 +201,10 @@ app.get('/api/greenways/:id', async (req, res) => {
         length,
         introduction,
         location,
+        coverage_area,
+        construction_area,
+        features,
+        image,
         ST_AsGeoJSON(geometry)::json as geometry,
         created_at,
         updated_at
@@ -227,6 +231,8 @@ app.get('/api/greenways/:id', async (req, res) => {
     `, [id]);
 
     greenway.points_of_interest = poisResult.rows;
+    // 补充前端详情页需要的展示字段（与列表接口保持一致）
+    greenway.color = greenwayColors[greenway.name] || '#4CAF50';
 
     res.json({
       status: 'success',

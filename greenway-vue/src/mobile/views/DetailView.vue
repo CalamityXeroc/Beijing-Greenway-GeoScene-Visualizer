@@ -115,6 +115,11 @@
         </div>
       </section>
 
+      <!-- 实时天气 -->
+      <section class="section" v-if="trailCenter.lng != null">
+        <WeatherBlock :longitude="trailCenter.lng" :latitude="trailCenter.lat" :location-label="trail.area || trail.district || trail.name" />
+      </section>
+
       <!-- 详细信息表 -->
       <section class="section">
         <h3 class="section-title">详细信息</h3>
@@ -222,9 +227,9 @@
 
       <!-- 操作按钮 -->
       <div class="action-row">
-        <button class="action-btn primary" @click="navigateTo">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-          导航前往
+        <button class="action-btn primary" @click="planRoute">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>
+          路径规划
         </button>
         <button class="action-btn secondary" @click="shareTrail">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
@@ -242,7 +247,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
-  fetchGreenways as fetchGreenwaysAPI,
+  fetchGreenwayById,
   fetchCommentsByGreenway,
   createComment,
   deleteComment,
@@ -260,10 +265,11 @@ import XYZ from 'ol/source/XYZ'
 import Style from 'ol/style/Style'
 import Stroke from 'ol/style/Stroke'
 import Fill from 'ol/style/Fill'
-import { fromLonLat } from 'ol/proj'
+import { fromLonLat, toLonLat } from 'ol/proj'
 import { useAppTheme } from '../composables/useAppTheme'
 import { toast, confirmDialog } from '../composables/useToast'
 import { useFavorites } from '@/stores/favorites'
+import WeatherBlock from '../components/WeatherBlock.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -290,6 +296,22 @@ const commentRating = ref(5)
 let miniMap = null
 
 const trailColor = computed(() => trail.value?.color || '#16a34a')
+
+// 绿道质心经纬度（供天气查询使用；从 GeoJSON extent 反算）
+const trailCenter = computed(() => {
+  const geo = trail.value?._geojson
+  if (!geo) return { lng: null, lat: null }
+  try {
+    const features = new GeoJSONFormat().readFeatures(geo, { featureProjection: 'EPSG:3857' })
+    if (!features.length) return { lng: null, lat: null }
+    const ext = features[0].getGeometry()?.getExtent()
+    if (!ext || ext.length !== 4 || ext.includes(Infinity)) return { lng: null, lat: null }
+    const [lng, lat] = toLonLat([(ext[0] + ext[2]) / 2, (ext[1] + ext[3]) / 2])
+    return { lng, lat }
+  } catch {
+    return { lng: null, lat: null }
+  }
+})
 
 const featureList = computed(() => {
   if (!trail.value?.features) return []
@@ -340,14 +362,20 @@ async function loadTrail() {
   loading.value = true
   error.value = null
   try {
-    const data = await fetchGreenwaysAPI()
-    const features = data.features || []
-    const found = features.find(f => {
-      const p = f.properties
-      return String(p.id) === String(trailId) || String(p.gid) === String(trailId)
-    })
-    if (!found) throw new Error('未找到该绿道')
-    trail.value = { ...found.properties, _geojson: found }
+    const data = await fetchGreenwayById(trailId)
+    const props = data.data
+    if (!props) throw new Error('未找到该绿道')
+    // 单条接口返回平铺字段；构造与原有结构兼容的数据：
+    // trail 直接用 properties，_geojson 为完整 Feature（迷你地图 readFeatures 依赖）
+    trail.value = {
+      ...props,
+      _geojson: {
+        type: 'Feature',
+        id: props.id,
+        geometry: props.geometry,
+        properties: props
+      }
+    }
   } catch (e) {
     error.value = e.message || '加载失败'
   } finally {
@@ -537,10 +565,11 @@ async function toggleFavorite() {
   toast(prev ? '已取消收藏' : '收藏成功', 'success')
 }
 
-function navigateTo() {
-  if (!trail.value) return
-  const name = encodeURIComponent(trail.value.name || '绿道')
-  window.open(`https://uri.amap.com/search?keywords=${name}&sourceApplication=greenway`, '_blank')
+function planRoute() {
+  // 跳转地图页；携带绿道质心作为预设终点（路径规划功能后续接入时读取）
+  const c = trailCenter.value
+  if (c.lng == null) { router.push('/mobile/map'); return }
+  router.push({ path: '/mobile/map', query: { dest: `${c.lng},${c.lat},${encodeURIComponent(trail.value?.name || '绿道')}` } })
 }
 
 function shareTrail() {

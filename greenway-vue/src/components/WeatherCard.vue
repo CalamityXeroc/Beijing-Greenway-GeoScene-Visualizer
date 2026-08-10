@@ -102,7 +102,7 @@ const props = defineProps({
   },
   apiKey: {
     type: String,
-    default: 'd9dd334682ca1fc6537ffaaccf795fbd'
+    default: ''
   },
   autoRefresh: {
     type: Boolean,

@@ -4,20 +4,26 @@
  */
 
 export const getApiBaseUrl = () => {
-  // Capacitor 真机/模拟器：window.location 是 capacitor://localhost 或 http://localhost
+  // 1. 构建时注入的后端地址优先（真机/线上：VITE_API_BASE_URL，在 vite build 时写入）
+  const configured = import.meta.env.VITE_API_BASE_URL
+  if (configured && configured.trim()) {
+    console.log('[API] 使用配置的后端地址:', configured)
+    return configured.trim()
+  }
+
+  // 2. Capacitor 模拟器：10.0.2.2 指向宿主机
   const isCapacitor = typeof window !== 'undefined' &&
     (window.Capacitor?.isNativePlatform?.() ||
      window.location.protocol === 'capacitor:' ||
      (window.location.protocol === 'http:' && window.location.hostname === 'localhost' && !import.meta.env.DEV))
 
   if (isCapacitor) {
-    // 模拟器：10.0.2.2 指向宿主机；真机请改为局域网 IP
     const baseUrl = 'http://10.0.2.2:3001'
     console.log('[API] Capacitor模式，使用后端地址:', baseUrl)
     return baseUrl
   }
-  
-  // Web开发模式，使用代理
+
+  // 3. Web 开发模式，使用代理
   console.log('[API] Web开发模式，使用相对路径')
   return ''
 }
@@ -48,6 +54,20 @@ export const fetchGreenways = async () => {
     console.error('[API] 绿道列表请求异常:', error)
     throw error
   }
+}
+
+/**
+ * 获取指定绿道详情（按 ID，单条查询）
+ * @param {number|string} id 绿道 ID
+ * @returns {Promise<Object>} { status, data: { id,name,description,...,geometry,color,image,points_of_interest } }
+ */
+export const fetchGreenwayById = async (id) => {
+  const res = await fetch(buildUrl(`/api/greenways/${encodeURIComponent(id)}`))
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok || data.status === 'error') {
+    throw new Error(data.message || `HTTP ${res.status}`)
+  }
+  return data
 }
 
 /**
@@ -377,4 +397,68 @@ export const fetchPoiTypes = async () => {
   const res = await fetch(buildUrl('/api/poi-types'))
   const data = await readJson(res)
   return data.data || data || []
+}
+
+/* =====================================================================
+   AI 绿道助手
+   ===================================================================== */
+/**
+ * 发送消息给 AI，获取回复（基于后端 /api/ai/chat，DeepSeek）
+ * @param {string} message 用户消息
+ * @param {string} conversationId 会话ID（用于服务端维持上下文）
+ * @returns {Promise<{reply: string, conversationId: string}>}
+ */
+export const aiChat = async (message, conversationId) => {
+  const res = await fetch(buildUrl('/api/ai/chat'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, conversationId })
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(data.error || `HTTP ${res.status}`)
+  }
+  return { reply: data.reply, conversationId: data.conversationId }
+}
+
+/** 清除服务端对话历史（不阻塞、失败静默） */
+export const clearAiContext = (conversationId) => {
+  if (!conversationId) return Promise.resolve()
+  return fetch(buildUrl(`/api/ai/context/${conversationId}`), { method: 'DELETE' })
+    .catch(() => {})
+}
+
+/* =====================================================================
+   实时天气（高德天气 API）
+   ===================================================================== */
+/**
+ * 按经纬度查询实时天气（高德 regeo 取 adcode → 天气查询）
+ * @param {number} lng 经度（WGS84/GCJ02 均可，高德兼容）
+ * @param {number} lat 纬度
+ * @returns {Promise<Object>} { temperature, weather, winddirection, windpower, humidity, city, reporttime }
+ */
+export const fetchWeather = async (lng, lat) => {
+  const apiKey = import.meta.env.VITE_AMAP_KEY
+  if (!apiKey) throw new Error('天气服务未配置（缺少 VITE_AMAP_KEY）')
+
+  // 1. 逆地理编码取 adcode（行政区划代码）
+  const geoUrl = `https://restapi.amap.com/v3/geocode/regeo?key=${apiKey}&location=${lng},${lat}`
+  const geoRes = await fetch(geoUrl)
+  const geoData = await geoRes.json()
+  if (geoData.status !== '1' || !geoData.regeocode) {
+    throw new Error('定位解析失败')
+  }
+  const adcode = geoData.regeocode.addressComponent.adcode
+  let city = geoData.regeocode.addressComponent.city || geoData.regeocode.addressComponent.province
+  if (Array.isArray(city)) city = city[0] || '北京市'
+  if (!city) city = '北京市'
+
+  // 2. 查实时天气
+  const weatherUrl = `https://restapi.amap.com/v3/weather/weatherInfo?key=${apiKey}&city=${adcode}&extensions=base`
+  const wRes = await fetch(weatherUrl)
+  const wData = await wRes.json()
+  if (wData.status !== '1' || !wData.lives || wData.lives.length === 0) {
+    throw new Error('天气查询失败')
+  }
+  return { ...wData.lives[0], city }
 }

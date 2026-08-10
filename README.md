@@ -75,6 +75,11 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  **Real Photo Trail Cards**: Greenway & favorites cards now render actual route photos (`/images/greenways/…`) with graceful placeholder fallback, replacing flat gradient placeholders.
 -  **Mobile POI Search & Locate**: Search a facility → tap result → map flies to the point (zoom 16) with a highlighted glow ring around the selected POI; POI layer only shows when zoomed in or after search.
 -  **Backend Response Caching**: In-memory cache for `/api/greenways` & `/api/facilities/geojson` (60s TTL, single-flight dedup, warm-up on boot) — mobile map data loads in ~0.2s instead of 4–7s.
+-  **Mobile AI Assistant (Greenway Helper)**: AI button on the map page opens a fullscreen chat panel — route recommendations, usage guidance, greenway Q&A (DeepSeek-powered), dual-theme bubbles & quick suggestions.
+-  **Mobile Real-time Weather**: Inline weather card on the greenway detail page (Amap Weather API, queried by greenway centroid: temperature/weather/wind/humidity), with refresh & skeleton loading.
+-  **Mobile Map Stability Fix**: Fixed the map becoming a blank background after repeatedly navigating to detail pages (map instance now correctly rebuilt after disposal).
+-  **Detail Page Single-Route API**: Greenway detail now queries by ID (`GET /api/greenways/:id`) instead of fetching all 17 routes and filtering client-side.
+-  **API Security Hardening**: Removed the hardcoded Amap key from WeatherCard; now read from environment variables.
 -  **Community Feed API**: New `/api/comments/recent` endpoint returns the latest cross-greenway top-level comments for the Discover feed.
 -  **Global Toast Fix & Favorites Refresh**: Toast prompts now display their message text (were blank colored blocks); favorites page reloads on every entry (keep-alive aware) so new favorites appear immediately.
 -  Capacitor-based mobile app (enhanced UI/UX)
@@ -127,8 +132,8 @@ npm run dev       # http://localhost:5173
 |  **Spatial Analysis** | Draw polygon → PostGIS spatial query → greenway/facility highlight + result panel (area/perimeter/density) |
 |  **User Favorites** | Favorite greenways (backend persisted), desktop + mobile favorites pages, personal-center real stats |
 |  **Legend Widget** | Official GeoScene Legend component (Expand collapsible), auto heatmap/facility legends |
-|  **Real-time Weather** | Draggable weather widget (Amap API) |
-|  **AI Assistant** | Map/detail-only floating chatbot (DeepSeek-V4-Flash), conversations logged to DB |
+|  **Real-time Weather** | Draggable weather widget (Amap API); mobile detail page embeds an inline weather card |
+|  **AI Assistant** | Map/detail-only floating chatbot (DeepSeek-V4-Flash), conversations logged to DB; mobile fullscreen chat panel |
 |  **AI Chat Analytics** | Admin: word cloud + daily trend + recent messages, dual day/night theme |
 |  **Day/Night Theme** | Auto-switches by Beijing time by default; user can pin day/night or return to follow-time mode (desktop & mobile shared preference) |
 |  **Heatmap Analytics** | Admin dashboard with ECharts: heat ranking, trend, comment stats, weight pie, detail table |
@@ -137,7 +142,7 @@ npm run dev       # http://localhost:5173
 |  **Comment Management** | Admin review panel with filtering, status actions, and batch updates |
 |  **Content Safety** | Sensitive-word check blocks disallowed comments before storage |
 |  **User Auth** | Public user registration and login |
-|  **Mobile App** | Capacitor + Vue 3, auto-detected on native platform; POI facilities, theme, and polished mobile UI |
+|  **Mobile App** | Capacitor + Vue 3, auto-detected on native platform; AI assistant, real-time weather, POI facilities, theme, and polished mobile UI |
 
 ---
 
@@ -214,21 +219,23 @@ npm run dev       # http://localhost:5173
 
     mobile/                         # Capacitor mobile app (Vue 3)
        views/
-          MapView.vue              # Map page (greenways + POI facilities + locate/highlight + bottom sheet)
+          MapView.vue              # Map page (greenways + POI facilities + AI assistant entry + locate/highlight + bottom sheet)
           DiscoverView.vue         # Discover/home page (photo banner carousel + community feed)
           ListView.vue             # Greenway list with search & filter (real photo cards)
-          DetailView.vue           # Greenway detail (favorite persisted, comments)
+          DetailView.vue           # Greenway detail (single-route API, favorite persisted, comments, weather card)
           PoiSearchView.vue        # POI facility search page
           ProfileView.vue / SettingsView.vue / FavoritesView.vue  # Personal center
        components/
           MobileBottomNav.vue      # Floating glass bottom navigation bar
           BottomSheet.vue          # Half-screen bottom sheet drawer (peek/expanded + drag)
           TrailCard.vue            # Greenway card with real-photo thumbnail + fallback
+          AIChatPanel.vue          # AI greenway assistant (fullscreen chat panel)
+          WeatherBlock.vue         # Real-time weather card (embedded in detail page)
        composables/
           useToast.js              # Global toast + confirm dialog (mobile UX)
           useAppTheme.js           # Theme store (shares desktop preference)
        constants/poi.js            # POI facility type config
-       services/api.js             # Mobile API client (POI + favorites + auth)
+       services/api.js             # Mobile API client (greenways/POI/AI/weather/favorites/auth, configurable backend URL)
        styles/design-system.css    # Mobile design system (dual theme)
 
     scripts/
@@ -311,6 +318,7 @@ npm run dev       # http://localhost:5173
 
 ```http
 GET /api/greenways              # all greenways (summary list)
+GET /api/greenways/:id          # single greenway detail by ID (incl. facilities/color/image)
 GET /api/greenways?name=温榆河  # filter by name → GeoJSON FeatureCollection
 POST /api/ai/chat               # AI conversation (DeepSeek-V4-Flash)
 DELETE /api/ai/context/:id      # clear conversation history

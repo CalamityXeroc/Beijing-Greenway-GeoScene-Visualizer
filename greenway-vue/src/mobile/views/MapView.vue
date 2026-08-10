@@ -17,6 +17,11 @@
         </svg>
         <span>搜索绿道、设施…</span>
       </div>
+      <button class="topbar-icon-btn" @click="aiPanelOpen = true" aria-label="AI助手">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 0-3 3c0 1.31.83 2.42 2 2.83V19l2 2 2-2v-2.17c1.17-.41 2-1.52 2-2.83a3 3 0 0 0-3-3"/>
+        </svg>
+      </button>
       <button class="poi-fab" :class="{ active: showPoi && zoomOk && anyPoiTypeOn }" @click="onPoiFab" aria-label="设施">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/>
@@ -24,6 +29,9 @@
         </svg>
       </button>
     </div>
+
+    <!-- AI 绿道助手 -->
+    <AIChatPanel :visible="aiPanelOpen" @close="aiPanelOpen = false" />
 
     <!-- 地图数据加载失败提示（不遮挡地图瓦片） -->
     <Transition name="fade">
@@ -63,53 +71,6 @@
 
     <!-- 底部渐变遮罩 -->
     <div class="bottom-gradient"></div>
-
-    <!-- 底部抽屉：绿道列表（上滑展开 / 下滑收起） -->
-    <BottomSheet
-      v-if="drawerVisible"
-      v-model="sheetOpen"
-      title="探索绿道"
-      :peek-height="76"
-      expanded-height="58%"
-      :bottom-offset="'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 28px)'"
-      @dismiss="sheetOpen = false"
-    >
-      <template #header="{ close }">
-        <div class="bs-title-wrap">
-          <span class="bs-title">{{ allTrails.length }} 条绿道</span>
-          <span class="bs-sub">上滑查看全部线路</span>
-        </div>
-        <button class="bs-close-btn" @click="close" aria-label="收起">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </template>
-
-      <!-- 抽屉正文：绿道列表 -->
-      <div class="trail-list">
-        <div
-          v-for="t in allTrails"
-          :key="t.id"
-          class="trail-list-item"
-          @click="selectTrailFromList(t)"
-        >
-          <span class="tl-dot" :style="{ background: t.color, boxShadow: `0 0 8px ${t.color}` }"></span>
-          <div class="tl-body">
-            <div class="tl-name">{{ t.name }}</div>
-            <div class="tl-meta">
-              <span v-if="t.length" class="tl-chip">{{ t.length }} km</span>
-              <span v-if="t.area" class="tl-chip">{{ t.area }}</span>
-              <span v-if="trailDistance(t) != null" class="tl-dist">{{ formatDistance(trailDistance(t)) }}</span>
-            </div>
-          </div>
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="tl-chevron">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
-        </div>
-        <div v-if="!allTrails.length" class="tl-empty">正在加载绿道数据…</div>
-      </div>
-    </BottomSheet>
 
     <!-- 绿道信息面板 -->
     <Transition name="trail-sheet">
@@ -177,7 +138,7 @@
 import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import MobileBottomNav from '../components/MobileBottomNav.vue'
-import BottomSheet from '../components/BottomSheet.vue'
+import AIChatPanel from '../components/AIChatPanel.vue'
 import { fetchGreenways } from '../services/api'
 import { Map, View } from 'ol'
 import TileLayer from 'ol/layer/Tile'
@@ -188,9 +149,9 @@ import GeoJSON from 'ol/format/GeoJSON'
 import Overlay from 'ol/Overlay'
 import { Style, Stroke, Icon, Fill, Text } from 'ol/style'
 import CircleStyle from 'ol/style/Circle'
-import { fromLonLat, toLonLat } from 'ol/proj'
+import { fromLonLat } from 'ol/proj'
 import { useAppTheme } from '../composables/useAppTheme'
-import { useLocation, haversineDistance, formatDistance } from '../composables/useLocation'
+import { useLocation } from '../composables/useLocation'
 import { fetchPoiFacilities } from '../services/api'
 import { POI_TYPE_CONFIG, poiTypeName, poiTypeColor, poiIconUrl } from '../constants/poi'
 
@@ -215,16 +176,6 @@ const selectedTrail = ref(null)
 const selectedPoi = ref(null)
 const { fetchLocation, isLocating, hasLocation, userLocation, locationStatus } = useLocation()
 
-// 底部抽屉：绿道列表
-const sheetOpen = ref(false)
-const allTrails = ref([])     // [{id,name,length,area,color,description,features,clng,clat}]
-const drawerVisible = computed(() => !selectedTrail.value && !selectedPoi.value)
-
-const trailDistance = (t) => {
-  if (!userLocation.value || t.clng == null || t.clat == null) return null
-  return haversineDistance(userLocation.value.lat, userLocation.value.lng, t.clat, t.clng)
-}
-
 // 地图数据加载状态（绿道/POI 任一失败时提示，避免静默空白）
 const mapLoadError = ref('')
 const retryMapLoad = () => {
@@ -245,19 +196,11 @@ const poiTypeList = ref([])         // 去重后的类型项 [{code,name,color,i
 // 是否有任一类型开启
 const anyPoiTypeOn = computed(() => poiTypeList.value.some(t => poiTypeFilter.value[t.code]))
 
+// AI 助手面板
+const aiPanelOpen = ref(false)
+
 const goToDetail = (id) => { if (id) router.push(`/mobile/detail/${id}`) }
 const goToPoiDetail = (id) => { if (id) router.push(`/mobile/detail/${id}`) }
-
-/* 从抽屉列表选中绿道：收起抽屉 + 地图定位 + 弹出详情卡 */
-const selectTrailFromList = (t) => {
-  if (!t.id) return
-  sheetOpen.value = false
-  selectedPoi.value = null
-  selectedTrail.value = t
-  if (t.clng != null && t.clat != null) {
-    map?.getView().animate({ center: fromLonLat([t.clng, t.clat]), zoom: 14, duration: 600 })
-  }
-}
 
 // 设施悬浮按钮：切换 POI 图层显示；首次点击加载
 const onPoiFab = async () => {
@@ -271,6 +214,7 @@ const allPoiTypesOn = computed(() => poiTypeList.value.length > 0 && poiTypeList
 
 /* ---- 地图初始化 ---- */
 const initMap = () => {
+  if (map) return  // 已初始化则跳过：onMounted 的 ResizeObserver 与 setTimeout 兜底会双重触发
   if (!mapContainer.value) return
   const rect = mapContainer.value.getBoundingClientRect()
   // 容器无尺寸（如启动屏期间 keep-alive 挂载、display:none）则等待 ResizeObserver 触发
@@ -331,27 +275,6 @@ const loadAllGreenways = async () => {
     const geojson = await fetchGreenways()
 
     const features = new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' })
-
-    // 收集绿道列表数据（用于底部抽屉），计算质心经纬度供距离排序
-    allTrails.value = features.map(f => {
-      const p = f.getProperties()
-      const ext = f.getGeometry()?.getExtent()
-      let clng = null, clat = null
-      if (ext && ext.length === 4 && !ext.includes(Infinity)) {
-        const [x, y] = toLonLat([(ext[0] + ext[2]) / 2, (ext[1] + ext[3]) / 2])
-        clng = x; clat = y
-      }
-      return {
-        id: p.id || p.gid || null,
-        name: p.name || '未知绿道',
-        length: p.length,
-        area: p.area || p.district || '',
-        color: p.color || '#16a34a',
-        description: p.description || p.introduction || '',
-        features: p.features || '',
-        clng, clat
-      }
-    })
 
     const vectorSource = new VectorSource({ features })
 
@@ -635,6 +558,7 @@ onUnmounted(() => {
   resizeObserver?.disconnect()
   resizeObserver = null
   map?.dispose()
+  map = null  // 置空：否则再次挂载时 initMap 的 `if (map) return` 会跳过初始化，导致地图空白
 })
 </script>
 
@@ -789,6 +713,22 @@ onUnmounted(() => {
 .theme-dark  .poi-fab { background: rgba(44,44,46,0.92); }
 .poi-fab.active { background: var(--color-primary); color: #fff; }
 .poi-fab:active { transform: scale(0.92); }
+
+/* 顶部栏图标按钮（AI 助手等）——与 poi-fab 同规格，品牌绿色强调 */
+.topbar-icon-btn {
+  pointer-events: auto;
+  flex: 0 0 44px;
+  width: 44px; height: 44px;
+  border-radius: 50%; border: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gradient-brand);
+  box-shadow: var(--shadow-fab);
+  color: #fff;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  transition: transform var(--transition-fast);
+}
+.topbar-icon-btn:active { transform: scale(0.92); }
 
 /* POI 类型过滤 chips 栏（底部导航上方） */
 .poi-type-bar {
@@ -993,98 +933,4 @@ onUnmounted(() => {
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-6px); }
 
-/* ---- 底部抽屉头部 ---- */
-.bs-title-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.bs-title {
-  font-size: var(--text-lg);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  letter-spacing: -0.2px;
-}
-.bs-sub {
-  font-size: var(--text-xs);
-  color: var(--color-text-tertiary);
-}
-.bs-close-btn {
-  flex: 0 0 38px;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  border: none;
-  background: var(--color-surface-2);
-  color: var(--color-text-tertiary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-/* ---- 抽屉正文：绿道列表 ---- */
-.trail-list {
-  padding: 2px 16px 12px;
-}
-.trail-list-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 4px;
-  border-bottom: 0.5px solid var(--color-divider);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-  -webkit-user-select: none;
-  user-select: none;
-}
-.trail-list-item:active { background: var(--color-surface-2); }
-.trail-list-item:last-child { border-bottom: none; }
-.tl-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  flex: 0 0 14px;
-}
-.tl-body {
-  flex: 1;
-  min-width: 0;
-}
-.tl-name {
-  font-size: var(--text-base);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tl-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 3px;
-}
-.tl-chip {
-  padding: 2px 8px;
-  background: var(--color-surface-2);
-  border-radius: var(--radius-full);
-  font-size: 11px;
-  color: var(--color-text-secondary);
-}
-.tl-dist {
-  font-family: var(--font-number);
-  font-size: 11px;
-  color: var(--color-ocean, var(--color-text-tertiary));
-  margin-left: auto;
-}
-.tl-chevron {
-  color: var(--color-text-tertiary);
-  flex: 0 0 16px;
-}
-.tl-empty {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--color-text-tertiary);
-  font-size: var(--text-sm);
-}
 </style>

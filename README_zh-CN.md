@@ -75,6 +75,11 @@
 -  **真实照片绿道卡片**：绿道列表与收藏页卡片缩略图渲染真实绿道照片（`/images/greenways/…`），无图时优雅回退占位，替代纯渐变占位
 -  **移动端 POI 搜索定位**：搜索设施 → 点击结果 → 地图平滑飞到目标点（zoom 16）并在选中 POI 上叠加高亮光圈；POI 图层仅在缩放到位或搜索后才显示，避免低缩放密集
 -  **后端响应缓存**：`/api/greenways` 与 `/api/facilities/geojson` 接入内存缓存（60s TTL、并发单飞去重、启动预热）——移动端地图数据由 4~7s 提速至约 0.2s
+-  **移动端 AI 助手（绿道小助手）**：地图页右上角 AI 按钮 → 全屏聊天面板，支持路线推荐、操作指引、绿道知识问答（DeepSeek 驱动），消息气泡与快捷建议双主题适配
+-  **移动端实时天气**：绿道详情页内嵌实时天气卡片（高德天气 API，按绿道质心坐标查询温度/天气/风向/湿度），支持刷新与骨架屏
+-  **移动端地图稳定性修复**：修复地图反复进出详情页后仅剩背景的空白 bug（地图销毁后正确重建实例）
+-  **详情页单条接口优化**：绿道详情改按 ID 单条查询（`GET /api/greenways/:id`），首屏数据量由全量 17 条降至单条
+-  **API 安全加固**：移除 WeatherCard 中硬编码的高德 Key，改为从环境变量读取
 -  **社区动态接口**：新增 `/api/comments/recent`，返回跨绿道的最新顶级评论，供发现页社区动态流使用
 -  **全局 Toast 修复 + 收藏即时刷新**：Toast 提示补全文字内容（此前为空白色块）；收藏页每次进入自动重新加载（兼容 keep-alive 缓存），收藏后立即显示
 -  Capacitor 移动端应用（UI/UX 全面优化）
@@ -127,8 +132,8 @@ npm run dev       # http://localhost:5173
 |  **空间分析** | 绘制多边形 → PostGIS 空间查询 → 绿道/设施高亮 + 结果面板（面积/周长/密度） |
 |  **用户收藏** | 收藏绿道（后端持久化），桌面收藏页 + 移动端收藏页，个人中心真实统计 |
 |  **图例控件** | GeoScene 官方 Legend 组件（Expand 折叠），自动展示热力/设施图例 |
-|  **实时天气** | 可拖动天气组件（高德地图 API） |
-|  **AI 助手** | 地图页浮窗，DeepSeek-V4-Flash 驱动，对话写入数据库 |
+|  **实时天气** | 可拖动天气组件（高德地图 API）；移动端详情页内嵌天气卡片 |
+|  **AI 助手** | 地图页浮窗（DeepSeek 驱动，对话写入数据库）；移动端全屏聊天面板 |
 |  **AI 对话分析** | 管理员：词云 + 折线图 + 最近提问，昼夜主题自动切换 |
 |  **昼夜主题** | 默认按北京时间自动切换，可固定白天/夜间或切回跟随时间（桌面/移动共享偏好） |
 |  **热度分析看板** | 管理后台 ECharts 图表：热度排名、趋势分析、评论统计、权重饼图、明细表格 |
@@ -138,7 +143,7 @@ npm run dev       # http://localhost:5173
 |  **内容安全** | 评论发布前执行敏感词检测，命中即拦截 |
 |  **用户系统** | 公众用户注册与登录 |
 |  **移动端 POI** | 移动端地图叠加 7 类设施图标，缩放联动 + 类型过滤 + 底部弹卡 + 独立搜索页 |
-|  **移动端** | Capacitor + Vue 3，原生平台自动跳转移动端布局，UI/UX 全面优化 |
+|  **移动端** | Capacitor + Vue 3，原生平台自动跳转移动端布局；AI 助手、实时天气、POI 设施，UI/UX 全面优化 |
 
 ---
 
@@ -215,21 +220,23 @@ npm run dev       # http://localhost:5173
 
     mobile/                         # Capacitor 移动端（Vue 3）
        views/
-          MapView.vue              # 地图页（绿道 + POI 设施 + 定位高亮 + 底部弹卡）
+          MapView.vue              # 地图页（绿道 + POI 设施 + AI 助手入口 + 定位高亮 + 底部弹卡）
           DiscoverView.vue         # 发现页/首页（照片 banner 轮播 + 社区动态流）
           ListView.vue             # 绿道列表（搜索 + 筛选，真实照片卡片）
-          DetailView.vue           # 绿道详情（收藏持久化、评论）
+          DetailView.vue           # 绿道详情（单条接口、收藏持久化、评论、实时天气）
           PoiSearchView.vue        # POI 设施搜索页
           ProfileView.vue / SettingsView.vue / FavoritesView.vue  # 个人中心
        components/
           MobileBottomNav.vue      # 浮动玻璃底部导航栏
           BottomSheet.vue          # 半屏抽屉（peek/展开两档 + 拖拽）
           TrailCard.vue            # 绿道卡片（真实照片缩略图 + 无图回退）
+          AIChatPanel.vue          # AI 绿道小助手（全屏聊天面板）
+          WeatherBlock.vue         # 实时天气卡片（详情页内嵌）
        composables/
           useToast.js              # 全局轻提示 + 确认弹窗（手机端体验）
           useAppTheme.js           # 主题（与桌面共享偏好）
        constants/poi.js            # POI 设施类型配置
-       services/api.js             # 移动端 API 客户端（POI/收藏/认证）
+       services/api.js             # 移动端 API 客户端（绿道/POI/AI/天气/收藏/认证，后端地址可配置）
        styles/design-system.css    # 移动端设计系统（双主题）
 
  scripts/
@@ -312,6 +319,7 @@ npm run dev       # http://localhost:5173
 
 ```http
 GET /api/greenways              # 获取所有绿道列表
+GET /api/greenways/:id          # 按 ID 获取单条绿道详情（含设施/颜色/图片）
 GET /api/greenways?name=温榆河  # 按名称筛选，返回 GeoJSON FeatureCollection
 POST /api/ai/chat               # AI 对话（DeepSeek-V4-Flash）
 DELETE /api/ai/context/:id      # 清除对话历史
