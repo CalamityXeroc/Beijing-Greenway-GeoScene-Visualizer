@@ -227,11 +227,7 @@
 
       <!-- 操作按钮 -->
       <div class="action-row">
-        <button class="action-btn primary" @click="planRoute">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>
-          路径规划
-        </button>
-        <button class="action-btn secondary" @click="shareTrail">
+        <button class="action-btn primary" @click="shareTrail">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
           分享
         </button>
@@ -367,13 +363,15 @@ async function loadTrail() {
     if (!props) throw new Error('未找到该绿道')
     // 单条接口返回平铺字段；构造与原有结构兼容的数据：
     // trail 直接用 properties，_geojson 为完整 Feature（迷你地图 readFeatures 依赖）
+    // 注意：properties 必须剔除 geometry 字段，否则 OL 会优先读 properties.geometry 导致解析失败
+    const { geometry, ...cleanProps } = props
     trail.value = {
       ...props,
       _geojson: {
         type: 'Feature',
         id: props.id,
-        geometry: props.geometry,
-        properties: props
+        geometry,
+        properties: cleanProps
       }
     }
   } catch (e) {
@@ -563,13 +561,6 @@ async function toggleFavorite() {
     return
   }
   toast(prev ? '已取消收藏' : '收藏成功', 'success')
-}
-
-function planRoute() {
-  // 跳转地图页；携带绿道质心作为预设终点（路径规划功能后续接入时读取）
-  const c = trailCenter.value
-  if (c.lng == null) { router.push('/mobile/map'); return }
-  router.push({ path: '/mobile/map', query: { dest: `${c.lng},${c.lat},${encodeURIComponent(trail.value?.name || '绿道')}` } })
 }
 
 function shareTrail() {

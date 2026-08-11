@@ -329,7 +329,7 @@ GET /api/comments/recent        # 跨绿道最新顶级评论（发现页社区�
 GET /api/gaode/search            # 高德POI搜索（代理）
 GET /api/gaode/walking           # 高德步行路径规划（代理）
 GET /api/gaode/bicycling         # 高德骑行路径规划（代理）
-POST /api/osrm/route             # Dijkstra 最短路径规划（步行/骑行，OSM 路网数据）
+POST /api/osrm/route             # 顶点级 Dijkstra 路径规划（步行/骑行，OSM 路网，街道名指引）
 GET /api/greenways/:id/flyover?maxPoints=45    # 3D 飞行漫游路径点（PostGIS 地理处理，精确 45 个等距点）
 GET /api/greenways/name/:name/flyover?maxPoints=45  # 按绿道名称获取漫游路径点
 GET /api/greenways/:id/nearby-facilities?radius=1000  # 绿道周边设施查询（按类型分组）

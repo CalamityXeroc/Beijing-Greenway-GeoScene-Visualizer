@@ -4,26 +4,25 @@
  */
 
 export const getApiBaseUrl = () => {
-  // 1. 构建时注入的后端地址优先（真机/线上：VITE_API_BASE_URL，在 vite build 时写入）
-  const configured = import.meta.env.VITE_API_BASE_URL
-  if (configured && configured.trim()) {
-    console.log('[API] 使用配置的后端地址:', configured)
-    return configured.trim()
-  }
-
-  // 2. Capacitor 模拟器：10.0.2.2 指向宿主机
+  // Capacitor 原生环境（模拟器/真机 App）
   const isCapacitor = typeof window !== 'undefined' &&
     (window.Capacitor?.isNativePlatform?.() ||
      window.location.protocol === 'capacitor:' ||
      (window.location.protocol === 'http:' && window.location.hostname === 'localhost' && !import.meta.env.DEV))
 
   if (isCapacitor) {
-    const baseUrl = 'http://10.0.2.2:3001'
-    console.log('[API] Capacitor模式，使用后端地址:', baseUrl)
-    return baseUrl
+    // 1. 构建时注入的后端地址优先（真机打包：VITE_API_BASE_URL，在 vite build 时写入）
+    const configured = import.meta.env.VITE_API_BASE_URL
+    if (configured && configured.trim()) {
+      console.log('[API] 使用配置的后端地址:', configured)
+      return configured.trim()
+    }
+    // 2. 模拟器默认：10.0.2.2 指向宿主机
+    console.log('[API] Capacitor模式，使用后端地址: http://10.0.2.2:3001')
+    return 'http://10.0.2.2:3001'
   }
 
-  // 3. Web 开发模式，使用代理
+  // 3. Web 浏览器（桌面/移动 Web）：相对路径，走 Vite 代理到本地后端
   console.log('[API] Web开发模式，使用相对路径')
   return ''
 }
@@ -426,6 +425,50 @@ export const clearAiContext = (conversationId) => {
   if (!conversationId) return Promise.resolve()
   return fetch(buildUrl(`/api/ai/context/${conversationId}`), { method: 'DELETE' })
     .catch(() => {})
+}
+
+/* =====================================================================
+   路径规划（Dijkstra / OSM 路网）
+   ===================================================================== */
+/**
+ * 路径规划
+ * @param {{lng:number,lat:number}} origin 起点
+ * @param {{lng:number,lat:number}} destination 终点
+ * @param {'walking'|'bicycling'} mode 出行方式
+ * @returns {Promise<Object>} { origin, destination, paths: [{ distance, duration, coordinates, steps }] }
+ */
+export const planRoute = async (origin, destination, mode = 'walking') => {
+  const res = await fetch(buildUrl('/api/osrm/route'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ origin, destination, mode })
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(data.error || `路径规划失败 (${res.status})`)
+  }
+  return data
+}
+
+/* =====================================================================
+   空间分析（绘制多边形筛选区域内绿道/设施）
+   ===================================================================== */
+/**
+ * 空间分析：绘制多边形，返回区域内命中的绿道与设施
+ * @param {Object} polygon GeoJSON Polygon（坐标 4326）
+ * @returns {Promise<Object>} { code, data: { greenways, pois, summary } }
+ */
+export const spatialAnalyze = async (polygon) => {
+  const res = await fetch(buildUrl('/api/spatial/analyze'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ polygon })
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok || data.code !== 0) {
+    throw new Error(data.message || `空间分析失败 (${res.status})`)
+  }
+  return data
 }
 
 /* =====================================================================

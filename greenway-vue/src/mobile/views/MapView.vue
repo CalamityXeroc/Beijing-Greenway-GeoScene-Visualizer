@@ -22,6 +22,16 @@
           <path d="M12 2a3 3 0 0 0-3 3c0 1.31.83 2.42 2 2.83V19l2 2 2-2v-2.17c1.17-.41 2-1.52 2-2.83a3 3 0 0 0-3-3"/>
         </svg>
       </button>
+      <button class="topbar-icon-btn route-btn" @click="routePanelOpen = true" aria-label="路径规划">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>
+        </svg>
+      </button>
+      <button class="topbar-icon-btn spatial-btn" :class="{ active: spatialDrawing }" @click="toggleSpatialDraw" aria-label="空间分析">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-8"/>
+        </svg>
+      </button>
       <button class="poi-fab" :class="{ active: showPoi && zoomOk && anyPoiTypeOn }" @click="onPoiFab" aria-label="设施">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/>
@@ -32,6 +42,40 @@
 
     <!-- AI 绿道助手 -->
     <AIChatPanel :visible="aiPanelOpen" @close="aiPanelOpen = false" />
+
+    <!-- 路径规划面板 -->
+    <Transition name="trail-sheet">
+      <div v-if="routePanelOpen" class="route-sheet">
+        <div class="sheet-drag-bar"></div>
+        <RoutePanel ref="routePanelRef" @close="routePanelOpen = false" @route-ready="drawRoute" />
+      </div>
+    </Transition>
+
+    <!-- 空间分析绘制控制条 -->
+    <Transition name="fade">
+      <div v-if="spatialDrawing" class="spatial-draw-bar">
+        <span class="sdb-hint">在地图上绘制分析区域多边形</span>
+        <div class="sdb-actions">
+          <button class="sdb-btn cancel" @click="cancelSpatialDraw">取消</button>
+          <button class="sdb-btn done" @click="finishSpatialDraw">完成</button>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- 空间分析面板 -->
+    <Transition name="trail-sheet">
+      <div v-if="spatialPanelOpen" class="route-sheet">
+        <div class="sheet-drag-bar"></div>
+        <SpatialPanel
+          :result="spatialResult"
+          @close="spatialPanelOpen = false"
+          @locate-greenway="locateGreenway"
+          @locate-poi="locateSpatialPoi"
+          @redo="redoSpatial"
+          @clear="clearSpatial"
+        />
+      </div>
+    </Transition>
 
     <!-- 地图数据加载失败提示（不遮挡地图瓦片） -->
     <Transition name="fade">
@@ -149,7 +193,15 @@ import GeoJSON from 'ol/format/GeoJSON'
 import Overlay from 'ol/Overlay'
 import { Style, Stroke, Icon, Fill, Text } from 'ol/style'
 import CircleStyle from 'ol/style/Circle'
-import { fromLonLat } from 'ol/proj'
+import { fromLonLat, toLonLat } from 'ol/proj'
+import Feature from 'ol/Feature'
+import Point from 'ol/geom/Point'
+import LineString from 'ol/geom/LineString'
+import Polygon from 'ol/geom/Polygon'
+import Draw from 'ol/interaction/Draw'
+import RoutePanel from '../components/RoutePanel.vue'
+import SpatialPanel from '../components/SpatialPanel.vue'
+import { spatialAnalyze } from '../services/api'
 import { useAppTheme } from '../composables/useAppTheme'
 import { useLocation } from '../composables/useLocation'
 import { fetchPoiFacilities } from '../services/api'
@@ -199,6 +251,19 @@ const anyPoiTypeOn = computed(() => poiTypeList.value.some(t => poiTypeFilter.va
 // AI 助手面板
 const aiPanelOpen = ref(false)
 
+// 路径规划面板
+const routePanelOpen = ref(false)
+const routePanelRef = ref(null)
+let routeLayer = null
+
+// 空间分析
+const spatialPanelOpen = ref(false)
+const spatialResult = ref(null)
+const spatialDrawing = ref(false)
+let spatialDraw = null
+let spatialLayer = null
+let greenwayFeatures = []  // 全量绿道 feature（用于空间分析高亮命中绿道）
+
 const goToDetail = (id) => { if (id) router.push(`/mobile/detail/${id}`) }
 const goToPoiDetail = (id) => { if (id) router.push(`/mobile/detail/${id}`) }
 
@@ -208,6 +273,175 @@ const onPoiFab = async () => {
     await loadPoiFacilities()
   }
   togglePoi(!showPoi.value)
+}
+
+/* 路径规划：绘制路线折线 + 起终点标记，并适配视图 */
+const drawRoute = ({ route, origin, destination }) => {
+  if (!routeLayer) {
+    routeLayer = new VectorLayer({
+      zIndex: 8,
+      style: (feature) => {
+        const type = feature.get('type')
+        if (type === 'route') {
+          return new Style({ stroke: new Stroke({ color: '#2196F3', width: 5, cap: 'round', join: 'round' }) })
+        }
+        if (type === 'origin') {
+          return new Style({ image: new CircleStyle({ radius: 9, fill: new Fill({ color: '#4CAF50' }), stroke: new Stroke({ color: '#fff', width: 2 }) }) })
+        }
+        if (type === 'destination') {
+          return new Style({ image: new CircleStyle({ radius: 9, fill: new Fill({ color: '#F44336' }), stroke: new Stroke({ color: '#fff', width: 2 }) }) })
+        }
+        return null
+      }
+    })
+    map.addLayer(routeLayer)
+  }
+  const source = routeLayer.getSource() || new VectorSource()
+  routeLayer.setSource(source)
+  source.clear()
+
+  const coords = route?.paths?.[0]?.coordinates
+  if (coords?.length > 1) {
+    source.addFeature(new Feature({
+      type: 'route',
+      geometry: new LineString(coords.map(([lng, lat]) => fromLonLat([lng, lat])))
+    }))
+  }
+  if (origin) {
+    source.addFeature(new Feature({ type: 'origin', geometry: new Point(fromLonLat([origin.lng, origin.lat])) }))
+  }
+  if (destination) {
+    source.addFeature(new Feature({ type: 'destination', geometry: new Point(fromLonLat([destination.lng, destination.lat])) }))
+  }
+
+  const extent = source.getExtent()
+  if (extent && extent[0] !== Infinity) {
+    map.getView().fit(extent, { padding: [60, 60, 280, 60], maxZoom: 16, duration: 500 })
+  }
+}
+
+/* ---- 空间分析：绘制多边形 → 调接口 → 高亮 ---- */
+const toggleSpatialDraw = () => {
+  if (spatialDrawing.value) { stopSpatialDraw(); return }
+  if (!map) return
+  spatialPanelOpen.value = false
+  spatialResult.value = null
+  if (spatialLayer) spatialLayer.getSource()?.clear()
+  startSpatialDraw()
+}
+
+const startSpatialDraw = () => {
+  if (!map || spatialDrawing.value) return
+  spatialDrawing.value = true
+  spatialDraw = new Draw({ type: 'Polygon' })
+  map.addInteraction(spatialDraw)
+  spatialDraw.on('drawend', handleSpatialDrawEnd)
+}
+
+const stopSpatialDraw = () => {
+  if (spatialDraw) { map?.removeInteraction(spatialDraw); spatialDraw = null }
+  spatialDrawing.value = false
+}
+
+/* 完成/取消绘制（移动端：绘制完成后点击控制条按钮，比双击更直观） */
+const finishSpatialDraw = () => {
+  if (spatialDraw) spatialDraw.finishDrawing()
+}
+const cancelSpatialDraw = () => {
+  stopSpatialDraw()
+  if (spatialLayer) spatialLayer.getSource()?.clear()
+}
+
+const handleSpatialDrawEnd = async (event) => {
+  const geom = event.feature.getGeometry()
+  const outerRing = geom.getCoordinates()[0]  // 外环（3857）
+  const ring = outerRing.map(([x, y]) => toLonLat([x, y]))  // 转 4326
+  const polygon = { type: 'Polygon', coordinates: [ring] }
+  stopSpatialDraw()
+  try {
+    const data = await spatialAnalyze(polygon)
+    spatialResult.value = data.data
+    spatialPanelOpen.value = true
+    drawSpatialResult(polygon, data.data)
+  } catch (e) {
+    console.error('空间分析失败:', e)
+    const { toast } = await import('../composables/useToast')
+    toast(e.message || '空间分析失败，请重试', 'error')
+    clearSpatial()
+  }
+}
+
+const spatialStyle = (feature) => {
+  const type = feature.get('type')
+  if (type === 'polygon') {
+    return new Style({
+      fill: new Fill({ color: 'rgba(124, 58, 237, 0.15)' }),
+      stroke: new Stroke({ color: '#7C3AED', width: 3 })
+    })
+  }
+  if (type === 'greenway') {
+    return new Style({ stroke: new Stroke({ color: '#7C3AED', width: 5, cap: 'round' }) })
+  }
+  if (type === 'poi') {
+    return new Style({ image: new CircleStyle({ radius: 6, fill: new Fill({ color: '#E65100' }), stroke: new Stroke({ color: '#fff', width: 1.5 }) }) })
+  }
+  return null
+}
+
+const drawSpatialResult = (polygon, result) => {
+  if (!spatialLayer) {
+    spatialLayer = new VectorLayer({ zIndex: 7, style: spatialStyle })
+    map.addLayer(spatialLayer)
+  }
+  const source = spatialLayer.getSource() || new VectorSource()
+  spatialLayer.setSource(source)
+  source.clear()
+
+  // 1. 分析多边形（半透明紫填充）
+  const polyRing = polygon.coordinates[0].map(([lng, lat]) => fromLonLat([lng, lat]))
+  source.addFeature(new Feature({ type: 'polygon', geometry: new Polygon([polyRing]) }))
+
+  // 2. 命中绿道（紫色粗线）
+  const hitIds = new Set((result.greenways || []).map(g => String(g.id)))
+  greenwayFeatures.forEach(f => {
+    const id = String(f.get('id') ?? f.get('gid') ?? '')
+    if (hitIds.has(id)) {
+      source.addFeature(new Feature({ type: 'greenway', geometry: f.getGeometry() }))
+    }
+  })
+
+  // 3. 命中 POI（橙色圆点）
+  ;(result.pois || []).forEach(poi => {
+    source.addFeature(new Feature({ type: 'poi', geometry: new Point(fromLonLat([poi.lng, poi.lat])) }))
+  })
+}
+
+const clearSpatial = () => {
+  if (spatialLayer) spatialLayer.getSource()?.clear()
+  spatialResult.value = null
+  spatialPanelOpen.value = false
+  stopSpatialDraw()
+}
+
+const redoSpatial = () => {
+  spatialResult.value = null
+  spatialPanelOpen.value = false
+  if (spatialLayer) spatialLayer.getSource()?.clear()
+  startSpatialDraw()
+}
+
+const locateGreenway = (gw) => {
+  const f = greenwayFeatures.find(f => String(f.get('id') ?? f.get('gid') ?? '') === String(gw.id))
+  if (f) {
+    const ext = f.getGeometry()?.getExtent()
+    if (ext && ext[0] !== Infinity) {
+      map.getView().fit(ext, { padding: [80, 80, 300, 80], maxZoom: 16, duration: 500 })
+    }
+  }
+}
+
+const locateSpatialPoi = (poi) => {
+  map.getView().animate({ center: fromLonLat([poi.lng, poi.lat]), zoom: 16, duration: 500 })
 }
 
 const allPoiTypesOn = computed(() => poiTypeList.value.length > 0 && poiTypeList.value.every(t => poiTypeFilter.value[t.code]))
@@ -275,6 +509,7 @@ const loadAllGreenways = async () => {
     const geojson = await fetchGreenways()
 
     const features = new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' })
+    greenwayFeatures = features  // 保存全量，供空间分析高亮命中绿道
 
     const vectorSource = new VectorSource({ features })
 
@@ -300,6 +535,12 @@ const loadAllGreenways = async () => {
 
     // 点击：优先识别 POI 设施，其次绿道
     map.on('click', (event) => {
+      // 路径规划点选模式：优先处理
+      if (routePanelRef.value?.isPicking()) {
+        const coord = toLonLat(event.coordinate)
+        routePanelRef.value.handleMapPick(coord[0], coord[1])
+        return
+      }
       const hitPoi = poiLayer.value?.getVisible() && map.forEachFeatureAtPixel(event.pixel, f => f)
       if (hitPoi) {
         const p = hitPoi.getProperties()
@@ -557,6 +798,9 @@ watch(() => route.query.poi, (val) => {
 onUnmounted(() => {
   resizeObserver?.disconnect()
   resizeObserver = null
+  stopSpatialDraw()
+  spatialLayer = null
+  routeLayer = null
   map?.dispose()
   map = null  // 置空：否则再次挂载时 initMap 的 `if (map) return` 会跳过初始化，导致地图空白
 })
@@ -729,6 +973,70 @@ onUnmounted(() => {
   transition: transform var(--transition-fast);
 }
 .topbar-icon-btn:active { transform: scale(0.92); }
+/* 路径规划按钮：蓝色强调（与绿色 AI 区分） */
+.topbar-icon-btn.route-btn {
+  background: var(--gradient-ocean);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+}
+/* 空间分析按钮：紫色强调 */
+.topbar-icon-btn.spatial-btn {
+  background: linear-gradient(135deg, #8B5CF6, #6D28D9);
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+.topbar-icon-btn.spatial-btn.active {
+  background: #5B21B6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.4), 0 4px 14px rgba(124, 58, 237, 0.5);
+}
+
+/* 空间分析绘制控制条 */
+.spatial-draw-bar {
+  position: absolute;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 24px);
+  left: 16px; right: 16px;
+  z-index: var(--z-overlay);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  background: rgba(109, 40, 217, 0.92);
+  box-shadow: 0 6px 20px rgba(109, 40, 217, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.sdb-hint { flex: 1; color: #fff; font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
+.sdb-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.sdb-btn {
+  padding: 8px 16px; border: none; border-radius: var(--radius-full);
+  font-size: var(--text-sm); font-weight: var(--font-weight-semibold);
+}
+.sdb-btn.cancel { background: rgba(255,255,255,0.2); color: #fff; }
+.sdb-btn.done { background: #fff; color: #6D28D9; }
+
+/* 路径规划面板（底部半屏） */
+.route-sheet {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 8px);
+  z-index: var(--z-overlay);
+  border-radius: 20px 20px 0 0;
+  padding: 8px 0 0;
+  max-height: 72vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.theme-light .route-sheet {
+  background: rgba(255, 255, 255, 0.92);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
+}
+.theme-dark .route-sheet {
+  background: var(--color-surface);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.3);
+}
 
 /* POI 类型过滤 chips 栏（底部导航上方） */
 .poi-type-bar {

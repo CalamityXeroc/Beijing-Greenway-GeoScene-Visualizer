@@ -121,7 +121,7 @@ npm run dev       # http://localhost:5173
 |---------|-------------|
 |  **Landing Page** | Fullpage debounced mouse-wheel scroll, 6 animated sections, 0.6s transition |
 |  **Interactive Map** | GeoScene multi-layer rendering with Amap tile basemap |
-|  **Path Planning** | Walking/cycling route planning via on-device Dijkstra shortest-path (OSM road network in PostGIS), draggable panel |
+|  **Path Planning** | Walking/cycling route planning via vertex-level Dijkstra over the OSM road network (PostGIS), turn-by-turn street-name guidance steps, region graph caching |
 |  **3D Flyover Tour** | Glowing 3D tube path + waypoint beads + camera trail + banking turns + time-based atmosphere effects; 45-point equal-distance sampling via PostGIS simplification |
 |  **GIS Toolkit** | Draw (with RGB color picker), measure, import GeoJSON, toggle base layers |
 |  **Map Export** | Export current map view as PNG image |
@@ -129,7 +129,7 @@ npm run dev       # http://localhost:5173
 |  **Nearby Facilities** | 847 POIs (7 categories), SVG markers, tooltip+popup, keyword search, per-type filter, radius slider, session-persisted |
 |  **POI Clustering** | Zoom 11–13 aggregates facilities into bubbles, dispersing at higher zoom; cluster popup lists real POI names, follows type filtering |
 |  **Unified Popup** | Single/aggregate unified GeoScene popup: facility detail + greenway jump button, day/night themes |
-|  **Spatial Analysis** | Draw polygon → PostGIS spatial query → greenway/facility highlight + result panel (area/perimeter/density) |
+|  **Spatial Analysis** | Draw polygon → PostGIS spatial query → greenway/facility highlight + result panel (area/perimeter/density); mobile map draw-toolbar |
 |  **User Favorites** | Favorite greenways (backend persisted), desktop + mobile favorites pages, personal-center real stats |
 |  **Legend Widget** | Official GeoScene Legend component (Expand collapsible), auto heatmap/facility legends |
 |  **Real-time Weather** | Draggable weather widget (Amap API); mobile detail page embeds an inline weather card |
@@ -142,7 +142,7 @@ npm run dev       # http://localhost:5173
 |  **Comment Management** | Admin review panel with filtering, status actions, and batch updates |
 |  **Content Safety** | Sensitive-word check blocks disallowed comments before storage |
 |  **User Auth** | Public user registration and login |
-|  **Mobile App** | Capacitor + Vue 3, auto-detected on native platform; AI assistant, real-time weather, POI facilities, theme, and polished mobile UI |
+|  **Mobile App** | Capacitor + Vue 3, auto-detected on native platform; AI assistant, real-time weather, POI facilities, route planning, spatial analysis, theme, and polished mobile UI |
 
 ---
 
@@ -328,7 +328,7 @@ GET /api/comments/recent        # latest cross-greenway top-level comments (Disc
 GET /api/gaode/search            # Amap POI search (proxy)
 GET /api/gaode/walking           # Amap walking directions (proxy)
 GET /api/gaode/bicycling         # Amap cycling directions (proxy)
-POST /api/osrm/route             # Dijkstra shortest-path routing (walking/cycling, OSM road network)
+POST /api/osrm/route             # vertex-level Dijkstra routing (walking/cycling, OSM road network, street-name steps)
 GET /api/greenways/:id/flyover?maxPoints=45    # 3D flyover waypoints (PostGIS-simplified, exactly 45 equidistant points)
 GET /api/greenways/name/:name/flyover?maxPoints=45  # flyover waypoints by greenway name
 GET /api/greenways/:id/nearby-facilities?radius=1000  # POI facilities within radius (grouped by type)
