@@ -14,10 +14,16 @@
                 :showPathPlanning="showPathPlanning"
                 :showHeatmap="showHeatmap"
                 :showFacilities="showFacilities"
+                :showBeijing="showBeijing"
+                :showGreenways="showGreenways"
+                :showFunctionLayer="showFunctionLayer"
                 :facilityTypeFilters="facilityTypeFilters"
                 @toggle-path-planning="showPathPlanning = !showPathPlanning"
                 @toggle-heatmap="toggleHeatmap($event)"
                 @toggle-facilities="toggleFacilities($event)"
+                @toggle-beijing="toggleBeijing($event)"
+                @toggle-greenways="toggleGreenways($event)"
+                @toggle-function-layer="toggleFunctionLayer($event)"
                 @toggle-facility-type="(code, checked) => toggleFacilityType(code, checked)">
         <template #search>
           <PoiSearchBar @select="onPoiSearchSelect" />
@@ -37,7 +43,87 @@
         @feature-click="onFeatureClick"
         @feature-hover="onFeatureHover"
         @map-click="onMapClick"
+        @zoom-changed="onZoomChanged"
       />
+      <!-- 图层说明卡堆叠容器：各图层开关独立，卡片互不影响 -->
+      <div class="flc-stack">
+        <!-- 绿道功能区划说明卡 -->
+        <div v-if="showFunctionLayer && showFunctionCard" class="function-legend-card">
+          <div class="flc-header">
+            <span class="flc-badge"><i class="fas fa-tree"></i></span>
+            <div class="flc-head-text">
+              <span class="flc-title">绿道功能区划</span>
+              <span class="flc-subtitle">BEIJING GREENWAY</span>
+            </div>
+            <button class="flc-close" title="关闭" @click="showFunctionCard = false">×</button>
+          </div>
+          <div class="flc-body">
+            <p class="flc-desc">六边形色块显示北京各区域绿道的主导类型，帮您快速了解身边的绿道特色</p>
+            <div class="flc-legend">
+              <span class="flc-item"><i class="flc-dot" style="background:#66BB6A"></i>生态绿道</span>
+              <span class="flc-item"><i class="flc-dot" style="background:#4FC3F7"></i>风景绿道</span>
+              <span class="flc-item"><i class="flc-dot" style="background:#D7A97E"></i>历史文化绿道</span>
+              <span class="flc-item"><i class="flc-dot" style="background:#90A4AE"></i>城市绿道</span>
+            </div>
+            <p class="flc-tip">💡 想亲近自然找<span class="flc-hl flc-hl-eco">绿色</span>区域，喜欢人文古迹找<span class="flc-hl flc-hl-his">棕色</span>区域；放大地图可查看更精细的分区</p>
+            <button v-if="!showFunctionMore" class="flc-more" @click="showFunctionMore = true">了解更多 <i class="fas fa-chevron-down"></i></button>
+            <div v-else class="flc-more-detail">
+              <p style="margin:0 0 4px">• 色块颜色代表该区域绿道的主要类型（智能分析全北京绿道环境得出）</p>
+              <p style="margin:0 0 4px">• 区域颜色与地图上的绿道线颜色相互对应，方便辨认</p>
+              <p style="margin:0">• 六边形越小代表查看的越精细，放大后能看到更细的划分</p>
+            </div>
+            <p class="flc-src"><i class="fas fa-database"></i> 数据来源：深度学习智能评价</p>
+          </div>
+        </div>
+
+        <!-- 绿道热度说明卡 -->
+        <div v-if="showHeatmap && showHeatmapCard" class="function-legend-card">
+          <div class="flc-header">
+            <span class="flc-badge flc-badge-hot"><i class="fas fa-fire"></i></span>
+            <div class="flc-head-text">
+              <span class="flc-title">绿道热度</span>
+              <span class="flc-subtitle">POPULARITY</span>
+            </div>
+            <button class="flc-close" title="关闭" @click="showHeatmapCard = false">×</button>
+          </div>
+          <div class="flc-body">
+            <p class="flc-desc">热力色显示北京各绿道的人气程度，帮您发现大家都爱去的绿道</p>
+            <div class="flc-legend flc-legend-heat">
+              <span class="legend-label">低</span>
+              <span class="legend-gradient"></span>
+              <span class="legend-label">高</span>
+            </div>
+            <p class="flc-tip">💡 人气高的绿道（红橙色区域）通常风景好、设施完善，第一次体验绿道可以从热门开始</p>
+            <p class="flc-src"><i class="fas fa-database"></i> 数据来源：平台用户访问热度统计</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 附近设施说明卡（独立定位右下角，避免与左下堆叠卡重叠） -->
+      <div v-if="showFacilities && showFacilitiesCard" class="function-legend-card function-legend-card--poi">
+        <div class="flc-header">
+          <span class="flc-badge flc-badge-poi"><i class="fas fa-map-pin"></i></span>
+          <div class="flc-head-text">
+            <span class="flc-title">附近设施</span>
+            <span class="flc-subtitle">FACILITIES</span>
+          </div>
+          <button class="flc-close" title="关闭" @click="showFacilitiesCard = false">×</button>
+        </div>
+        <div class="flc-body">
+          <p class="flc-desc">显示绿道周边 1 公里内的便民设施，出行更省心</p>
+          <div class="flc-legend">
+            <span class="flc-item"><i class="flc-dot" style="background:#1565C0"></i>🚇 地铁站</span>
+            <span class="flc-item"><i class="flc-dot" style="background:#0277BD"></i>🚌 公交站</span>
+            <span class="flc-item"><i class="flc-dot" style="background:#2E7D32"></i>🅿 停车场</span>
+            <span class="flc-item"><i class="flc-dot" style="background:#4E342E"></i>🚻 卫生间</span>
+            <span class="flc-item"><i class="flc-dot" style="background:#C62828"></i>🏪 便利店</span>
+            <span class="flc-item"><i class="flc-dot" style="background:#6A1B9A"></i>🎬 影剧院</span>
+            <span class="flc-item"><i class="flc-dot" style="background:#E65100"></i>🏛 景点</span>
+          </div>
+          <p class="flc-tip">💡 出门前先看看绿道附近的地铁站和停车场，规划好路线再出发</p>
+          <p class="flc-src"><i class="fas fa-database"></i> 数据来源：平台设施数据库</p>
+        </div>
+      </div>
       <PathPlanning
         v-if="showPathPlanning && mapManager && mapViewer"
         :mapManager="mapManager"
@@ -267,6 +353,7 @@ import GraphicsLayer from '@geoscene/core/layers/GraphicsLayer.js'
 import Graphic from '@geoscene/core/Graphic.js'
 import Point from '@geoscene/core/geometry/Point.js'
 import { buildPoiPopupTemplate, buildClusterPopupTemplate, bindPoiPopupNavigation } from '@/utils/poiPopupTemplate.js'
+import { useGlobalTheme } from '@/utils/useTheme'
 
 const router = useRouter()
 const { isLoggedIn, currentUser } = useUserAuth()
@@ -294,7 +381,7 @@ const mapConfig = reactive({
 })
 
 // 图层配置
-const layerConfig = sessionRef('gw_layerConfig', [
+const layerConfig = sessionRef('gw_layerConfig_v2', [
   {
     id: 'beijing-boundary',
     name: '市界',
@@ -331,7 +418,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     zIndex: 10,
     fitExtent: false,  // 不自动适配，使用我们设置的初始视图
     style: {
-      lineColor: '#4CAF50',
+      lineColor: '#00ACC1',
       lineWidth: 4  // 绿道线条
     },
     info: {
@@ -350,7 +437,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     zIndex: 10,
     fitExtent: false,
     style: {
-      lineColor: '#4CAF50',
+      lineColor: '#F57C00',
       lineWidth: 4
     },
     info: {
@@ -369,7 +456,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     zIndex: 10,
     fitExtent: false,
     style: {
-      lineColor: '#4CAF50',
+      lineColor: '#29B6F6',
       lineWidth: 4
     },
     info: {
@@ -389,7 +476,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#4CAF50',
+      lineColor: '#0277BD',
       lineWidth: 4
     },
     info: {
@@ -409,7 +496,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#4CAF50',
+      lineColor: '#1565C0',
       lineWidth: 4
     },
     info: {
@@ -429,7 +516,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#4CAF50',
+      lineColor: '#1976D2',
       lineWidth: 4
     },
     info: {
@@ -449,7 +536,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#4CAF50',
+      lineColor: '#26A69A',
       lineWidth: 4
     },
     info: {
@@ -469,7 +556,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#4CAF50',
+      lineColor: '#00B8D4',
       lineWidth: 4
     },
     info: {
@@ -489,7 +576,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#4CAF50',
+      lineColor: '#00BCD4',
       lineWidth: 4
     },
     info: {
@@ -509,7 +596,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: false,
     style: {
-      lineColor: '#4CAF50',
+      lineColor: '#E64A19',
       lineWidth: 4
     },
     info: {
@@ -529,7 +616,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#4CAF50',
+      lineColor: '#9C27B0',
       lineWidth: 4
     },
     info: {
@@ -549,7 +636,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#4CAF50',
+      lineColor: '#00897B',
       lineWidth: 4
     },
     info: {
@@ -569,7 +656,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#29B6F6',
+      lineColor: '#3949AB',
       lineWidth: 4
     },
     info: {
@@ -589,7 +676,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#26C6DA',
+      lineColor: '#5C6BC0',
       lineWidth: 4
     },
     info: {
@@ -609,7 +696,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#78C850',
+      lineColor: '#03A9F4',
       lineWidth: 4
     },
     info: {
@@ -629,7 +716,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#42A5F5',
+      lineColor: '#00ACC1',
       lineWidth: 4
     },
     info: {
@@ -649,7 +736,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#7E57C2',
+      lineColor: '#43A047',
       lineWidth: 4
     },
     info: {
@@ -669,7 +756,7 @@ const layerConfig = sessionRef('gw_layerConfig', [
     fitExtent: false,
     defer: true,
     style: {
-      lineColor: '#EF5350',
+      lineColor: '#1E88E5',
       lineWidth: 4
     },
     info: {
@@ -678,8 +765,84 @@ const layerConfig = sessionRef('gw_layerConfig', [
       length: 44.1,
       area: '中心城区'
     }
+  },
+  {
+    id: 'function-grid',
+    name: '绿道功能区划',
+    type: 'geojson',
+    url: '/api/spatial/grid?size=0.02',
+    visible: false,
+    zIndex: 8,
+    interactive: false,
+    style: {
+      uniqueField: 'function_name',
+      valueColorMap: {
+        '历史文化绿道': 'rgba(215,169,126,0.65)',
+        '风景绿道': 'rgba(79,195,247,0.65)',
+        '生态绿道': 'rgba(102,187,106,0.65)',
+        '城市绿道': 'rgba(144,164,174,0.65)'
+      }
+    }
   }
 ])
+
+// 迁移清理：过滤旧版 session 数据里残留的散点/分段图层（仅保留六边形网格）
+if (layerConfig.value.some(l => l.id === 'function-points' || l.id === 'function-segments')) {
+  layerConfig.value = layerConfig.value.filter(l => l.id !== 'function-points' && l.id !== 'function-segments')
+}
+
+/* ── 绿道昼夜配色（随主题切换，避免夜间深蓝底图吞线色；参考 Mapbox/Carto 夜间路线规范：夜间用高亮色） ── */
+const { theme: globalTheme } = useGlobalTheme()
+
+const GREENWAY_DAY_COLORS = {
+  'wenyu-greenway': '#00ACC1',
+  'huanerhuan-greenway': '#F57C00',
+  'liangmahe-greenway': '#29B6F6',
+  'changying-greenway': '#0277BD',
+  'changping42-greenway': '#1565C0',
+  'lidu-greenway': '#1976D2',
+  'beiyunhe-greenway': '#26A69A',
+  'nansha-greenway': '#00B8D4',
+  'aosen-greenway': '#00BCD4',
+  'yingcheng-greenway': '#E64A19',
+  'sanshan-greenway': '#9C27B0',
+  'chaoyang-greenway': '#00897B',
+  'beiyi-greenway': '#3949AB',
+  'dongyi-greenway': '#5C6BC0',
+  'jiaoye-greenway': '#03A9F4',
+  'xiyi-greenway': '#43A047',
+  'zhongxincheng-greenway': '#1E88E5'
+}
+
+const GREENWAY_NIGHT_COLORS = {
+  'wenyu-greenway': '#80DEEA',
+  'huanerhuan-greenway': '#FFB74D',
+  'liangmahe-greenway': '#81D4FA',
+  'changying-greenway': '#42A5F5',
+  'changping42-greenway': '#64B5F6',
+  'lidu-greenway': '#90CAF9',
+  'beiyunhe-greenway': '#80CBC4',
+  'nansha-greenway': '#4DD0E1',
+  'aosen-greenway': '#26C6DA',
+  'yingcheng-greenway': '#FF8A65',
+  'sanshan-greenway': '#CE93D8',
+  'chaoyang-greenway': '#4DB6AC',
+  'beiyi-greenway': '#7986CB',
+  'dongyi-greenway': '#9FA8DA',
+  'jiaoye-greenway': '#29B6F6',
+  'xiyi-greenway': '#81C784',
+  'zhongxincheng-greenway': '#82B1FF'
+}
+
+// 主题切换时更新绿道线颜色（白天深色/夜间亮色）
+watch(globalTheme, (t) => {
+  const palette = t === 'night' ? GREENWAY_NIGHT_COLORS : GREENWAY_DAY_COLORS
+  layerConfig.value.forEach((layer) => {
+    if (palette[layer.id] && layer.style) {
+      layer.style.lineColor = palette[layer.id]
+    }
+  })
+}, { immediate: true })
 
 const layerInfoCache = new Map()
 const interactiveLayerIds = new Set()
@@ -808,6 +971,13 @@ const stopDrag = () => {
 // 热力图状态
 const showHeatmap = sessionRef('gw_showHeatmap', false)
 const showFacilities = sessionRef('gw_showFacilities', false)
+const showBeijing = sessionRef('gw_showBeijing', true)
+const showGreenways = sessionRef('gw_showGreenways', true)
+const showFunctionLayer = sessionRef('gw_showFunctionLayer', false)
+const showFunctionCard = ref(true)  // 说明卡独立开关：关闭卡片不影响图层
+const showFunctionMore = ref(false)
+const showHeatmapCard = ref(true)
+const showFacilitiesCard = ref(true)
 
 // POI 搜索选中处理
 function onPoiSearchSelect(poi) {
@@ -900,6 +1070,9 @@ const onMapReady = (map) => {
     if (showHeatmap.value) {
       console.log('[GreenwayOverview] 恢复热度图层')
       toggleHeatmap(true)
+    }
+    if (showFunctionLayer.value) {
+      toggleFunctionLayer(true)
     }
   }, 800)
 }
@@ -1137,6 +1310,7 @@ const toggleLayer = (layerId, visible) => {
 // 热力图开关
 const toggleHeatmap = async (visible) => {
   showHeatmap.value = visible
+  if (visible) showHeatmapCard.value = true  // 开启图层时说明卡重新出现
 
   if (!mapManager.value) return
 
@@ -1213,6 +1387,7 @@ const toggleHeatmap = async (visible) => {
 
 const toggleFacilities = async (visible) => {
   showFacilities.value = visible
+  if (visible) showFacilitiesCard.value = true  // 开启图层时说明卡重新出现
 
   if (!mapManager.value) return
 
@@ -1223,7 +1398,6 @@ const toggleFacilities = async (visible) => {
         existing.visible = true
         return
       }
-
       const resp = await fetch(`/api/facilities/geojson`)
       const geojson = await resp.json()
       if (!geojson.features || geojson.features.length === 0) {
@@ -1299,6 +1473,59 @@ const toggleFacilities = async (visible) => {
     if (layer) {
       layer.visible = false
     }
+  }
+}
+
+// 北京市界/市域聚合开关
+const toggleBeijing = (visible) => {
+  showBeijing.value = visible
+  layerConfig.value.forEach((layer) => {
+    if (layer.id === 'beijing-boundary' || layer.id === 'beijing-area') {
+      layer.visible = visible
+    }
+  })
+}
+
+// 全部绿道聚合开关（控制图上所有绿道线）
+const toggleGreenways = (visible) => {
+  showGreenways.value = visible
+  layerConfig.value.forEach((layer) => {
+    if (layer.id.endsWith('-greenway')) {
+      layer.visible = visible
+    }
+  })
+}
+
+// 功能分区图层开关（深度学习评价节点，按功能类型着色）
+const toggleFunctionLayer = (visible) => {
+  showFunctionLayer.value = visible
+  const layer = layerConfig.value.find(l => l.id === 'function-grid')
+  if (layer) layer.visible = visible
+  if (visible) {
+    applyFunctionGridSize()
+    showFunctionCard.value = true  // 开启图层时说明卡重新出现
+  }
+}
+
+// 地图缩放变化（MapViewer 事件）——功能分区开启时联动六边形网格大小
+const onZoomChanged = () => {
+  if (showFunctionLayer.value) applyFunctionGridSize()
+}
+
+// 功能分区六边形网格缩放联动（低缩放大格/高缩放细格）
+const FUNCTION_GRID_SIZES = [
+  { maxZoom: 9, size: 0.04 },
+  { maxZoom: 11, size: 0.02 },
+  { maxZoom: 99, size: 0.01 }
+]
+const applyFunctionGridSize = () => {
+  const zoom = mapManager.value?.getView?.()?.zoom
+  if (zoom == null) return
+  const s = FUNCTION_GRID_SIZES.find(x => zoom < x.maxZoom)?.size || 0.01
+  const layer = layerConfig.value.find(l => l.id === 'function-grid')
+  const url = `/api/spatial/grid?size=${s}`
+  if (layer && layer.url !== url) {
+    layer.url = url
   }
 }
 
@@ -1686,6 +1913,268 @@ onBeforeUnmount(() => {
   width: 100%;
   height: calc(100vh - 64px);
   overflow: hidden;
+}
+
+/* ===== 图层说明卡堆叠容器（左下角，多卡竖排互不影响） ===== */
+.flc-stack {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 10px;
+  max-width: 276px;
+  pointer-events: none;
+}
+.flc-stack .function-legend-card { pointer-events: auto; }
+
+/* 附近设施卡：位于功能区划卡正右侧（并排，底部对齐，互不遮挡） */
+.function-legend-card--poi {
+  position: absolute;
+  left: 302px;  /* 16(左距) + 276(功能区划卡宽) + 10(间距) */
+  bottom: 16px;
+  z-index: 20;
+  pointer-events: auto;
+}
+
+/* ===== 绿道功能区划说明卡（玻璃拟态 + 绿道主题渐变 + 微光效） ===== */
+.function-legend-card {
+  width: 276px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: linear-gradient(150deg, rgba(255,255,255,0.92), rgba(235,248,235,0.88));
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(46,125,50,0.22);
+  box-shadow:
+    0 10px 34px rgba(46,125,50,0.16),
+    0 2px 8px rgba(0,0,0,0.06),
+    inset 0 0 0 1px rgba(255,255,255,0.5);
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: box-shadow 0.3s;
+}
+.function-legend-card:hover {
+  box-shadow:
+    0 12px 40px rgba(46,125,50,0.24),
+    0 2px 8px rgba(0,0,0,0.06),
+    inset 0 0 0 1px rgba(255,255,255,0.5);
+}
+/* 顶部绿色渐变头部（替代原顶部流动线条） */
+.flc-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 4px;
+  background: linear-gradient(135deg, rgba(46,125,50,0.1), rgba(102,187,106,0.03));
+}
+/* 图标徽章 */
+.flc-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.95rem;
+  background: linear-gradient(135deg, #2E7D32, #66BB6A);
+  box-shadow: 0 4px 10px rgba(46,125,50,0.35);
+  flex: 0 0 auto;
+}
+.flc-badge-hot {
+  background: linear-gradient(135deg, #E64A19, #FF9800);
+  box-shadow: 0 4px 10px rgba(230,74,25,0.35);
+}
+.flc-badge-poi {
+  background: linear-gradient(135deg, #1565C0, #4FC3F7);
+  box-shadow: 0 4px 10px rgba(21,101,192,0.35);
+}
+.flc-head-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.flc-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary, #1a2a1a);
+  letter-spacing: 0.3px;
+}
+.flc-subtitle {
+  font-size: 0.6rem;
+  letter-spacing: 1.6px;
+  color: var(--text-tertiary, #9aa8a0);
+  font-weight: 600;
+}
+.flc-close {
+  border: none;
+  background: rgba(0,0,0,0.05);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 0.95rem;
+  color: var(--text-tertiary, #999);
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex: 0 0 auto;
+}
+.flc-close:hover {
+  background: rgba(46,125,50,0.12);
+  color: #2E7D32;
+  transform: rotate(90deg);
+}
+.flc-body {
+  padding: 6px 14px 13px;
+}
+.flc-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #555);
+  margin: 4px 0 9px;
+  line-height: 1.55;
+}
+.flc-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-bottom: 9px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(46,125,50,0.05);
+  border: 1px solid rgba(46,125,50,0.1);
+}
+.flc-legend-heat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+.flc-legend-heat .legend-gradient {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(to right, #00c800, #ffff00, #ff8c00, #ff0000);
+}
+.flc-legend-heat .legend-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary, #888);
+}
+.flc-item {
+  font-size: 0.75rem;
+  color: var(--text-primary, #444);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+}
+.flc-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  box-shadow: 0 0 6px currentColor;
+}
+.flc-tip {
+  font-size: 0.74rem;
+  color: var(--text-secondary, #666);
+  margin: 0 0 7px;
+  line-height: 1.6;
+}
+.flc-hl { font-weight: 700; }
+.flc-hl-eco { color: #2E7D32; }
+.flc-hl-his { color: #8D6E63; }
+.flc-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 7px;
+  padding: 5px 12px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #2E7D32, #43A047);
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(46,125,50,0.3);
+  transition: all 0.2s;
+}
+.flc-more:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(46,125,50,0.4);
+}
+.flc-more-detail {
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(46,125,50,0.05);
+  border: 1px dashed rgba(46,125,50,0.25);
+  font-size: 0.72rem;
+  color: var(--text-secondary, #666);
+  line-height: 1.65;
+}
+.flc-src {
+  font-size: 0.66rem;
+  color: var(--text-tertiary, #aaa);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ===== 夜间模式：霓虹绿发光 ===== */
+[data-theme="night"] .function-legend-card {
+  background: linear-gradient(150deg, rgba(22,36,22,0.94), rgba(12,24,12,0.92));
+  border-color: rgba(76,175,80,0.35);
+  box-shadow:
+    0 0 26px rgba(76,175,80,0.22),
+    0 10px 34px rgba(0,0,0,0.5),
+    inset 0 0 0 1px rgba(129,199,132,0.12);
+}
+[data-theme="night"] .function-legend-card:hover {
+  box-shadow:
+    0 0 36px rgba(76,175,80,0.32),
+    0 12px 40px rgba(0,0,0,0.5),
+    inset 0 0 0 1px rgba(129,199,132,0.12);
+}
+[data-theme="night"] .flc-header {
+  background: linear-gradient(135deg, rgba(76,175,80,0.12), rgba(76,175,80,0.03));
+}
+[data-theme="night"] .flc-badge {
+  background: linear-gradient(135deg, #1B5E20, #4CAF50);
+  box-shadow: 0 0 14px rgba(76,175,80,0.5);
+}
+[data-theme="night"] .flc-badge-hot {
+  background: linear-gradient(135deg, #BF360C, #FF9800);
+  box-shadow: 0 0 14px rgba(255,152,0,0.5);
+}
+[data-theme="night"] .flc-badge-poi {
+  background: linear-gradient(135deg, #0D47A1, #4FC3F7);
+  box-shadow: 0 0 14px rgba(79,195,247,0.5);
+}
+[data-theme="night"] .flc-close {
+  background: rgba(255,255,255,0.06);
+}
+[data-theme="night"] .flc-close:hover {
+  background: rgba(76,175,80,0.2);
+  color: #81C784;
+}
+[data-theme="night"] .flc-legend,
+[data-theme="night"] .flc-more-detail {
+  background: rgba(76,175,80,0.07);
+  border-color: rgba(76,175,80,0.2);
+}
+[data-theme="night"] .flc-hl-eco { color: #81C784; }
+[data-theme="night"] .flc-hl-his { color: #D7A97E; }
+[data-theme="night"] .flc-more {
+  background: linear-gradient(135deg, #1B5E20, #43A047);
+  box-shadow: 0 0 12px rgba(76,175,80,0.35);
 }
 
 /* 弹窗样式 */

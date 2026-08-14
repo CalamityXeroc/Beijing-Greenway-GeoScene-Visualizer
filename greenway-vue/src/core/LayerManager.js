@@ -90,7 +90,49 @@ class LayerManager {
   }
 
   createStyleFunction(config = {}, data) {
+    // 按属性分类着色（如功能分区图层）
+    if (config.uniqueField && config.valueColorMap) {
+      return this._createUniqueValueRenderer(config, this._detectGeometryType(config, data))
+    }
     return this._createSimpleRenderer(config, this._detectGeometryType(config, data))
+  }
+
+  /** 按属性字段分类着色（unique-value renderer，支持点/线/面） */
+  _createUniqueValueRenderer(config = {}, geometryType = 'polyline') {
+    const makeSymbol = (color) => {
+      if (geometryType === 'point') {
+        return {
+          type: 'simple-marker',
+          color,
+          size: Math.max((config.pointRadius || 4) * 2, 5),
+          outline: { color: config.pointOutlineColor || '#ffffff', width: config.pointOutlineWidth ?? 1 }
+        }
+      }
+      if (geometryType === 'polygon') {
+        return {
+          type: 'simple-fill',
+          color,
+          outline: { color: '#ffffff', width: 1 }
+        }
+      }
+      return {
+        type: 'simple-line',
+        color,
+        width: config.lineWidth || 3,
+        cap: 'round',
+        join: 'round'
+      }
+    }
+    const uniqueValueInfos = Object.entries(config.valueColorMap || {}).map(([value, color]) => ({
+      value,
+      symbol: makeSymbol(color)
+    }))
+    return {
+      type: 'unique-value',
+      field: config.uniqueField,
+      uniqueValueInfos,
+      defaultSymbol: makeSymbol('#9E9E9E')
+    }
   }
 
   createVectorLayerFromGeoJSON(options = {}) {

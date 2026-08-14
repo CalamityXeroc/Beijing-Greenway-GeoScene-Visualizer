@@ -69,18 +69,135 @@ router.post('/analyze', async (req, res) => {
       greenway_name: r.greenway_name || ''
     }));
 
+    // 区域内功能分区统计（深度学习评价节点）
+    const fnRes = await req.pool.query(`
+      SELECT fn.function_name AS name, COUNT(*) AS cnt
+      FROM greenway_function_nodes fn
+      WHERE ST_Intersects(fn.geom, ST_SetSRID(ST_GeomFromGeoJSON($1), 4326))
+        AND fn.function_name <> '未确定'
+      GROUP BY fn.function_name
+      ORDER BY cnt DESC
+    `, [polygonGeoJSON]);
+    const functions = fnRes.rows.map(r => ({ name: r.name, count: parseInt(r.cnt) }));
+    const fnTotal = functions.reduce((s, i) => s + i.count, 0);
+
     res.json({
       code: 0,
       data: {
         greenways,
         pois,
-        summary: { greenwayCount: greenways.length, poiCount: pois.length }
+        functions,
+        summary: {
+          greenwayCount: greenways.length,
+          poiCount: pois.length,
+          functionCount: fnTotal,
+          functionBreakdown: functions.map(i => ({
+            ...i,
+            pct: fnTotal ? Math.round(i.count / fnTotal * 100) : 0
+          }))
+        }
       }
     });
   } catch (err) {
     console.error('[spatial/analyze]', err.message);
-    res.status(500).json({ code: 1, message: '服务器错误', data: { greenways: [], pois: [], summary: {} } });
+    res.status(500).json({ code: 1, message: '服务器错误', data: { greenways: [], pois: [], functions: [], summary: {} } });
   }
 });
 
-export default router;
+// 功能分区点图层：全北京深度学习评价节点（按功能类型抽样，供地图叠加）
+router.get('/points', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 600, 3000)
+    const result = await req.pool.query(`
+      SELECT node_id, ST_X(geom) AS lng, ST_Y(geom) AS lat,
+             function_name, function_type, manual_confidence AS confidence
+      FROM (
+        SELECT *, row_number() OVER (PARTITION BY function_name ORDER BY random()) AS rn
+        FROM greenway_function_nodes
+        WHERE function_name <> '未确定'
+      ) t
+      WHERE t.rn <= $1
+    `, [limit])
+
+    const features = result.rows.map(r => ({
+      type: 'Feature',
+      properties: {
+        node_id: r.node_id,
+        function_name: r.function_name,
+        function_type: r.function_type,
+        confidence: r.confidence
+      },
+      geometry: { type: 'Point', coordinates: [parseFloat(r.lng), parseFloat(r.lat)] }
+    }))
+
+    res.json({ type: 'FeatureCollection', features })
+  } catch (err) {
+    console.error('[function/points]', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// 六边形网格预聚合结果缓存（数据静态，接口查预聚合表毫秒级）
+const gridCache = new Map()
+const GRID_CACHE_TTL = 10 * 60 * 1000
+
+// 功能分区六边形网格图层：查预聚合表（greenway_function_grid），秒级返回
+router.get('/grid', async (req, res) => {
+  try {
+    const size = Math.min(Math.max(parseFloat(req.query.size) || 0.02, 0.005), 0.1)
+    const key = `g${size}`
+
+    const hit = gridCache.get(key)
+    if (hit && Date.now() - hit.time < GRID_CACHE_TTL) {
+      return res.json(hit.data)
+    }
+
+    const result = await req.pool.query(`
+      SELECT function_name, cnt, total, ST_AsGeoJSON(geom, 6)::json AS geometry
+      FROM greenway_function_grid
+      WHERE size = $1
+    `, [size])
+
+    const features = result.rows.map(r => ({
+      type: 'Feature',
+      properties: {
+        function_name: r.function_name,
+        count: parseInt(r.cnt),
+        total: parseInt(r.total)
+      },
+      geometry: r.geometry
+    }))
+    const data = { type: 'FeatureCollection', features }
+    gridCache.set(key, { data, time: Date.now() })
+    res.json(data)
+  } catch (err) {
+    console.error('[function/grid]', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+export default router
+
+// 预热六边形网格缓存（3 档），供启动时调用，避免用户首次请求等待远程传输
+export async function warmGridCache(pool) {
+  for (const size of [0.04, 0.02, 0.01]) {
+    const key = `g${size}`
+    if (gridCache.has(key)) continue
+    const result = await pool.query(`
+      SELECT function_name, cnt, total, ST_AsGeoJSON(geom, 6)::json AS geometry
+      FROM greenway_function_grid
+      WHERE size = $1
+    `, [size])
+    const features = result.rows.map(r => ({
+      type: 'Feature',
+      properties: {
+        function_name: r.function_name,
+        count: parseInt(r.cnt),
+        total: parseInt(r.total)
+      },
+      geometry: r.geometry
+    }))
+    gridCache.set(key, { data: { type: 'FeatureCollection', features }, time: Date.now() })
+    console.log(`[预热] 功能区划网格 size=${size} 已缓存 (${features.length} 格)`)
+  }
+};

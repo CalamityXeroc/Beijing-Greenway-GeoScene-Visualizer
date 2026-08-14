@@ -10,6 +10,39 @@ import { selectPrompt } from '../prompts/system-prompt.js'
 
 const router = express.Router()
 
+/* ──────────────────────────── 绿道功能画像缓存（供 AI 上下文） ──────────────────────────── */
+let functionOverviewCache = null
+let functionOverviewTime = 0
+const FUNCTION_OVERVIEW_TTL = 10 * 60 * 1000  // 10 分钟
+
+/**
+ * 汇总 17 条绿道的功能画像摘要（深度学习评价节点，1km 缓冲区统计），带缓存
+ */
+async function getFunctionProfileOverview(pool) {
+  if (functionOverviewCache && Date.now() - functionOverviewTime < FUNCTION_OVERVIEW_TTL) {
+    return functionOverviewCache
+  }
+  const { rows } = await pool.query(`
+    SELECT greenway_name, eco, scenic, history, urban, total
+    FROM greenway_function_profile WHERE total > 0 ORDER BY total DESC
+  `)
+  const lines = rows.map(r => {
+    const items = [
+      { name: '生态绿道', cnt: r.eco },
+      { name: '风景绿道', cnt: r.scenic },
+      { name: '历史文化绿道', cnt: r.history },
+      { name: '城市绿道', cnt: r.urban }
+    ].filter(i => i.cnt > 0).sort((a, b) => b.cnt - a.cnt)
+    const summary = items.slice(0, 3)
+      .map(i => `${i.name}${Math.round(i.cnt / r.total * 100)}%`)
+      .join('、')
+    return `${r.greenway_name}：${summary}`
+  })
+  functionOverviewCache = lines.join('\n')
+  functionOverviewTime = Date.now()
+  return functionOverviewCache
+}
+
 /* ──────────────────────────── 对话历史存储 ──────────────────────────── */
 // Map<conversationId, Message[]>
 // 每个 Message: { role: 'user'|'assistant', content: string }
@@ -98,7 +131,19 @@ router.post('/chat', async (req, res) => {
     : 'default'
 
   // 根据本条消息内容选择 System Prompt
-  const systemPrompt = selectPrompt(msgText)
+  let systemPrompt = selectPrompt(msgText)
+
+  // 注入绿道功能画像（深度学习评价），让 AI 能回答“哪条绿道生态最好”等
+  if (req.pool) {
+    try {
+      const overview = await getFunctionProfileOverview(req.pool)
+      if (overview) {
+        systemPrompt += '\n\n【绿道功能画像】（深度学习评价，1km 缓冲区统计，可用于对比绿道功能特色）\n' + overview
+      }
+    } catch (e) {
+      console.warn('[AI] 功能画像注入失败:', e.message)
+    }
+  }
 
   // 获取历史
   const history = getHistory(cid)

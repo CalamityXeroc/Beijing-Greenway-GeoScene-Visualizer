@@ -213,6 +213,37 @@
         </button>
         <div class="dropdown dropdown--wide" v-show="openMenuId === 'layers'">
           <div class="dropdown-section">图层控制</div>
+          <div class="dd-layer-item">
+            <label class="layer-check">
+              <input type="checkbox" :checked="showBeijing"
+                     @change="emit('toggle-beijing', $event.target.checked)"/>
+              <span class="checkmark"/>
+              <span>北京市</span>
+            </label>
+          </div>
+          <div class="dd-layer-item">
+            <label class="layer-check">
+              <input type="checkbox" :checked="showGreenways"
+                     @change="emit('toggle-greenways', $event.target.checked)"/>
+              <span class="checkmark"/>
+              <span>绿道（全部 {{ GREENWAY_IDS.length }} 条）</span>
+            </label>
+          </div>
+          <div class="dd-layer-item">
+            <label class="layer-check">
+              <input type="checkbox" :checked="showFunctionLayer"
+                     @change="emit('toggle-function-layer', $event.target.checked)"/>
+              <span class="checkmark"/>
+              <span>绿道功能区划</span>
+            </label>
+          </div>
+          <div v-if="showFunctionLayer" class="dd-layer-legend">
+            <span class="legend-dot" style="background:#66BB6A"/>生态
+            <span class="legend-dot" style="background:#4FC3F7"/>风景
+            <span class="legend-dot" style="background:#D7A97E"/>历史文化
+            <span class="legend-dot" style="background:#90A4AE"/>城市
+          </div>
+          <div class="dd-layer-sub">看看您家附近适合什么类型的绿道</div>
           <div v-for="layer in filteredLayerConfig" :key="layer.id"
                class="dd-layer-item">
             <label class="layer-check">
@@ -222,7 +253,7 @@
               <span>{{ layer.name }}</span>
             </label>
           </div>
-          <div v-if="!filteredLayerConfig.length" class="dd-empty">暂无图层</div>
+          <div v-if="!filteredLayerConfig.length" class="dd-empty" style="display:none">暂无图层</div>
           <div class="dd-divider"/>
           <div class="dropdown-section">专题图层</div>
           <div class="dd-layer-item">
@@ -243,7 +274,7 @@
               <input type="checkbox" :checked="showFacilities"
                      @change="emit('toggle-facilities', $event.target.checked)"/>
               <span class="checkmark"/>
-              <span :style="{ fontWeight: '600' }">附近设施</span>
+              <span>附近设施</span>
             </label>
           </div>
           <template v-if="showFacilities">
@@ -506,10 +537,13 @@ const props = defineProps({
   showPathPlanning: { type: Boolean, default: false },
   showHeatmap: { type: Boolean, default: false },
   showFacilities: { type: Boolean, default: false },
+  showBeijing: { type: Boolean, default: true },
+  showGreenways: { type: Boolean, default: true },
+  showFunctionLayer: { type: Boolean, default: false },
   facilityTypeFilters: { type: Object, default: () => ({}) }
 })
 
-const emit = defineEmits(['toggle-path-planning', 'toggle-heatmap', 'toggle-facilities', 'toggle-facility-type'])
+const emit = defineEmits(['toggle-path-planning', 'toggle-heatmap', 'toggle-facilities', 'toggle-beijing', 'toggle-greenways', 'toggle-function-layer', 'toggle-facility-type'])
 
 const facilitySubTypes = {
   '150500': '地铁站', '150700': '公交站', '150900': '停车场',
@@ -530,10 +564,15 @@ const GREENWAY_IDS = [
   'wenyu-greenway', 'huanerhuan-greenway', 'liangmahe-greenway',
   'changying-greenway', 'changping42-greenway', 'lidu-greenway',
   'beiyunhe-greenway', 'nansha-greenway', 'aosen-greenway',
-  'yingcheng-greenway', 'sanshan-greenway', 'chaoyang-greenway'
+  'yingcheng-greenway', 'sanshan-greenway', 'chaoyang-greenway',
+  'beiyi-greenway', 'dongyi-greenway', 'jiaoye-greenway',
+  'xiyi-greenway', 'zhongxincheng-greenway'
 ]
+// 市界/市域由“北京市”聚合开关控制，功能相关图层由专题开关控制，均不单独列出
+const BEIJING_IDS = ['beijing-boundary', 'beijing-area']
+const FEATURE_IDS = ['function-grid', 'function-points']
 const filteredLayerConfig = computed(() =>
-  props.layerConfig.filter(l => !GREENWAY_IDS.includes(l.id))
+  props.layerConfig.filter(l => !GREENWAY_IDS.includes(l.id) && !BEIJING_IDS.includes(l.id) && !FEATURE_IDS.includes(l.id))
 )
 
 const userAuth = useUserAuth()
@@ -638,6 +677,7 @@ function handleLogout() {
 [data-theme="night"] .top-navbar .dd-btn      { color: #81C784; }
 [data-theme="night"] .top-navbar .dd-btn:hover{ background: rgba(76,175,80,.12); }
 [data-theme="night"] .top-navbar .dropdown-section { color: #4CAF50; }
+[data-theme="night"] .top-navbar .layer-check { color: #81C784; }
 [data-theme="night"] .top-navbar .user-btn    { color: #81C784; border-color: rgba(76,175,80,.3); }
 
 /* === Brand === */
@@ -906,6 +946,26 @@ function handleLogout() {
 .legend-label {
   font-size: 0.7rem;
   color: #9ca3af;
+}
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin: 0 3px 0 8px;
+  vertical-align: middle;
+}
+.dd-layer-legend {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  padding: 0.1rem 0 0.4rem 1.2rem;
+  line-height: 1.6;
+}
+.dd-layer-sub {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  padding: 0.1rem 0 0.2rem 1.2rem;
+  line-height: 1.5;
 }
 .legend-gradient {
   display: inline-block;

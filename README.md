@@ -65,6 +65,11 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  **POI Facility Clustering**: Facilities auto-aggregate into numeric bubbles at zoom 11–13, dispersing into individual points when zoomed in. Clicking a cluster opens a popup listing the real POI names within the aggregation area. Clustering strictly follows layer type filtering (`definitionExpression`) so only user-selected facility types are aggregated.
 -  **Unified GeoScene Popup**: All facility interaction UI migrated to native GeoScene popups (popupTemplate + content function) supporting facility icons, type, address, distance display and a one-click "View Greenway Detail" jump button. Both single-point and cluster popups fully support day/night themes.
 -  **Spatial Analysis Toolkit**: Draw a polygon on the map to run a backend PostGIS `ST_Intersects` spatial query, returning greenways and facilities within the area — highlighted on the map with a result list panel (including area, perimeter, and facility density analysis). Multiple analysis polygons supported; clicking a polygon again restores its results.
+-  **Greenway Function Zoning (绿道功能区划)**: ~30k deep-learning classified nodes (eco / scenic / historical / urban) are aggregated into a hexagonal-grid zoning map (`ST_HexagonGrid` + majority vote per cell), so citizens can see at a glance which type each Beijing area's greenways lean toward. Grid size auto-adjusts with zoom (0.04° / 0.02° / 0.01°), pre-aggregated into `greenway_function_grid` + boot-time warm-up cache for instant zoom switching.
+-  **Greenway Function Profile (绿道功能画像)**: Each greenway detail page shows a functional profile card (eco / scenic / historical / urban shares computed in a 1 km buffer via pre-aggregated `greenway_function_profile`), letting users quickly understand a greenway's character; the AI assistant also receives this profile data to recommend greenways (e.g. "best eco greenway").
+-  **Greenway Color Coding (绿道按类配色)**: Greenways are colored by their dominant functional category, with dedicated day/night palettes — colors auto-switch with the theme so lines stay visible on both the light daytime basemap and the dark night (inverted) basemap.
+-  **Layer Legend Cards (图层说明卡)**: Turning on the Function Zoning / Heatmap / Facilities layers shows citizen-oriented explainer cards (glassmorphism, gradient accents) at the map corner — explaining what the layer means, the legend, and usage tips (e.g. "green = close to nature, brown = historic sites"); cards are independently closable without affecting the layer.
+-  **Layer Management Consolidation**: The layer menu now groups "北京市" (boundary + area) and "绿道（全部 17 条）" as single aggregate switches controlling all respective layers at once.
 -  **User Favorites + Personal Center**: Favorite greenways (backend `user_favorites` table + favorite button), desktop favorites page, mobile favorites page, and personal-center stats (favorites count, ride records, total distance, comment count) all wired to real data.
 -  **Layer Legend Widget**: Integrated official GeoScene Legend component (Expand collapsible panel) that automatically shows heatmap gradients and facility legends.
 -  **Mobile POI Facilities**: Mobile map (OpenLayers) overlays 7 facility categories with SVG icons, zoom-linked visibility (facilities appear when zoomed to city/greenway level), per-type filter chips, tap-to-open bottom sheet with details + greenway jump, and a dedicated facility search page with type shortcuts and keyword search.
@@ -130,6 +135,10 @@ npm run dev       # http://localhost:5173
 |  **POI Clustering** | Zoom 11–13 aggregates facilities into bubbles, dispersing at higher zoom; cluster popup lists real POI names, follows type filtering |
 |  **Unified Popup** | Single/aggregate unified GeoScene popup: facility detail + greenway jump button, day/night themes |
 |  **Spatial Analysis** | Draw polygon → PostGIS spatial query → greenway/facility highlight + result panel (area/perimeter/density); mobile map draw-toolbar |
+|  **Function Zoning** | Hexagonal-grid zoning map of Beijing's greenway dominant types (deep-learning classified, 30k nodes), zoom-linked grid granularity, translucent color blocks |
+|  **Function Profile** | Each greenway detail page shows its functional profile (eco / scenic / historical / urban shares) from deep-learning evaluation |
+|  **Greenway Color Coding** | Greenways colored by dominant functional category; day/night dual palettes auto-switch to stay visible on both basemaps |
+|  **Layer Legend Cards** | Citizen-oriented explainer cards for Function Zoning / Heatmap / Facilities layers (what it means + how to use), independently closable |
 |  **User Favorites** | Favorite greenways (backend persisted), desktop + mobile favorites pages, personal-center real stats |
 |  **Legend Widget** | Official GeoScene Legend component (Expand collapsible), auto heatmap/facility legends |
 |  **Real-time Weather** | Draggable weather widget (Amap API); mobile detail page embeds an inline weather card |
@@ -339,6 +348,9 @@ GET /api/facilities/geojson                           # all POI facilities GeoJS
 GET /api/poi/search?q=keyword                         # keyword search across POI names & addresses
 GET /api/poi-types                                    # POI category definitions (code, name, icon, color)
 POST /api/spatial/analyze                            # spatial analysis: draw polygon, query greenways/facilities in area (ST_Intersects)
+GET  /api/spatial/points?limit=600                  # sampled deep-learning nodes by function type (scatter layer)
+GET  /api/spatial/grid?size=0.02                    # hexagon-grid zoning GeoJSON (pre-aggregated, boot-warmed cache)
+GET  /api/greenways/name/:name/function-profile     # greenway functional profile (eco/scenic/historical/urban shares, 1km buffer)
 GET  /api/favorites/ids                              # current user's favorited greenway IDs (button state)
 GET  /api/favorites                                  # favorites list (JOIN greenway display fields)
 POST /api/favorites                                  # add favorite { greenway_id | greenway_name }

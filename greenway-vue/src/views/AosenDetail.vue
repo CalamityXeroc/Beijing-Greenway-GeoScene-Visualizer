@@ -117,6 +117,8 @@
 
           </div>
 
+          <GreenwayFunctionProfile :greenway-name="GREENWAY_NAME" />
+
         </div>
 
         
@@ -249,6 +251,7 @@ import FavoriteButton from '@/components/FavoriteButton.vue'
 const favGreenwayId = ref(null)
 
 import { useDetailPoi } from '@/composables/useDetailPoi.js'
+import GreenwayFunctionProfile from '@/components/GreenwayFunctionProfile.vue'
 
 
 

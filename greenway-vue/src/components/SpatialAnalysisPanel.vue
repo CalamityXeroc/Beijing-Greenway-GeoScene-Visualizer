@@ -33,6 +33,15 @@
       </span>
     </div>
 
+    <div v-if="result.summary?.functionBreakdown?.length" class="sp-functions">
+      <h4 class="sp-sec-title"><i class="fas fa-brain"></i> 功能分区 <span class="sp-fn-sub">深度学习评价 · {{ result.summary.functionCount }} 节点</span></h4>
+      <div v-for="fn in result.summary.functionBreakdown" :key="fn.name" class="sp-fn-row">
+        <span class="sp-fn-name"><i :class="fnIcon(fn.name)" :style="{ color: fnColor(fn.name) }"></i>{{ fn.name }}</span>
+        <div class="sp-fn-track"><div class="sp-fn-fill" :style="{ width: fn.pct + '%', background: fnColor(fn.name) }"></div></div>
+        <span class="sp-fn-pct">{{ fn.pct }}%</span>
+      </div>
+    </div>
+
     <div class="sp-body">
       <div v-if="greenways.length" class="sp-section">
         <h4 class="sp-sec-title">命中的绿道</h4>
@@ -71,6 +80,16 @@ const POI_COLORS = {
   '110100': '#E65100', '110200': '#E65100'
 }
 function poiColor(code) { return POI_COLORS[code] || '#666' }
+
+// 功能分区类型样式
+const FN_META = {
+  '历史文化绿道': { color: '#A0522D', icon: 'fas fa-landmark' },
+  '风景绿道':     { color: '#2196F3', icon: 'fas fa-mountain-sun' },
+  '生态绿道':     { color: '#2E7D32', icon: 'fas fa-leaf' },
+  '城市绿道':     { color: '#607D8B', icon: 'fas fa-city' }
+}
+function fnColor(name) { return FN_META[name]?.color || '#9E9E9E' }
+function fnIcon(name) { return FN_META[name]?.icon || 'fas fa-circle' }
 
 const greenways = props.result?.greenways || []
 const pois = props.result?.pois || []
@@ -132,6 +151,19 @@ const poiDensity = (() => {
 .sp-analysis { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }
 .sp-an-item { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: #374151; background: #f3f4f6; border-radius: 6px; padding: 4px 8px; }
 .sp-an-item i { color: #2E7D32; }
+
+.sp-functions { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }
+.sp-fn-sub { font-size: 0.72rem; font-weight: 400; color: #9ca3af; margin-left: 4px; }
+.sp-fn-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+.sp-fn-name { width: 84px; font-size: 0.78rem; color: #374151; display: inline-flex; align-items: center; gap: 5px; }
+.sp-fn-track { flex: 1; height: 7px; border-radius: 4px; background: #f0f0f0; overflow: hidden; }
+.sp-fn-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.sp-fn-pct { width: 38px; text-align: right; font-size: 0.78rem; color: #6b7280; font-weight: 600; }
+
+[data-theme="night"] .sp-functions { border-color: #2a2a2a; }
+[data-theme="night"] .sp-fn-name { color: #d1d5db; }
+[data-theme="night"] .sp-fn-track { background: #2a2a2a; }
+[data-theme="night"] .sp-fn-pct { color: #9ca3af; }
 
 [data-theme="night"] .spatial-panel { background: #1a1a1a; border-color: #2a2a2a; }
 [data-theme="night"] .sp-an-item { background: #2a2a2a; color: #d1d5db; }

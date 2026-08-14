@@ -14,7 +14,7 @@ import heatmapRouter from './routes/heatmap.js';
 import osrmRouter from './routes/osrmRoute.js'
 import poiRouter from './routes/poi.js';
 import favoritesRouter from './routes/favorites.js';
-import spatialRouter from './routes/spatial.js';
+import spatialRouter, { warmGridCache } from './routes/spatial.js';
 import { cached, invalidate } from './cache.js';
 import { preloadFacilitiesCache } from './routes/poi.js';
 
@@ -82,6 +82,11 @@ app.use('/api', favoritesRouter);
 // 挂载空间分析路由
 app.use('/api/spatial', spatialRouter);
 
+// 启动后异步预热功能区划网格缓存（3 档），避免用户首次请求等待远程传输
+setTimeout(() => {
+  warmGridCache(pool).catch(e => console.warn('[预热] 功能区划网格缓存失败:', e.message))
+}, 2000)
+
 // 健康检查
 app.get('/health', async (req, res) => {
   try {
@@ -92,25 +97,25 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// 绿道颜色配置
+// 绿道颜色配置（按画像类别定制，鲜艳饱和避免灰暗；夜间由前端双色板切换亮色）
 const greenwayColors = {
-  '环二环城市绿道': '#2E7D32',
-  '昌平42绿道': '#388E3C',
-  '温榆河': '#1976D2',
-  '亮马河绿道': '#0097A7',
-  '北运河绿道': '#00897B',
-  '南沙绿道': '#558B2F',
-  '奥林匹克森林公园绿道': '#689F38',
-  '常营半马绿道': '#7CB342',
-  '丽都商圈绿道': '#AFB42B',
-  '营城建都绿道': '#FBC02D',
-  '朝阳绿道': '#66BB6A',
-  '北翼山水绿道': '#29B6F6',
-  '东翼大河绿道': '#26C6DA',
-  '郊野休闲环绿道': '#78C850',
-  '三山五园绿道': '#AB47BC',
-  '西翼山水绿道': '#7E57C2',
-  '中心城滨水绿道': '#EF5350'
+  '环二环城市绿道': '#F57C00',
+  '昌平42绿道': '#1565C0',
+  '温榆河': '#00ACC1',
+  '亮马河绿道': '#29B6F6',
+  '北运河绿道': '#26A69A',
+  '南沙绿道': '#00B8D4',
+  '奥林匹克森林公园绿道': '#00BCD4',
+  '常营半马绿道': '#0277BD',
+  '丽都商圈绿道': '#1976D2',
+  '营城建都绿道': '#E64A19',
+  '朝阳绿道': '#00897B',
+  '北翼山水绿道': '#3949AB',
+  '东翼大河绿道': '#5C6BC0',
+  '郊野休闲环绿道': '#03A9F4',
+  '三山五园绿道': '#9C27B0',
+  '西翼山水绿道': '#43A047',
+  '中心城滨水绿道': '#1E88E5'
 };
 
 // 获取所有绿道列表
@@ -490,6 +495,82 @@ app.get('/api/greenways/name/:name/flyover', async (req, res) => {
     res.json({ greenwayId: parseInt(id), greenwayName: name, waypoints, totalPoints: waypoints.length })
   } catch (err) {
     console.error('[飞行路径-by-name] 错误:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// 绿道功能画像：深度学习评价节点在指定半径缓冲区内的功能类型统计（预聚合表，秒级）
+app.get('/api/greenways/name/:name/function-profile', async (req, res) => {
+  try {
+    const { name } = req.params
+    const radius = parseInt(req.query.radius) || 1000
+
+    let result
+    if (radius === 1000) {
+      result = await pool.query(`
+        SELECT eco, scenic, history, urban, total
+        FROM greenway_function_profile WHERE greenway_name = $1
+      `, [name])
+    } else {
+      result = await pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE fn.function_name='生态绿道') AS eco,
+          COUNT(*) FILTER (WHERE fn.function_name='风景绿道') AS scenic,
+          COUNT(*) FILTER (WHERE fn.function_name='历史文化绿道') AS history,
+          COUNT(*) FILTER (WHERE fn.function_name='城市绿道') AS urban,
+          COUNT(*) AS total
+        FROM greenway_function_nodes fn
+        JOIN greenways g ON g.name = $1
+        WHERE ST_DWithin(fn.geom::geography, g.geometry::geography, $2)
+          AND fn.function_name <> '未确定'
+      `, [name, radius])
+    }
+
+    const row = result.rows[0]
+    const items = [
+      { name: '生态绿道', count: parseInt(row?.eco || 0) },
+      { name: '风景绿道', count: parseInt(row?.scenic || 0) },
+      { name: '历史文化绿道', count: parseInt(row?.history || 0) },
+      { name: '城市绿道', count: parseInt(row?.urban || 0) }
+    ].filter(i => i.count > 0).sort((a, b) => b.count - a.count)
+    const total = parseInt(row?.total || 0)
+
+    res.json({
+      greenwayName: name,
+      radius,
+      total,
+      dominant: total ? items[0]?.name : null,
+      items: items.map(i => ({ ...i, pct: total ? Math.round(i.count / total * 100) : 0 }))
+    })
+  } catch (err) {
+    console.error('[功能画像] 错误:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// 绿道沿线功能分段（分段着色图层）：全部绿道按功能类型分段的 GeoJSON
+app.get('/api/function-segments', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT greenway_id, greenway_name, seq, function_name,
+             ST_AsGeoJSON(geom, 6)::json AS geometry
+      FROM greenway_function_segments
+      WHERE function_name <> '未确定'
+      ORDER BY greenway_id, seq
+    `)
+    const features = result.rows.map(r => ({
+      type: 'Feature',
+      properties: {
+        greenway_id: r.greenway_id,
+        greenway_name: r.greenway_name,
+        seq: r.seq,
+        function_name: r.function_name
+      },
+      geometry: r.geometry
+    }))
+    res.json({ type: 'FeatureCollection', features })
+  } catch (err) {
+    console.error('[功能分段] 错误:', err.message)
     res.status(500).json({ error: err.message })
   }
 })
