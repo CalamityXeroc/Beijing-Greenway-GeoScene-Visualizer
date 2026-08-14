@@ -14,11 +14,13 @@
                 :showPathPlanning="showPathPlanning"
                 :showHeatmap="showHeatmap"
                 :showFacilities="showFacilities"
+                :showRecommend="showRecommend"
                 :showBeijing="showBeijing"
                 :showGreenways="showGreenways"
                 :showFunctionLayer="showFunctionLayer"
                 :facilityTypeFilters="facilityTypeFilters"
                 @toggle-path-planning="showPathPlanning = !showPathPlanning"
+                @toggle-recommend="showRecommend = !showRecommend"
                 @toggle-heatmap="toggleHeatmap($event)"
                 @toggle-facilities="toggleFacilities($event)"
                 @toggle-beijing="toggleBeijing($event)"
@@ -129,6 +131,12 @@
         :mapManager="mapManager"
         :layerManager="mapViewer.getLayerManager()"
         @close="showPathPlanning = false"
+      />
+      <RecommendPanel
+        v-if="showRecommend"
+        @close="showRecommend = false"
+        @locate-greenway="locateRecommendGreenway"
+        @go-route="goRecommendRoute"
       />
     </div>
 
@@ -354,6 +362,7 @@ import Graphic from '@geoscene/core/Graphic.js'
 import Point from '@geoscene/core/geometry/Point.js'
 import { buildPoiPopupTemplate, buildClusterPopupTemplate, bindPoiPopupNavigation } from '@/utils/poiPopupTemplate.js'
 import { useGlobalTheme } from '@/utils/useTheme'
+import RecommendPanel from '@/components/RecommendPanel.vue'
 
 const router = useRouter()
 const { isLoggedIn, currentUser } = useUserAuth()
@@ -1036,6 +1045,7 @@ const heatmapLayerId = 'greenway-heatmap'
 
 const routeStore = getRouteStore()
 const showPathPlanning = sessionRef('gw_showPathPlanning', false)
+const showRecommend = sessionRef('gw_showRecommend', false)
 
 const mapViewer = ref(null)
 const mapManager = shallowRef(null)
@@ -1807,6 +1817,30 @@ const locateSpatialGreenway = (gw) => {
     layer.queryExtent()
       .then(r => { if (r?.extent) mapManager.value?.fitExtent(r.extent, { padding: [80, 80, 80, 80] }) })
       .catch(() => {})
+  }
+}
+
+// 智能推荐：定位到推荐绿道（飞行 + 高亮）
+const locateRecommendGreenway = (gw) => {
+  const view = mapManager.value?.getView?.()
+  if (view && gw.lng && gw.lat) {
+    view.goTo({ center: [gw.lng, gw.lat], zoom: 13 }, { duration: 900 })
+  }
+  const lid = layerIdByDbName[gw.name]
+  if (lid) {
+    highlightLayer(lid, '#FFB300', 6, false)
+    setTimeout(() => highlightLayer(lid, null, 4, false), 3000)
+  }
+}
+
+// 智能推荐：去这里 → 打开路径规划并带入终点
+const goRecommendRoute = (gw) => {
+  if (gw.lng && gw.lat) {
+    routeStore.setDestination({ lng: gw.lng, lat: gw.lat, name: gw.name })
+    routeStore.setTravelMode('walking')
+    routeStore.state.isPanelVisible = true
+    showPathPlanning.value = true
+    showRecommend.value = false
   }
 }
 
