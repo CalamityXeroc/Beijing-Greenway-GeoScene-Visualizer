@@ -74,7 +74,9 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  **Layer Legend Widget**: Integrated official GeoScene Legend component (Expand collapsible panel) that automatically shows heatmap gradients and facility legends.
 -  **Mobile POI Facilities**: Mobile map (OpenLayers) overlays 7 facility categories with SVG icons, zoom-linked visibility (facilities appear when zoomed to city/greenway level), per-type filter chips, tap-to-open bottom sheet with details + greenway jump, and a dedicated facility search page with type shortcuts and keyword search.
 -  **Follow-Time Theme**: The whole site auto-switches between day/night by Beijing time by default; users can pin a fixed theme or return to auto mode at any time (both desktop and mobile share one preference store).
--  **AI Assistant Knowledge Base**: The greenway assistant's knowledge base is aligned with the platform's 17 greenways (lengths & coverage from the real database) and covers the full feature tutorial (POI, spatial analysis, favorites, etc.).
+-  **Smart Recommendation (绿道智能推荐)**: A dedicated recommend engine (`POST /api/greenways/recommend`) scores all 17 greenways from user preferences — travel mode (walk/cycle), interest types (eco / scenic / historical / urban, or "no preference") and facility needs (metro / parking / restroom). Scoring is transparent: short-board functional match (min of selected-type shares, hard threshold <15% excludes), heat ranking, facility completeness (spatial 1km stats) and length fit, with adaptive weights (explicit interests → match 55% dominant; "no preference" → heat + facilities). Results show score, profile shares, heat rank, template reasons (e.g. "historical 39%, best for visiting ancient sites") and the #1 card highlighted.
+-  **Draggable Recommend Panel + AI Interpretation**: The recommendation panel is a freely draggable glassmorphism window (preferences → results → "去这里"). An "AI 解读" button feeds the full profile/facility data of each recommendation to the assistant for a detailed 250-300 char review (per-item match/gap analysis, comparison and practical advice).
+-  **Nearest-Entry Routing (最近入口导航)**: "去这里" opens route planning with the destination dynamically set to the greenway's closest point to the current origin (PostGIS `ST_ClosestPoint` over the merged multi-line, `GET /api/greenways/name/:name/nearest-entry`). If the origin is set later (map pick / "my location"), the destination auto-recomputes — users always navigate to the nearest entry of a multi-km greenway instead of a random endpoint.
 -  **Mobile Floating Glass Bottom Bar**: Floating glassmorphism tab bar with rounded corners and backdrop blur; active tab icon rises & scales with a spring animation, selected indicator removed for a clean look.
 -  **Mobile Discover (Content-Feed Style)**: Real-photo hero banner carousel + featured greenway cards using actual route photos + community feed posts with cover images — a picture-driven home page.
 -  **Real Photo Trail Cards**: Greenway & favorites cards now render actual route photos (`/images/greenways/…`) with graceful placeholder fallback, replacing flat gradient placeholders.
@@ -143,6 +145,7 @@ npm run dev       # http://localhost:5173
 |  **Legend Widget** | Official GeoScene Legend component (Expand collapsible), auto heatmap/facility legends |
 |  **Real-time Weather** | Draggable weather widget (Amap API); mobile detail page embeds an inline weather card |
 |  **AI Assistant** | Map/detail-only floating chatbot (DeepSeek-V4-Flash), conversations logged to DB; mobile fullscreen chat panel |
+|  **Smart Recommendation** | Preference-driven greenway recommender (travel mode + interests + facility needs → scored ranking with transparent reasons), draggable panel, AI deep-dive interpretation, and smart routing to the greenway's nearest entry |
 |  **AI Chat Analytics** | Admin: word cloud + daily trend + recent messages, dual day/night theme |
 |  **Day/Night Theme** | Auto-switches by Beijing time by default; user can pin day/night or return to follow-time mode (desktop & mobile shared preference) |
 |  **Heatmap Analytics** | Admin dashboard with ECharts: heat ranking, trend, comment stats, weight pie, detail table |
@@ -351,6 +354,8 @@ POST /api/spatial/analyze                            # spatial analysis: draw po
 GET  /api/spatial/points?limit=600                  # sampled deep-learning nodes by function type (scatter layer)
 GET  /api/spatial/grid?size=0.02                    # hexagon-grid zoning GeoJSON (pre-aggregated, boot-warmed cache)
 GET  /api/greenways/name/:name/function-profile     # greenway functional profile (eco/scenic/historical/urban shares, 1km buffer)
+POST /api/greenways/recommend                        # smart recommendation: preferences → scored ranking (short-board match + heat + facilities)
+GET  /api/greenways/name/:name/nearest-entry?lng=&lat=  # nearest point on the greenway line to a given origin (ST_ClosestPoint)
 GET  /api/favorites/ids                              # current user's favorited greenway IDs (button state)
 GET  /api/favorites                                  # favorites list (JOIN greenway display fields)
 POST /api/favorites                                  # add favorite { greenway_id | greenway_name }

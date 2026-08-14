@@ -19,8 +19,7 @@ const NEED_POI_TYPES = {
   restroom: { type: '200300', label: '卫生间', key: 'restroom' }
 }
 
-router.post('/recommend', async (req, res) => {
-  try {
+router.post('/recommend', async (req, res) => {  try {
     const body = req.body || {}
     const mode = body.mode === 'bicycling' ? 'bicycling' : 'walking'
     const interests = Array.isArray(body.interests) ? body.interests : []
@@ -176,6 +175,51 @@ router.post('/recommend', async (req, res) => {
     res.json({ items: result, mode, interests: balanced ? ['balanced'] : interests, needs })
   } catch (err) {
     console.error('[绿道推荐] 错误:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// 绿道最近入口点：基于起点坐标，计算绿道线上离起点最近的点（导航到绿道入口用）
+router.get('/name/:name/nearest-entry', async (req, res) => {
+  try {
+    const { name } = req.params
+    const lng = parseFloat(req.query.lng)
+    const lat = parseFloat(req.query.lat)
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+      return res.status(400).json({ error: '缺少起点坐标' })
+    }
+
+    const result = await req.pool.query(`
+      WITH merged AS (
+        SELECT ST_LineMerge(geometry) AS geom FROM greenways WHERE name = $1
+      ),
+      dumped AS (
+        SELECT (ST_Dump(geom)).geom AS geom FROM merged
+      ),
+      pts AS (
+        SELECT ST_ClosestPoint(geom, ST_SetSRID(ST_MakePoint($2, $3), 4326)) AS cp
+        FROM dumped
+      )
+      SELECT ST_X(cp) AS lng, ST_Y(cp) AS lat,
+             ROUND(ST_Distance(cp::geography, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography)) AS dist_m
+      FROM pts
+      ORDER BY dist_m
+      LIMIT 1
+    `, [name, lng, lat])
+
+    if (!result.rows.length) return res.status(404).json({ error: '绿道不存在' })
+    const r = result.rows[0]
+    const distM = parseInt(r.dist_m) || 0
+    const distText = distM > 1000 ? `距起点 ${(distM / 1000).toFixed(1)}km` : `距起点 ${distM}m`
+    res.json({
+      greenwayName: name,
+      lng: parseFloat(r.lng),
+      lat: parseFloat(r.lat),
+      distM,
+      address: `${name}（最近入口，${distText}）`
+    })
+  } catch (err) {
+    console.error('[最近入口] 错误:', err.message)
     res.status(500).json({ error: err.message })
   }
 })

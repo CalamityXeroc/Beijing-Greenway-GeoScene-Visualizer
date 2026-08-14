@@ -363,6 +363,7 @@ import Point from '@geoscene/core/geometry/Point.js'
 import { buildPoiPopupTemplate, buildClusterPopupTemplate, bindPoiPopupNavigation } from '@/utils/poiPopupTemplate.js'
 import { useGlobalTheme } from '@/utils/useTheme'
 import RecommendPanel from '@/components/RecommendPanel.vue'
+import { getApiBaseUrl } from '@/mobile/services/api'
 
 const router = useRouter()
 const { isLoggedIn, currentUser } = useUserAuth()
@@ -1833,16 +1834,47 @@ const locateRecommendGreenway = (gw) => {
   }
 }
 
-// 智能推荐：去这里 → 打开路径规划并带入终点
-const goRecommendRoute = (gw) => {
-  if (gw.lng && gw.lat) {
-    routeStore.setDestination({ lng: gw.lng, lat: gw.lat, name: gw.name })
-    routeStore.setTravelMode('walking')
-    routeStore.state.isPanelVisible = true
-    showPathPlanning.value = true
-    showRecommend.value = false
+// 智能推荐：去这里 → 打开路径规划，目的地自动设为绿道最近入口（基于起点动态计算）
+let pendingRecommendGreenway = null  // 当前目标绿道（起点变化时自动重算目的地）
+
+const applyNearestEntry = async (gw, origin) => {
+  try {
+    const res = await fetch(
+      `${getApiBaseUrl()}/api/greenways/name/${encodeURIComponent(gw.name)}/nearest-entry?lng=${origin.lng}&lat=${origin.lat}`
+    )
+    const d = await res.json()
+    if (d.lng && d.lat) {
+      routeStore.setDestination({ lng: d.lng, lat: d.lat, address: d.address || `${gw.name}（最近入口）` })
+    }
+  } catch (e) {
+    console.warn('[推荐] 最近入口计算失败:', e.message)
+    if (gw.lng && gw.lat) routeStore.setDestination({ lng: gw.lng, lat: gw.lat, address: gw.name })
   }
 }
+
+const goRecommendRoute = async (gw) => {
+  if (!gw.lng && !gw.lat) return
+  pendingRecommendGreenway = gw
+  routeStore.setTravelMode('walking')
+  routeStore.state.isPanelVisible = true
+  showPathPlanning.value = true
+  showRecommend.value = false
+
+  const origin = routeStore.state.origin
+  if (origin && origin.lng && origin.lat) {
+    // 起点已设置 → 目的地 = 绿道最近入口
+    await applyNearestEntry(gw, origin)
+  } else {
+    // 起点未设置 → 先兜底用绿道首点，用户设置起点后自动重算
+    routeStore.setDestination({ lng: gw.lng, lat: gw.lat, address: gw.name })
+  }
+}
+
+// 起点变化 → 自动把目的地重算为当前目标绿道的最近入口
+watch(() => routeStore.state.origin, (origin) => {
+  if (!origin || !pendingRecommendGreenway) return
+  applyNearestEntry(pendingRecommendGreenway, origin)
+})
 
 const onLayerAdded = (layerInfo) => {
   console.log('[GreenwayOverview] 图层已添加:', layerInfo)

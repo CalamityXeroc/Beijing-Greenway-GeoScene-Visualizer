@@ -632,8 +632,6 @@ const autoResize = () => {
 }
 
 .input-wrap.focused {
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
   background: #fff;
 }
 
@@ -649,6 +647,12 @@ textarea {
   outline: none;
   max-height: 120px;
   overflow-y: auto;
+}
+
+/* 覆盖全局 design-system 的 :focus-visible 绿色轮廓（仅本组件输入框） */
+textarea:focus,
+textarea:focus-visible {
+  outline: none;
 }
 
 textarea::placeholder {
@@ -751,7 +755,6 @@ textarea::placeholder {
 }
 
 [data-theme="night"] .input-wrap.focused {
-  border-color: #22c55e;
   background: #1f2937;
 }
 
