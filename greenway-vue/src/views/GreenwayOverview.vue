@@ -21,6 +21,8 @@
                 :facilityTypeFilters="facilityTypeFilters"
                 @toggle-path-planning="showPathPlanning = !showPathPlanning"
                 @toggle-recommend="showRecommend = !showRecommend"
+                @toggle-accessibility="showAccessibility = !showAccessibility"
+                :showAccessibility="showAccessibility"
                 @toggle-heatmap="toggleHeatmap($event)"
                 @toggle-facilities="toggleFacilities($event)"
                 @toggle-beijing="toggleBeijing($event)"
@@ -135,6 +137,15 @@
       <RecommendPanel
         v-if="showRecommend"
         @close="showRecommend = false"
+        @locate-greenway="locateRecommendGreenway"
+        @go-route="goRecommendRoute"
+      />
+      <AccessibilityPanel
+        v-if="showAccessibility"
+        ref="accessibilityPanelRef"
+        @close="closeAccessibility"
+        @pick-origin="pickingAccessibilityOrigin = true"
+        @hull-change="renderAccessibilityHull"
         @locate-greenway="locateRecommendGreenway"
         @go-route="goRecommendRoute"
       />
@@ -363,6 +374,7 @@ import Point from '@geoscene/core/geometry/Point.js'
 import { buildPoiPopupTemplate, buildClusterPopupTemplate, bindPoiPopupNavigation } from '@/utils/poiPopupTemplate.js'
 import { useGlobalTheme } from '@/utils/useTheme'
 import RecommendPanel from '@/components/RecommendPanel.vue'
+import AccessibilityPanel from '@/components/AccessibilityPanel.vue'
 import { getApiBaseUrl } from '@/mobile/services/api'
 
 const router = useRouter()
@@ -1047,6 +1059,10 @@ const heatmapLayerId = 'greenway-heatmap'
 const routeStore = getRouteStore()
 const showPathPlanning = sessionRef('gw_showPathPlanning', false)
 const showRecommend = sessionRef('gw_showRecommend', false)
+const showAccessibility = sessionRef('gw_showAccessibility', false)
+const accessibilityPanelRef = ref(null)
+const pickingAccessibilityOrigin = ref(false)
+let accessibilityHullLayerId = null
 
 const mapViewer = ref(null)
 const mapManager = shallowRef(null)
@@ -1090,7 +1106,13 @@ const onMapReady = (map) => {
 
 // 路径规划地图点击 → 转发给 routeStore
 const onMapClick = ({ coordinate }) => {
-  if (!coordinate || !routeStore.state.activeInput) return
+  if (!coordinate) return
+  if (pickingAccessibilityOrigin.value) {
+    pickingAccessibilityOrigin.value = false
+    accessibilityPanelRef.value?.applyOrigin({ lng: coordinate[0], lat: coordinate[1], address: '地图选点' })
+    return
+  }
+  if (!routeStore.state.activeInput) return
   routeStore.handleMapClick({ lng: coordinate[0], lat: coordinate[1] })
 }
 
@@ -1875,6 +1897,48 @@ watch(() => routeStore.state.origin, (origin) => {
   if (!origin || !pendingRecommendGreenway) return
   applyNearestEntry(pendingRecommendGreenway, origin)
 })
+
+/* ── 可达圈分析 ── */
+const closeAccessibility = () => {
+  showAccessibility.value = false
+  pickingAccessibilityOrigin.value = false
+  if (accessibilityHullLayerId && mapManager.value?.getLayer(accessibilityHullLayerId)) {
+    mapManager.value.removeLayer(accessibilityHullLayerId)
+    accessibilityHullLayerId = null
+  }
+}
+
+// 等时圈渲染（GeoScene GraphicsLayer，按时间档着色）
+const HULL_COLORS = { 5: '#4CAF50', 10: '#8BC34A', 15: '#FFC107', 20: '#FF9800', 30: '#F4511E' }
+const renderAccessibilityHull = async ({ hull, minutes }) => {
+  if (!hull || hull.length < 3 || !mapManager.value) return
+  const [Graphic] = await Promise.all([import('@geoscene/core/Graphic.js').then(m => m.default || m)])
+
+  if (!accessibilityHullLayerId) {
+    const [GraphicsLayer] = await Promise.all([import('@geoscene/core/layers/GraphicsLayer.js').then(m => m.default || m)])
+    const layer = new GraphicsLayer({ listMode: 'hide' })
+    layer._zIndex = 9
+    mapManager.value.addLayer('accessibility-hull', layer)
+    accessibilityHullLayerId = 'accessibility-hull'
+  }
+  const layer = mapManager.value.getLayer(accessibilityHullLayerId)
+  if (!layer) return
+
+  const color = HULL_COLORS[minutes] || '#FFC107'
+  layer.removeAll()
+  layer.add(new Graphic({
+    geometry: {
+      type: 'polygon',
+      rings: [hull.map(pt => [pt[0], pt[1]])],
+      spatialReference: { wkid: 4326 }
+    },
+    symbol: {
+      type: 'simple-fill',
+      color: color + '33',  // 20% 透明度
+      outline: { color, width: 2 }
+    }
+  }))
+}
 
 const onLayerAdded = (layerInfo) => {
   console.log('[GreenwayOverview] 图层已添加:', layerInfo)
