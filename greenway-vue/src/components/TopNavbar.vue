@@ -13,8 +13,8 @@
         </svg>
       </div>
       <div class="brand-text">
-        <span class="brand-title">北京绿道可视化平台</span>
-        <span class="brand-sub">Beijing Greenway Visualization</span>
+        <span class="brand-title">绿脉伴侣</span>
+        <span class="brand-sub">智绘微观绿道 · 定制你的专属自然</span>
       </div>
     </div>
 

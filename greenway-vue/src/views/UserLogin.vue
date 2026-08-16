@@ -7,7 +7,7 @@
           <path d="M10 26 Q15 10 20 18 Q25 26 30 14" stroke="#A5D6A7" stroke-width="2.5" fill="none" stroke-linecap="round"/>
           <circle cx="20" cy="18" r="3" fill="#fff"/>
         </svg>
-        <span class="logo-name">北京绿道</span>
+        <span class="logo-name">绿脉伴侣</span>
       </div>
       <h1 class="card-title">用户登录</h1>
       <p class="card-sub">登录后可保存路线、发表评论</p>

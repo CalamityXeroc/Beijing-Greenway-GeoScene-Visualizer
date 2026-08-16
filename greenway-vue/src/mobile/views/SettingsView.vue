@@ -224,7 +224,7 @@
             </div>
           </div>
           <div class="setting-item" @click="showAbout">
-            <span class="item-label">关于北京绿道</span>
+            <span class="item-label">关于绿脉伴侣</span>
             <div class="item-right">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="9 18 15 12 9 6"/>
@@ -259,12 +259,12 @@
                 <path d="M50 20 C30 35, 25 55, 50 80 C75 55, 70 35, 50 20" fill="white" opacity="0.9"/>
               </svg>
             </div>
-            <h2>北京绿道</h2>
+            <h2>绿脉伴侣</h2>
             <p class="version">版本 {{ appVersion }}</p>
           </div>
           <div class="about-body">
-            <p>北京绿道是一款城市绿道导览应用，提供北京市各区绿道信息查询、路线规划、社区互动等功能。</p>
-            <p class="copyright">© 2024 北京绿道团队</p>
+            <p>绿脉伴侣是一款北京绿道智慧服务平台，提供绿道信息查询、深度学习功能画像、智能推荐、路径规划、可达圈分析、AI 助手问答、社区互动等功能。</p>
+            <p class="copyright">© 2025-2026 绿脉伴侣团队</p>
           </div>
           <button class="modal-close" @click="showAboutModal = false">关闭</button>
         </div>

@@ -172,8 +172,7 @@ body {
   opacity: 0;
 }
 
-/* OpenLayers 控件样式优化 */
-.ol-control,
+/* GeoScene 控件样式优化 */
 .geoscene-ui .geoscene-component {
   background: var(--card-bg);
   backdrop-filter: blur(10px);
@@ -183,26 +182,22 @@ body {
   transition: background 0.3s ease, border-color 0.3s ease;
 }
 
-.ol-control button,
 .geoscene-ui .geoscene-widget--button {
   background: transparent;
   transition: all 0.2s ease;
   color: var(--text-primary);
 }
 
-.ol-control button:hover,
 .geoscene-ui .geoscene-widget--button:hover {
   background: rgba(33, 150, 243, 0.1);
 }
 
-.ol-zoom,
 .geoscene-zoom {
   top: 1rem;
   left: auto;
   right: 1rem;
 }
 
-.ol-attribution,
 .geoscene-attribution {
   background: var(--card-bg);
   backdrop-filter: blur(10px);
@@ -211,7 +206,6 @@ body {
   transition: background 0.3s ease, border-color 0.3s ease;
 }
 
-.ol-attribution a,
 .geoscene-attribution a {
   color: var(--theme-blue);
 }

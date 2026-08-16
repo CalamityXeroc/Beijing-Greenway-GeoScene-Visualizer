@@ -12,7 +12,7 @@
                   stroke-linecap="round"/>
           </svg>
         </div>
-        <h1 class="brand-title">北京绿道系统</h1>
+        <h1 class="brand-title">绿脉伴侣</h1>
         <p class="brand-subtitle">管理后台</p>
         <ul class="brand-features">
           <li><span>✓</span> 用户账号统一管理</li>

@@ -196,7 +196,7 @@ export const getAppInfo = async () => {
       // Web环境返回模拟信息
       return {
         appId: 'com.greenway.mobile',
-        appName: '北京绿道',
+        appName: '绿脉伴侣',
         version: '1.0.0',
         build: '1',
         platform: 'web'

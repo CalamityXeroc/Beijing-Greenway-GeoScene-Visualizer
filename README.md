@@ -3,7 +3,7 @@
 ![Vue](https://img.shields.io/badge/Vue-3.4.0-brightgreen.svg)
 ![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue.svg)
-![OpenLayers](https://img.shields.io/badge/GeoScene-4.33-blue.svg)
+![GeoScene](https://img.shields.io/badge/GeoScene-4.33-blue.svg)
 ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek%20V4-Flash-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 

@@ -2,7 +2,7 @@
   <div class="dashboard">
     <div class="page-header">
       <h1 class="page-title">数据概览</h1>
-      <p class="page-desc">北京绿道系统平台运营概况</p>
+      <p class="page-desc">绿脉伴侣平台运营概况</p>
     </div>
 
     <!-- 统计卡片 -->

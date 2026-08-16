@@ -15,7 +15,7 @@
       <!-- 页脚备案信息 -->
       <footer class="site-footer" v-if="showFooter">
         <div class="footer-inner">
-          <p>© 2025-2026 北京绿道</p>
+          <p>© 2025-2026 绿脉伴侣</p>
           <p>
             <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">京ICP备2025153719号-2</a>
           </p>

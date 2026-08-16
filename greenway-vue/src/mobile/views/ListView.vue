@@ -3,7 +3,7 @@
     <!-- 固定顶部栏 -->
     <div class="list-header">
       <div class="header-inner">
-        <h1 class="header-title">北京绿道</h1>
+        <h1 class="header-title">绿脉伴侣</h1>
         <div class="header-actions">
           <!-- 定位状态指示 -->
           <div class="loc-badge" :class="{ 'loc-active': hasLocation, 'loc-loading': isLocating }" @click="!isLocating && fetchLocation(false)">

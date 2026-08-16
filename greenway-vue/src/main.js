@@ -54,8 +54,8 @@ if (isMobileDevice()) {
   }, 500)
 }
 
-console.log('🌳 北京绿道系统 Vue 应用已启动')
-console.log('📍 基于 Vue 3 + OpenLayers + OLTB 架构')
+console.log('🌳 绿脉伴侣 Vue 应用已启动')
+console.log('📍 基于 Vue 3 + GeoScene + Capacitor 架构')
 if (isMobileDevice()) {
   console.log('📱 移动端模式已启用')
 }

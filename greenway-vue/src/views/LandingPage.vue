@@ -25,7 +25,7 @@
               <circle cx="20" cy="22" r="2.5" fill="#69F0AE" opacity="0.9"/>
             </svg>
           </div>
-          <span class="lp-logo__text">北京绿道系统</span>
+          <span class="lp-logo__text">绿脉伴侣</span>
         </div>
 
         <nav class="lp-nav">
@@ -88,15 +88,15 @@
             <div class="hero__content">
               <div class="hero__badge">
                 <span class="badge-dot"></span>
-                北京市绿道信息化管理平台
+                绿脉伴侣 · 北京绿道智慧服务平台
               </div>
               <h1 class="hero__title">
                 <span class="line1">探索北京</span>
                 <span class="line2">绿色廊道</span>
               </h1>
               <p class="hero__desc">
-                汇聚北京 17 条精品绿道，串联山、水、林、田生态空间<br>
-                打造全市贯通的绿色休闲游憩网络，助力城市生态可持续发展
+                汇聚北京 17 条精品绿道，AI 智能识别每条绿道的功能画像<br>
+                智绘微观绿道，定制你的专属自然
               </p>
               <div class="hero__cta">
                 <a href="/map" class="cta-primary">
@@ -134,7 +134,7 @@
             <div class="section-heading">
               <div class="section-tag">DATA</div>
               <h2 class="section-title">数据一览</h2>
-              <p class="section-desc">北京绿道系统核心数据指标</p>
+              <p class="section-desc">绿脉伴侣核心数据指标</p>
             </div>
             <div class="stats-grid">
               <div
@@ -169,16 +169,17 @@
             <div class="section-heading">
               <div class="section-tag">ABOUT</div>
               <h2 class="section-title">关于平台</h2>
-              <p class="section-desc">北京绿道系统可视化平台简介</p>
+              <p class="section-desc">绿脉伴侣平台简介</p>
             </div>
             <div class="about-grid">
               <div class="about-main">
                 <p class="about-text">
-                  北京绿道系统可视化平台整合了全市主要绿道的空间数据、属性信息与游憩资源，
-                  依托 <strong>WebGIS 技术</strong>实现绿道路网的可视化展示与交互式查询，
+                  绿脉伴侣——北京绿道智慧服务平台，整合了全市主要绿道的空间数据、属性信息与游憩资源，
+                  依托 <strong>GeoScene WebGIS 技术</strong>与<strong>深度学习功能画像</strong>，
+                  实现绿道空间功能的精准识别与个性化智慧推荐，
                   为市民、游客和规划管理部门提供精准的绿道信息服务。
                   平台覆盖<strong>东城、西城、朝阳、海淀、昌平、通州</strong>等多区，
-                  总里程超过 <strong>440 公里</strong>。
+                  总里程超过 <strong>1200 公里</strong>。
                 </p>
                 <div class="about-tags">
                   <span class="atag" v-for="t in aboutTags" :key="t">{{ t }}</span>
@@ -287,9 +288,9 @@
                         <path d="M20 9 L20 32 M13 22 C16 18 20 17 25 18.5" stroke="#A5D6A7" stroke-width="1.5" stroke-linecap="round"/>
                       </svg>
                     </div>
-                    <span class="lp-logo__text" style="font-size:0.88rem">北京绿道系统</span>
+                    <span class="lp-logo__text" style="font-size:0.88rem">绿脉伴侣</span>
                   </div>
-                  <p class="footer-slogan">串联山水 · 绿色出行 · 生态北京</p>
+                  <p class="footer-slogan">智绘微观绿道，定制你的专属自然</p>
                 </div>
                 <div class="footer-links">
                   <div class="fl-group">
@@ -308,13 +309,13 @@
                   <div class="fl-group">
                     <div class="fl-title">技术信息</div>
                     <span class="fl-link">Vue 3 + Vite</span>
-                    <span class="fl-link">OpenLayers WebGIS</span>
-                    <span class="fl-link">Node.js + PostgreSQL</span>
+                    <span class="fl-link">GeoScene WebGIS</span>
+                    <span class="fl-link">Node.js + PostgreSQL + PostGIS</span>
                   </div>
                 </div>
               </div>
               <div class="footer-bottom">
-                <span>© 2025-2026 北京绿道系统信息化平台 · 保留所有权利</span>
+                <span>© 2025-2026 绿脉伴侣信息化平台 · 保留所有权利</span>
                 <span class="footer-sep">·</span>
                 <span>数据仅供参考，请以官方发布为准</span>
               </div>
@@ -408,38 +409,38 @@ const pageLabels = ['首页', '数据', '简介', '绿道', '功能', '联系']
 // ══════════════════════════════════════════════════
 const statsData = [
   {
-    label: '绿道总数', display: '18', unit: '条',
+    label: '绿道总数', display: '17', unit: '条',
     sub: '覆盖北京各主要功能区',
     gradient: 'linear-gradient(135deg,#1B5E20,#2E7D32)',
     icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>'
   },
   {
-    label: '覆盖总里程', display: '440+', unit: 'km',
+    label: '覆盖总里程', display: '1200+', unit: 'km',
     sub: '贯通全市绿色廊道',
     gradient: 'linear-gradient(135deg,#004D40,#00695C)',
     icon: '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>'
   },
   {
-    label: '连接景点', display: '300+', unit: '处',
+    label: '连接景点', display: '800+', unit: '处',
     sub: '历史文化 · 生态节点',
     gradient: 'linear-gradient(135deg,#1A237E,#283593)',
     icon: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'
   },
   {
-    label: '覆盖行政区', display: '7+', unit: '个区',
-    sub: '东西朝海丰昌通',
+    label: '覆盖行政区', display: '16', unit: '个区',
+    sub: '全市全域贯通覆盖',
     gradient: 'linear-gradient(135deg,#4A148C,#6A1B9A)',
     icon: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'
   }
 ]
 
+// 绿道类型（按深度学习功能画像主导类别划分）
 const gwTypes = [
-  { name: '滨水型', color: '#1565C0' }, { name: '城市型', color: '#2E7D32' },
-  { name: '历史文化', color: '#6A1B9A' }, { name: '山地型', color: '#33691E' },
-  { name: '运动型', color: '#B71C1C' }, { name: '生态郊野', color: '#388E3C' }
+  { name: '城市型', color: '#1E88E5' }, { name: '风景型', color: '#26A69A' },
+  { name: '历史文化型', color: '#A0522D' }, { name: '生态型', color: '#2E7D32' }
 ]
 
-const aboutTags = ['WebGIS · OpenLayers', 'Vue 3 + Vite', 'PostGIS 空间数据库', '绿道可视化', '多端适配', '节点查询', '互动地图', '生态信息服务']
+const aboutTags = ['WebGIS · GeoScene', 'Vue 3 + Vite', 'Node.js + Express', 'PostGIS 空间数据库', '绿道可视化', '多端适配', '节点查询', '互动地图', '生态信息服务']
 
 const aboutCards = [
   { title: '空间数据可视化', desc: 'GeoJSON 矢量数据精准呈现绿道路线走向', color: '#69F0AE', icon: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>' },
@@ -449,32 +450,32 @@ const aboutCards = [
 ]
 
 const greenwayCards = [
-  { id: 1,  name: '温榆河绿道',     type: '滨水型',   length: 108,  area: '昌平·顺义·朝阳·通州', desc: '北京最长滨水绿道，四区贯通',         path: '#/wenyu',       tagBg: 'rgba(0,105,192,0.3)',   barColor: '#1565C0' },
-  { id: 2,  name: '环二环城市绿道', type: '城市型',   length: 87,   area: '东城·西城·朝阳·海淀',  desc: '环绕城市核心，胡同文化与现代都市',   path: '#/huanerhuan',  tagBg: 'rgba(46,125,50,0.3)',   barColor: '#2E7D32' },
-  { id: 3,  name: '三山五园绿道',   type: '历史文化', length: 36,   area: '海淀区',               desc: '连接颐和园、圆明园等皇家园林',       path: '#/sanshan',     tagBg: 'rgba(106,27,154,0.3)', barColor: '#6A1B9A' },
-  { id: 4,  name: '奥林匹克绿道',   type: '主题型',   length: 23,   area: '朝阳区奥森',           desc: '双奥之城的体育精神绿道',             path: '#/aosen',       tagBg: 'rgba(230,81,0,0.3)',    barColor: '#E65100' },
-  { id: 5,  name: '北运河绿道',     type: '运河文化', length: 36,   area: '通州区',               desc: '大运河国家文化公园核心段',           path: '#/beiyunhe',    tagBg: 'rgba(0,77,64,0.3)',     barColor: '#00695C' },
-  { id: 6,  name: '营城建都绿道',   type: '历史遗址', length: 42,   area: '西城·东城',            desc: '北京千年古城建城脉络',               path: '#/yingcheng',   tagBg: 'rgba(121,85,72,0.3)',   barColor: '#795548' },
-  { id: 7,  name: '昌平42绿道',     type: '山地型',   length: 42,   area: '昌平区',               desc: '山野田园与绿色运动的融合',           path: '#/changping42', tagBg: 'rgba(51,105,30,0.3)',   barColor: '#33691E' },
-  { id: 8,  name: '常营半马绿道',   type: '运动型',   length: 21,   area: '朝阳常营',             desc: '专业半程马拉松赛道',                 path: '#/changying',   tagBg: 'rgba(183,28,28,0.3)',   barColor: '#B71C1C' },
-  { id: 9,  name: '亮马河绿道',     type: '国际风情', length: 5.5,  area: '朝阳亮马河',           desc: '使馆区旁的国际化滨水廊道',           path: '#/liangmahe',   tagBg: 'rgba(0,96,100,0.3)',    barColor: '#006064' },
-  { id: 10, name: '朝阳绿道',       type: '都市休闲', length: 18,   area: '朝阳区',               desc: '商务文化艺术汇聚的都市廊道',         path: '#/chaoyang',    tagBg: 'rgba(230,81,0,0.3)',    barColor: '#BF360C' },
-  { id: 12, name: '丽都商圈绿道',   type: '商圈绿化', length: 6.8,  area: '朝阳丽都',             desc: '繁华商圈中的绿色氧吧',               path: '#/lidu',        tagBg: 'rgba(74,20,140,0.3)',   barColor: '#4A148C' },
-  { id: 13, name: '北翼山水绿道',   type: '山地型',   length: 38.6, area: '昌平·怀柔',            desc: '北京北部山区生态绿道',               path: '#/beiyi',       tagBg: 'rgba(41,182,246,0.3)',  barColor: '#29B6F6' },
-  { id: 14, name: '东翼大河绿道',   type: '滨水型',   length: 64.3, area: '通州·顺义',            desc: '东部河系生态景观长廊',               path: '#/dongyi',      tagBg: 'rgba(38,198,218,0.3)',  barColor: '#26C6DA' },
-  { id: 15, name: '郊野休闲环绿道', type: '郊野型',   length: 112.8, area: '多区环线',             desc: '串联郊野公园的休闲环线',             path: '#/jiaoye',      tagBg: 'rgba(120,200,80,0.3)',  barColor: '#78C850' },
-  { id: 16, name: '西翼山水绿道',   type: '山地型',   length: 58.7, area: '门头沟·石景山',        desc: '西部山水风景休闲绿道',               path: '#/xiyi',        tagBg: 'rgba(126,87,194,0.3)',  barColor: '#7E57C2' },
-  { id: 11, name: '南沙绿道',       type: '生态郊野', length: 15,   area: '昌平南沙河',           desc: '南沙滨水生态走廊',                 path: '#/nansha',      tagBg: 'rgba(46,125,50,0.3)',   barColor: '#388E3C' },
-  { id: 18, name: '中心城滨水绿道', type: '城市型',   length: 44.1, area: '中心城区',             desc: '中心城区滨水慢行走廊',               path: '#/zhongxincheng', tagBg: 'rgba(239,83,80,0.3)', barColor: '#EF5350' }
+  { id: 1,  name: '温榆河绿道',     type: '风景型',     length: 108,  area: '昌平·顺义·朝阳·通州', desc: '北京最长滨水绿道，四区贯通',         path: '/wenyu',       tagBg: 'rgba(38,166,154,0.28)',   barColor: '#26A69A' },
+  { id: 2,  name: '环二环城市绿道', type: '城市型',     length: 80,   area: '东城·西城·朝阳·丰台',  desc: '环绕城市核心，胡同文化与现代都市',   path: '/huanerhuan',  tagBg: 'rgba(30,136,229,0.28)',   barColor: '#1E88E5' },
+  { id: 3,  name: '三山五园绿道',   type: '历史文化型', length: 36.1, area: '海淀区西郊',           desc: '连接颐和园、圆明园等皇家园林',       path: '/sanshan',     tagBg: 'rgba(160,82,45,0.28)',    barColor: '#A0522D' },
+  { id: 4,  name: '奥林匹克绿道',   type: '风景型',     length: 10.6, area: '朝阳区奥林匹克公园',   desc: '双奥之城的体育精神绿道',             path: '/aosen',       tagBg: 'rgba(38,166,154,0.28)',   barColor: '#26A69A' },
+  { id: 5,  name: '北运河绿道',     type: '风景型',     length: 8.6,  area: '通州区',               desc: '大运河国家文化公园核心段',           path: '/beiyunhe',    tagBg: 'rgba(38,166,154,0.28)',   barColor: '#26A69A' },
+  { id: 6,  name: '营城建都绿道',   type: '历史文化型', length: 9.3,  area: '西城区（木樨地-永定门）', desc: '北京千年古城建城脉络',               path: '/yingcheng',   tagBg: 'rgba(160,82,45,0.28)',    barColor: '#A0522D' },
+  { id: 7,  name: '昌平42绿道',     type: '城市型',     length: 44,   area: '昌平区',               desc: '山野田园与绿色运动的融合',           path: '/changping42', tagBg: 'rgba(30,136,229,0.28)',   barColor: '#1E88E5' },
+  { id: 8,  name: '常营半马绿道',   type: '城市型',     length: 5.2,  area: '朝阳区常营',           desc: '专业半程马拉松赛道',                 path: '/changying',   tagBg: 'rgba(30,136,229,0.28)',   barColor: '#1E88E5' },
+  { id: 9,  name: '亮马河绿道',     type: '城市型',     length: 18,   area: '朝阳区亮马河沿线',     desc: '使馆区旁的国际化滨水廊道',           path: '/liangmahe',   tagBg: 'rgba(30,136,229,0.28)',   barColor: '#1E88E5' },
+  { id: 10, name: '朝阳绿道',       type: '风景型',     length: 9.5,  area: '朝阳区东四环沿线',     desc: '商务文化艺术汇聚的都市廊道',         path: '/chaoyang',    tagBg: 'rgba(38,166,154,0.28)',   barColor: '#26A69A' },
+  { id: 12, name: '丽都商圈绿道',   type: '城市型',     length: 2.2,  area: '朝阳区望京/丽都商圈',  desc: '繁华商圈中的绿色氧吧',               path: '/lidu',        tagBg: 'rgba(30,136,229,0.28)',   barColor: '#1E88E5' },
+  { id: 13, name: '北翼山水绿道',   type: '城市型',     length: 174,  area: '延庆·怀柔·密云',       desc: '北京北部山区生态绿道',               path: '/beiyi',       tagBg: 'rgba(30,136,229,0.28)',   barColor: '#1E88E5' },
+  { id: 14, name: '东翼大河绿道',   type: '城市型',     length: 328,  area: '通州·顺义·平谷',       desc: '东部河系生态景观长廊',               path: '/dongyi',      tagBg: 'rgba(30,136,229,0.28)',   barColor: '#1E88E5' },
+  { id: 15, name: '郊野休闲环绿道', type: '城市型',     length: 109,  area: '大兴·通州·顺义·昌平·房山', desc: '串联郊野公园的休闲环线',             path: '/jiaoye',      tagBg: 'rgba(30,136,229,0.28)',   barColor: '#1E88E5' },
+  { id: 16, name: '西翼山水绿道',   type: '生态型',     length: 160,  area: '门头沟·房山·海淀',     desc: '西部山水风景休闲绿道',               path: '/xiyi',        tagBg: 'rgba(46,125,50,0.28)',    barColor: '#2E7D32' },
+  { id: 11, name: '南沙绿道',       type: '风景型',     length: 20.4, area: '海淀区北部',           desc: '滨水生态走廊',                       path: '/nansha',      tagBg: 'rgba(38,166,154,0.28)',   barColor: '#26A69A' },
+  { id: 18, name: '中心城滨水绿道', type: '城市型',     length: 125,  area: '中心城区',             desc: '中心城区滨水慢行走廊',               path: '/zhongxincheng', tagBg: 'rgba(30,136,229,0.28)', barColor: '#1E88E5' }
 ]
 
 const features = [
-  { title: '交互式 WebGIS 地图', desc: '基于 OpenLayers 构建，多图层高性能渲染，流畅展示全市绿道路网', color: '#69F0AE', icon: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>' },
-  { title: '绿道详情查询', desc: '点击路线即可查看名称、长度、覆盖区域与景点描述，信息一览无余', color: '#40C4FF', icon: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>' },
-  { title: '地图工具箱', desc: '内置绘制、测量、图层切换、主题切换等专业工具，满足地理分析需求', color: '#FFD740', icon: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>' },
-  { title: '夜间 / 日间双主题', desc: '自适应日间与夜间两套地图主题，随时切换，舒适护眼', color: '#EA80FC', icon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>' },
-  { title: '用户账号体系', desc: '游客直接浏览，注册用户可收藏绿道、发表评论，管理后台独立部署', color: '#FF6E40', icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' },
-  { title: '移动端适配', desc: '专为手机优化的移动版界面，支持触屏手势，随时随地查询绿道信息', color: '#64FFDA', icon: '<rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>' }
+  { title: 'AI 智能推荐', desc: '基于深度学习功能画像，从生态、风景、历史、城市四大维度识别每条绿道特色，量身推荐最契合您偏好的绿道', color: '#69F0AE', icon: '<path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"/><line x1="12" y1="22" x2="12" y2="17"/><line x1="9" y1="12" x2="11" y2="14"/><line x1="11" y1="12" x2="13" y2="14"/>' },
+  { title: '绿道可达圈', desc: '定位您的当前位置，选择步行或骑行，直观查看 5/10/15/20/30 分钟内能到达哪些绿道，出门即达', color: '#40C4FF', icon: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>' },
+  { title: '路径规划导航', desc: '真实路网 Dijkstra 寻路，自动定位绿道最近入口，为您规划从起点到绿道的步行/骑行最优路线', color: '#FFD740', icon: '<path d="M5 3l14 9-14 9V3z"/>' },
+  { title: '交互式 WebGIS 地图', desc: '基于 GeoScene（Esri JS API）引擎构建，多图层高性能渲染，流畅展示全市绿道路网', color: '#EA80FC', icon: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>' },
+  { title: 'AI 助手问答', desc: '用自然语言向绿道小助手提问，智能解读各绿道画像，帮您快速找到心仪的绿色空间', color: '#FF6E40', icon: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>' },
+  { title: '昼夜双主题', desc: '自适应日间与夜间两套地图主题，随时切换，舒适护眼', color: '#64FFDA', icon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>' }
 ]
 
 // ══════════════════════════════════════════════════
@@ -548,24 +549,23 @@ function preloadComponent(path) {
 // 根据路径预加载对应的细节页面组件
 function preloadDetailComponent(path) {
   const componentMap = {
-    '#/wenyu': '@/views/WenyuDetail.vue',
-    '#/huanerhuan': '@/views/HuanerhuanDetail.vue',
-    '#/sanshan': '@/views/SanshanDetail.vue',
-    '#/aosen': '@/views/AosenDetail.vue',
-    '#/beiyunhe': '@/views/BeiyunheDetail.vue',
-    '#/yingcheng': '@/views/YingchengDetail.vue',
-    '#/changping42': '@/views/Changping42Detail.vue',
-    '#/changying': '@/views/ChangyingDetail.vue',
-    '#/liangmahe': '@/views/LiangmaheDetail.vue',
-    '#/chaoyang': '@/views/ChaoyangDetail.vue',
-    '#/nansha': '@/views/NanshaDetail.vue',
-    '#/lidu': '@/views/LiduDetail.vue',
-    '#/beiyi': '@/views/BeiyiDetail.vue',
-    '#/dongyi': '@/views/DongyiDetail.vue',
-    '#/jiaoye': '@/views/JiaoyeDetail.vue',
-    '#/nansha': '@/views/NanshaDetail.vue',
-    '#/xiyi': '@/views/XiyiDetail.vue',
-    '#/zhongxincheng': '@/views/ZhongxinchengDetail.vue'
+    '/wenyu': '@/views/WenyuDetail.vue',
+    '/huanerhuan': '@/views/HuanerhuanDetail.vue',
+    '/sanshan': '@/views/SanshanDetail.vue',
+    '/aosen': '@/views/AosenDetail.vue',
+    '/beiyunhe': '@/views/BeiyunheDetail.vue',
+    '/yingcheng': '@/views/YingchengDetail.vue',
+    '/changping42': '@/views/Changping42Detail.vue',
+    '/changying': '@/views/ChangyingDetail.vue',
+    '/liangmahe': '@/views/LiangmaheDetail.vue',
+    '/chaoyang': '@/views/ChaoyangDetail.vue',
+    '/nansha': '@/views/NanshaDetail.vue',
+    '/lidu': '@/views/LiduDetail.vue',
+    '/beiyi': '@/views/BeiyiDetail.vue',
+    '/dongyi': '@/views/DongyiDetail.vue',
+    '/jiaoye': '@/views/JiaoyeDetail.vue',
+    '/xiyi': '@/views/XiyiDetail.vue',
+    '/zhongxincheng': '@/views/ZhongxinchengDetail.vue'
   }
   const componentPath = componentMap[path]
   if (componentPath) {

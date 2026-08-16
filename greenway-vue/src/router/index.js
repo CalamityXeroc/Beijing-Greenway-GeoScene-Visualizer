@@ -10,7 +10,7 @@ const routes = [
   {
     path: '/mobile',
     component: () => import('@/mobile/MobileLayout.vue'),
-    meta: { title: '北京绿道 - 移动版' },
+    meta: { title: '绿脉伴侣 - 移动版' },
     children: [
       {
         path: '',
@@ -132,13 +132,13 @@ const routes = [
     path: '/',
     name: 'Landing',
     component: () => import('@/views/LandingPage.vue'),
-    meta: { title: '北京绿道信息系统 - 探索城市绿色廊道' }
+    meta: { title: '绿脉伴侣 - 智绘微观绿道，定制你的专属自然' }
   },
   {
     path: '/map',
     name: 'Home',
     component: () => import('@/views/GreenwayOverview.vue'),
-    meta: { title: '北京绿道系统总览' }
+    meta: { title: '绿脉伴侣 - 地图总览' }
   },
   {
     path: '/wenyu',
@@ -333,7 +333,7 @@ const router = createRouter({
 
 // 路由守卫 - 更新页面标题 + 原生App自动跳转移动端 + 管理端鉴权
 router.beforeEach((to, from, next) => {
-  document.title = to.meta.title || '北京绿道系统'
+  document.title = to.meta.title || '绿脉伴侣'
 
   // 管理端鉴权检查
   if (to.meta.requiresAdmin) {

@@ -18,7 +18,7 @@
         </svg>
       </div>
       <h1 class="brand-title">欢迎回来</h1>
-      <p class="brand-sub">登录以探索北京绿道</p>
+      <p class="brand-sub">登录以探索绿脉伴侣</p>
     </div>
 
     <!-- 表单卡片 -->

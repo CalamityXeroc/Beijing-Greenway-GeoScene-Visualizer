@@ -118,8 +118,8 @@
       </div>
 
       <!-- 标题和副标题 -->
-      <h1 class="splash-title">绿脉伴旅</h1>
-      <p class="splash-subtitle">探索北京绿道之美</p>
+      <h1 class="splash-title">绿脉伴侣</h1>
+      <p class="splash-subtitle">智绘微观绿道，定制你的专属自然</p>
 
       <!-- 进度条 -->
       <div class="splash-progress-wrap" role="progressbar" :aria-valuenow="Math.round(progress)" aria-valuemin="0" aria-valuemax="100" aria-label="加载进度">

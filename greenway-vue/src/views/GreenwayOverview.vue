@@ -146,6 +146,7 @@
         @close="closeAccessibility"
         @pick-origin="pickingAccessibilityOrigin = true"
         @hull-change="renderAccessibilityHull"
+        @origin-set="onAccessOriginSet"
         @locate-greenway="locateRecommendGreenway"
         @go-route="goRecommendRoute"
       />
@@ -212,7 +213,7 @@
             <h2 class="info-card-title">绿道特色</h2>
           </div>
           <div class="info-card-content">
-            <p>北京绿道系统整合了城市绿色资源，打造"山、水、城、景、文"五位一体的休闲游憩网络。</p>
+            <p>绿脉伴侣整合了城市绿色资源，以深度学习画像识别每条绿道的生态、风景、历史与城市功能，打造"山、水、城、景、文"五位一体的休闲游憩网络。</p>
             <div class="features-list">
               <span class="feature-tag">
                 <i class="fas fa-mountain"></i>
@@ -250,7 +251,7 @@
             <h2 class="info-card-title">使用指南</h2>
           </div>
           <div class="info-card-content">
-            <p>探索北京绿道系统，点击地图上的路线可以查看详细信息：</p>
+            <p>探索绿脉伴侣，点击地图上的路线可以查看详细信息：</p>
             <ul class="guide-list">
               <li class="guide-item">
                 <i class="fas fa-mouse-pointer"></i>
@@ -1908,10 +1909,34 @@ const closeAccessibility = () => {
   }
 }
 
-// 等时圈渲染（GeoScene GraphicsLayer，按时间档着色）
-const HULL_COLORS = { 5: '#4CAF50', 10: '#8BC34A', 15: '#FFC107', 20: '#FF9800', 30: '#F4511E' }
-const renderAccessibilityHull = async ({ hull, minutes }) => {
-  if (!hull || hull.length < 3 || !mapManager.value) return
+// 等时圈渲染：Chaikin 平滑 + 多档叠加（蓝系渐变，内深外浅）+ 起点高亮标记
+const HULL_FILL = {
+  5: 'rgba(21,101,192,0.30)', 10: 'rgba(25,118,210,0.24)',
+  15: 'rgba(30,136,229,0.18)', 20: 'rgba(66,165,245,0.13)',
+  30: 'rgba(144,202,249,0.09)'
+}
+const HULL_LINE = { 5: '#1565C0', 10: '#1976D2', 15: '#1E88E5', 20: '#42A5F5', 30: '#90CAF9' }
+
+/** Chaikin 平滑（闭合多边形边缘圆润化） */
+function chaikinSmooth(pts, iter = 2) {
+  let p = pts
+  for (let i = 0; i < iter; i++) {
+    const np = []
+    for (let j = 0; j < p.length - 1; j++) {
+      const [x1, y1] = p[j], [x2, y2] = p[j + 1]
+      np.push([x1 * 0.75 + x2 * 0.25, y1 * 0.75 + y2 * 0.25])
+      np.push([x1 * 0.25 + x2 * 0.75, y1 * 0.25 + y2 * 0.75])
+    }
+    const [x1, y1] = p[p.length - 1], [x2, y2] = p[0]
+    np.push([x1 * 0.75 + x2 * 0.25, y1 * 0.75 + y2 * 0.25])
+    np.push([x1 * 0.25 + x2 * 0.75, y1 * 0.25 + y2 * 0.75])
+    p = np
+  }
+  return p
+}
+
+const renderAccessibilityHull = async ({ hulls, minutes, origin }) => {
+  if (!hulls || !mapManager.value) return
   const [Graphic] = await Promise.all([import('@geoscene/core/Graphic.js').then(m => m.default || m)])
 
   if (!accessibilityHullLayerId) {
@@ -1924,20 +1949,46 @@ const renderAccessibilityHull = async ({ hull, minutes }) => {
   const layer = mapManager.value.getLayer(accessibilityHullLayerId)
   if (!layer) return
 
-  const color = HULL_COLORS[minutes] || '#FFC107'
   layer.removeAll()
-  layer.add(new Graphic({
-    geometry: {
-      type: 'polygon',
-      rings: [hull.map(pt => [pt[0], pt[1]])],
-      spatialReference: { wkid: 4326 }
-    },
-    symbol: {
-      type: 'simple-fill',
-      color: color + '33',  // 20% 透明度
-      outline: { color, width: 2 }
-    }
-  }))
+
+  // 多档等时圈叠加（5→当前分钟，内层深外层浅）
+  for (const m of [5, 10, 15, 20, 30]) {
+    if (m > minutes) break
+    const hull = hulls[m]
+    if (!hull || hull.length < 3) continue
+    layer.add(new Graphic({
+      geometry: {
+        type: 'polygon',
+        rings: [chaikinSmooth(hull)],
+        spatialReference: { wkid: 4326 }
+      },
+      symbol: {
+        type: 'simple-fill',
+        color: HULL_FILL[m],
+        outline: { color: HULL_LINE[m], width: m === minutes ? 2.5 : 1.5 }
+      }
+    }))
+  }
+
+  // 起点高亮标记（蓝点 + 白边 + 光晕）
+  if (origin && origin.lng && origin.lat) {
+    layer.add(new Graphic({
+      geometry: { type: 'point', longitude: origin.lng, latitude: origin.lat, spatialReference: { wkid: 4326 } },
+      symbol: { type: 'simple-marker', color: '#0D47A1', size: 15, outline: { color: '#ffffff', width: 3 } }
+    }))
+    layer.add(new Graphic({
+      geometry: { type: 'point', longitude: origin.lng, latitude: origin.lat, spatialReference: { wkid: 4326 } },
+      symbol: { type: 'simple-marker', color: 'rgba(13,71,161,0.25)', size: 34, outline: { color: 'rgba(13,71,161,0.4)', width: 1 } }
+    }))
+  }
+}
+
+// 起点确定 → 地图飞至起点并放大
+const onAccessOriginSet = (origin) => {
+  const view = mapManager.value?.getView?.()
+  if (view && origin?.lng && origin?.lat) {
+    view.goTo({ center: [origin.lng, origin.lat], zoom: 14 }, { duration: 900 })
+  }
 }
 
 const onLayerAdded = (layerInfo) => {

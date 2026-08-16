@@ -40,10 +40,10 @@
             时间范围
             <span class="ap-minutes">{{ currentMin }} 分钟</span>
           </div>
-          <input type="range" class="ap-slider" min="5" max="30" step="5" :value="currentMin"
-                 @input="changeMin(parseInt($event.target.value))" />
+          <input type="range" class="ap-slider" min="0" max="4" step="1" :value="currentIndex"
+                 @input="changeIndex(parseInt($event.target.value))" />
           <div class="ap-slider-labels">
-            <span v-for="m in [5, 10, 15, 20, 30]" :key="m" :class="{ on: m === currentMin }" @click="changeMin(m)">{{ m }}'</span>
+            <span v-for="(m, i) in LEVELS" :key="m" :class="{ on: i === currentIndex }" @click="changeIndex(i)">{{ m }}'</span>
           </div>
         </div>
 
@@ -82,7 +82,7 @@
 import { ref, computed, onBeforeUnmount } from 'vue'
 import { getApiBaseUrl } from '@/mobile/services/api'
 
-const emit = defineEmits(['close', 'pick-origin', 'hull-change', 'locate-greenway', 'go-route'])
+const emit = defineEmits(['close', 'pick-origin', 'hull-change', 'origin-set', 'locate-greenway', 'go-route'])
 
 /* ── 拖拽 ── */
 const PANEL_W = 380
@@ -118,6 +118,11 @@ const mode = ref('walking')
 const origin = ref(null)
 const result = ref(null)
 const currentMin = ref(15)
+const LEVELS = [5, 10, 15, 20, 30]
+const currentIndex = computed(() => LEVELS.indexOf(currentMin.value))
+
+function changeMin(m) { currentMin.value = m; emitHull() }
+function changeIndex(i) { changeMin(LEVELS[i] ?? 15) }
 const locating = ref(false)
 const loading = ref(false)
 
@@ -129,10 +134,6 @@ const reachableNow = computed(() => {
 function setMode(m) {
   mode.value = m
   if (origin.value) recompute()
-}
-function changeMin(m) {
-  currentMin.value = m
-  emitHull()
 }
 
 /* 供父组件调用：地图选点结果 */
@@ -173,6 +174,8 @@ async function recompute() {
     const data = await res.json()
     if (data.error) throw new Error(data.error)
     result.value = data
+    // 通知父组件：起点已确定（地图缩放 + 高亮）
+    emit('origin-set', origin.value)
     emitHull()
   } catch (e) {
     alert('可达圈计算失败：' + e.message)
@@ -182,9 +185,9 @@ async function recompute() {
 }
 
 function emitHull() {
-  if (!result.value?.hulls?.[currentMin.value]) return
+  if (!result.value?.hulls) return
   emit('hull-change', {
-    hull: result.value.hulls[currentMin.value],
+    hulls: result.value.hulls,
     minutes: currentMin.value,
     origin: origin.value
   })
