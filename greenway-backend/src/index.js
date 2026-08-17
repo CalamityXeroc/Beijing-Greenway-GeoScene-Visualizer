@@ -372,18 +372,54 @@ app.get('/api/greenways/geojson/collection', async (req, res) => {
 // 建筑：planet_osm_polygon（11 万栋 OSM 建筑 footprint），高度用面积估算（无真实高度字段）
 // 性能：bbox && 粗筛（避免 ST_DWithin 对 110-part 多线的精确距离计算，22s → 0.24s）
 //       area_m2 预计算列（ALTER TABLE 一次性 UPDATE，避免每行 ST_Transform）
+// 坐标系：OSM 建筑为 WGS84，底图/绿道/POI 为 GCJ-02（火星坐标），需转换否则偏移约 500m
+
+// WGS84 → GCJ-02（火星坐标）标准算法
+function wgs84ToGcj02(lng, lat) {
+  const a = 6378245.0
+  const ee = 0.00669342162296594323
+  const transformLat = (x, y) => {
+    let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x))
+    ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0
+    ret += (20.0 * Math.sin(y * Math.PI) + 40.0 * Math.sin(y / 3.0 * Math.PI)) * 2.0 / 3.0
+    ret += (160.0 * Math.sin(y / 12.0 * Math.PI) + 320 * Math.sin(y * Math.PI / 30.0)) * 2.0 / 3.0
+    return ret
+  }
+  const transformLng = (x, y) => {
+    let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x))
+    ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0
+    ret += (20.0 * Math.sin(x * Math.PI) + 40.0 * Math.sin(x / 3.0 * Math.PI)) * 2.0 / 3.0
+    ret += (150.0 * Math.sin(x / 12.0 * Math.PI) + 300.0 * Math.sin(x / 30.0 * Math.PI)) * 2.0 / 3.0
+    return ret
+  }
+  let dLat = transformLat(lng - 105.0, lat - 35.0)
+  let dLng = transformLng(lng - 105.0, lat - 35.0)
+  const radLat = lat / 180.0 * Math.PI
+  let magic = Math.sin(radLat)
+  magic = 1 - ee * magic * magic
+  const sqrtMagic = Math.sqrt(magic)
+  dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * Math.PI)
+  dLng = (dLng * 180.0) / (a / sqrtMagic * Math.cos(radLat) * Math.PI)
+  return [lng + dLng, lat + dLat]
+}
+
+/** 建筑轮廓坐标递归转换（ring 结构：[[[lng,lat],...], ...]） */
+function ringsToGcj02(rings) {
+  return rings.map(ring => ring.map(([lng, lat]) => wgs84ToGcj02(lng, lat)))
+}
+
 async function querySceneData(pool, id) {
   const [buildings, pois] = await Promise.all([
-    // 真三维建筑（沿线 800m bbox，面积 >150㎡，按面积取前 250 栋）
+    // 真三维建筑（沿线 1000m bbox，面积 >20㎡，按面积取前 600 栋）
     pool.query(`
       SELECT b.name, b.building AS type,
         LEAST(70, GREATEST(4, SQRT(b.area_m2) * 0.9)) AS height,
-        ST_AsGeoJSON(ST_Transform(ST_SimplifyPreserveTopology(b.way, 0.00008), 4326)) AS geojson
+        ST_AsGeoJSON(ST_Transform(ST_SimplifyPreserveTopology(b.way, 0.00006), 4326)) AS geojson
       FROM planet_osm_polygon b, greenways g
       WHERE g.id = $1 AND b.building IS NOT NULL AND b.building != 'no'
-        AND b.area_m2 > 150
-        AND b.way && ST_Expand(g.geometry, 0.008)
-      ORDER BY b.area_m2 DESC LIMIT 250
+        AND b.area_m2 > 20
+        AND b.way && ST_Expand(g.geometry, 0.009)
+      ORDER BY b.area_m2 DESC LIMIT 600
     `, [id]),
     // POI 名称标注（沿线 600m，有名字，类型优先级：地铁>公交>景点>其他）
     pool.query(`
@@ -401,7 +437,8 @@ async function querySceneData(pool, id) {
   return {
     buildings: buildings.rows.map(r => ({
       name: r.name, type: r.type, height: r.height,
-      rings: JSON.parse(r.geojson).coordinates
+      // OSM 为 WGS84，转换到 GCJ-02 与高德底图/绿道对齐
+      rings: ringsToGcj02(JSON.parse(r.geojson).coordinates)
     })),
     pois: pois.rows.map(r => ({ name: r.name, type: r.poi_type, lng: r.lng, lat: r.lat }))
   }
