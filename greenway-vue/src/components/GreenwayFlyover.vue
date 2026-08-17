@@ -438,25 +438,52 @@ function createBuildingsLayer() {
     }))
   })
 
-  // 建筑名称标注（labelingInfo，自动面向相机 + 避让，只显示有名字的建筑）
-  layer.labelingInfo = [{
-    labelExpressionInfo: {
-      expression: "IIf(IsEmpty($feature.name), '', $feature.name)"
-    },
-    labelPlacement: 'above-center',
-    symbol: new LabelSymbol3D({
-      symbolLayers: [new TextSymbol3DLayer({
-        text: '',
-        size: 12,
-        font: { family: 'Microsoft YaHei', weight: 'bold' },
-        material: { color: [255, 255, 255, isNight ? 0.92 : 1] },
-        halo: { color: [20, 30, 20, 0.8], size: 2 }
-      })],
-      verticalOffset: { screenLength: 14, maxWorldLength: 180, minWorldLength: 8 }
-    })
-  }]
-
+  // 建筑名称用显式标注层（scene-building-names）渲染，此处不再用 labelingInfo
   mapManager.addLayer('scene-buildings', layer)
+  createBuildingNamesLayer(layer)
+}
+
+/** 建筑名称显式标注：TextSymbol3D 浮于建筑上方（渲染确定，自动面向相机） */
+function createBuildingNamesLayer(buildingLayer) {
+  const mapManager = getMapManager()
+  const buildings = sceneData.value?.buildings || []
+  const named = buildings.filter(b => b.name && b.rings && b.rings.length)
+  if (!named.length) return
+
+  // 只标注重要建筑（按高度/面积降序前 120 个），避免密集城区文字糊屏
+  const top = [...named].sort((a, b) => (b.height || 0) - (a.height || 0)).slice(0, 120)
+
+  const layer = new GraphicsLayer({
+    elevationInfo: { mode: 'relative-to-ground' },
+    // 标注随建筑层一起显隐（保留在 toggleLabels 中统一控制）
+  })
+
+  top.forEach(b => {
+    // 质心（外环平均）
+    const ring = b.rings[0]
+    if (!ring || ring.length < 2) return
+    const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length
+    const cy = ring.reduce((s, p) => s + p[1], 0) / ring.length
+    layer.add(new Graphic({
+      geometry: new Point({ longitude: cx, latitude: cy, spatialReference: { wkid: 4326 } }),
+      symbol: new PointSymbol3D({
+        verticalOffset: {
+          screenLength: 40,            // 距建筑顶 40px（随屏幕距离缩放）
+          maxWorldLength: 350,         // 最近时不超过 350m
+          minWorldLength: 15           // 最远时不少于 15m
+        },
+        symbolLayers: [new TextSymbol3DLayer({
+          text: b.name,
+          size: 13,
+          font: { family: 'Microsoft YaHei', weight: 'bold' },
+          material: { color: [255, 255, 255, 1] },
+          halo: { color: [15, 35, 15, 0.88], size: 2.5 }
+        })]
+      })
+    }))
+  })
+
+  mapManager.addLayer('scene-building-names', layer)
 }
 
 /** POI 名称标注：分类彩色圆点 + 名称（地铁/公交/景点/公园/餐饮等） */
@@ -524,13 +551,13 @@ function toggleBuildings() {
   if (layer) layer.visible = showBuildings.value
 }
 
-/** 切换名称标注层可见性 */
+/** 切换名称标注层可见性（建筑名 + POI 名） */
 function toggleLabels() {
   showLabels.value = !showLabels.value
-  const b = mapManager?.getLayer?.('scene-buildings')
+  const b = mapManager?.getLayer?.('scene-building-names')
   const p = mapManager?.getLayer?.('scene-poi-labels')
-  if (b) b.labelingInfo.visible = showLabels.value
-  if (p) p.labelingInfo.visible = showLabels.value
+  if (b) b.visible = showLabels.value
+  if (p) p.visible = showLabels.value
 }
 
 /** 路径光珠 */
