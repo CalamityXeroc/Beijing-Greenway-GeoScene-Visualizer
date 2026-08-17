@@ -60,7 +60,7 @@
 - 全站昼夜主题（按北京时间自动切换），管理后台双主题完整适配
 -  **AI 助手（绿道小助手）**：基于 DeepSeek-V4-Flash，，支持路线推荐、操作指引、绿道知识问答，对话自动写入数据库
 -  **管理员 AI 对话分析：** 词云 + 每日趋势折线图（7/30/90 天可选）+ 最近提问记录，支持昼夜主题自动切换（ECharts + echarts-wordcloud，中文分词使用 `segment` 库）
--  **3D 飞行漫游（3D Flyover）**：发光管状路径（PathSymbol3DLayer）+ 路径光珠（已飞/当前/未来状态）+ 飞行轨迹（已飞段亮色/未飞段暗色）+ 转弯倾斜 + 时段氛围（星空、天空色、地面色自适应），支持播放/暂停/调速/前后跳转。路径经 PostGIS `ST_SimplifyPreserveTopology` + `ST_LineInterpolatePoint` 精确采样为 45 个等距航点（最多 4,911 个原始顶点精简至 45 个）。
+-  **3D 飞行漫游（3D Flyover）**：发光管状路径（PathSymbol3DLayer）+ 路径光珠（已飞/当前/未来状态）+ 飞行轨迹（已飞段亮色/未飞段暗色）+ 转弯倾斜 + 时段氛围（星空、天空色、地面色自适应），支持播放/暂停/调速/前后跳转。路径经 PostGIS `ST_SimplifyPreserveTopology` + `ST_LineInterpolatePoint` 精确采样为 45 个等距航点（最多 4,911 个原始顶点精简至 45 个）。**真三维城市场景增强**：沿绿道 800m 走廊加载最多 250 栋 OSM 真三维建筑（`planet_osm_polygon` 11 万栋 footprint，`PolygonSymbol3D` + `ExtrudeSymbol3DLayer` 按面积估算高度挤出，建筑类型分色——住宅米黄/商业蓝灰/学校绿灰等，夜晚自动调暗成城市夜景，`ST_SimplifyPreserveTopology` 轮廓简化 + bbox 粗筛 + 预计算面积列保证接口仅 ~0.24s）；建筑名称与沿线 POI（地铁/公交/景点/公园/餐饮等分类彩色圆点）以 `LabelSymbol3D` 名称标注浮显（自动面向相机、自动避让），顶部栏可一键开关建筑/标注图层。
 -  **POI 附近设施**：从高德 POI API 导入 7 类共 847 条便民设施（地铁站、公交站、停车场、公共卫生间、便利店、影剧院、景点），经 PostGIS `ST_DWithin` 筛选绿道周边指定范围内。专业 SVG 矢量地图标记，支持悬浮 tooltip、点击详情弹窗。顶部导航栏内置全局关键词搜索（自动补全 + 键盘导航）。图例面板和详情页图层控制器支持按类型独立开关，详情页支持搜索半径可调（500m~5km）。会话间通过 sessionStorage 持久化图层状态。
 -  **POI 设施聚类**：缩放级别 11~13 时设施点自动聚合成数字气泡，放大后散开显示单个 POI；点击聚合点弹出聚合区域内真实 POI 名称列表。聚类严格跟随图层类型过滤（`definitionExpression`），只保留用户选中的设施类型。
 -  **统一 GeoScene Popup**：设施交互 UI 统一迁移至 GeoScene 原生 popup（popupTemplate + content 函数），支持设施图标、类型、地址、距离展示与"查看绿道详情"一键跳转按钮；单点与聚合 popup 均完整适配白天/黑夜双主题。

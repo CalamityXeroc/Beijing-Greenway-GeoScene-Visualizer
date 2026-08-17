@@ -368,6 +368,45 @@ app.get('/api/greenways/geojson/collection', async (req, res) => {
 // 绿道 3D 飞行路径采样（供SceneView漫游用）
 // ?maxPoints=N 控制最终航点数量（默认45）
 // 先用 Simplify 去噪，再用 ST_LineInterpolatePoint 精确等距采样
+// ── 3D 漫游场景数据：绿道沿线 POI 标注 + 真三维建筑 ──
+// 建筑：planet_osm_polygon（11 万栋 OSM 建筑 footprint），高度用面积估算（无真实高度字段）
+// 性能：bbox && 粗筛（避免 ST_DWithin 对 110-part 多线的精确距离计算，22s → 0.24s）
+//       area_m2 预计算列（ALTER TABLE 一次性 UPDATE，避免每行 ST_Transform）
+async function querySceneData(pool, id) {
+  const [buildings, pois] = await Promise.all([
+    // 真三维建筑（沿线 800m bbox，面积 >150㎡，按面积取前 250 栋）
+    pool.query(`
+      SELECT b.name, b.building AS type,
+        LEAST(70, GREATEST(4, SQRT(b.area_m2) * 0.9)) AS height,
+        ST_AsGeoJSON(ST_Transform(ST_SimplifyPreserveTopology(b.way, 0.00008), 4326)) AS geojson
+      FROM planet_osm_polygon b, greenways g
+      WHERE g.id = $1 AND b.building IS NOT NULL AND b.building != 'no'
+        AND b.area_m2 > 150
+        AND b.way && ST_Expand(g.geometry, 0.008)
+      ORDER BY b.area_m2 DESC LIMIT 250
+    `, [id]),
+    // POI 名称标注（沿线 600m，有名字，类型优先级：地铁>公交>景点>其他）
+    pool.query(`
+      SELECT poi.name, poi.poi_type,
+        ST_X(poi.geometry) AS lng, ST_Y(poi.geometry) AS lat
+      FROM points_of_interest poi, greenways g
+      WHERE g.id = $1 AND poi.geometry && ST_Expand(g.geometry, 0.0054)
+        AND poi.name IS NOT NULL AND poi.name != ''
+      ORDER BY CASE poi.poi_type WHEN '150500' THEN 0 WHEN '150700' THEN 1
+               WHEN '060100' THEN 2 WHEN '110200' THEN 3 ELSE 4 END, poi.id
+      LIMIT 60
+    `, [id])
+  ])
+
+  return {
+    buildings: buildings.rows.map(r => ({
+      name: r.name, type: r.type, height: r.height,
+      rings: JSON.parse(r.geojson).coordinates
+    })),
+    pois: pois.rows.map(r => ({ name: r.name, type: r.poi_type, lng: r.lng, lat: r.lat }))
+  }
+}
+
 app.get('/api/greenways/:id/flyover', async (req, res) => {
   try {
     const { id } = req.params
@@ -430,7 +469,11 @@ app.get('/api/greenways/:id/flyover', async (req, res) => {
       waypoints[waypoints.length-1].heading = waypoints[waypoints.length-2].heading || 0
     }
 
-    res.json({ greenwayId: parseInt(id), waypoints, totalPoints: waypoints.length })
+    const payload = { greenwayId: parseInt(id), waypoints, totalPoints: waypoints.length }
+    if (req.query.scene === '1') {
+      Object.assign(payload, await querySceneData(pool, parseInt(id)))
+    }
+    res.json(payload)
   } catch (err) {
     console.error('[飞行路径] 错误:', err.message)
     res.status(500).json({ error: err.message })
@@ -498,7 +541,11 @@ app.get('/api/greenways/name/:name/flyover', async (req, res) => {
       waypoints[waypoints.length-1].heading = waypoints[waypoints.length-2].heading || 0
     }
 
-    res.json({ greenwayId: parseInt(id), greenwayName: name, waypoints, totalPoints: waypoints.length })
+    const payload = { greenwayId: parseInt(id), greenwayName: name, waypoints, totalPoints: waypoints.length }
+    if (req.query.scene === '1') {
+      Object.assign(payload, await querySceneData(pool, parseInt(id)))
+    }
+    res.json(payload)
   } catch (err) {
     console.error('[飞行路径-by-name] 错误:', err.message)
     res.status(500).json({ error: err.message })

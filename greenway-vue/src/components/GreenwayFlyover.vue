@@ -30,6 +30,15 @@
             <option :value="1">1x</option>
             <option :value="2">2x</option>
           </select>
+          <span class="sep"></span>
+          <button class="btn-icon layer-toggle" :class="{ off: !showBuildings }"
+                  @click="toggleBuildings" title="三维建筑">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn-icon layer-toggle" :class="{ off: !showLabels }"
+                  @click="toggleLabels" title="名称标注">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M20 6H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1zM8 9l-3 3 3 3M16 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
         </div>
       </div>
 
@@ -63,6 +72,7 @@ import { getMapManager } from '@/core/MapManager.js'
 import GraphicsLayer from '@geoscene/core/layers/GraphicsLayer.js'
 import Graphic from '@geoscene/core/Graphic.js'
 import Point from '@geoscene/core/geometry/Point.js'
+import Polygon from '@geoscene/core/geometry/Polygon.js'
 import Polyline from '@geoscene/core/geometry/Polyline.js'
 import SpatialReference from '@geoscene/core/geometry/SpatialReference.js'
 import LineSymbol3D from '@geoscene/core/symbols/LineSymbol3D.js'
@@ -72,6 +82,10 @@ import LineStyleMarker3D from '@geoscene/core/symbols/LineStyleMarker3D.js'
 import PointSymbol3D from '@geoscene/core/symbols/PointSymbol3D.js'
 import IconSymbol3DLayer from '@geoscene/core/symbols/IconSymbol3DLayer.js'
 import ObjectSymbol3DLayer from '@geoscene/core/symbols/ObjectSymbol3DLayer.js'
+import ExtrudeSymbol3DLayer from '@geoscene/core/symbols/ExtrudeSymbol3DLayer.js'
+import PolygonSymbol3D from '@geoscene/core/symbols/PolygonSymbol3D.js'
+import LabelSymbol3D from '@geoscene/core/symbols/LabelSymbol3D.js'
+import TextSymbol3DLayer from '@geoscene/core/symbols/TextSymbol3DLayer.js'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -90,6 +104,9 @@ const currentIdx = ref(0)
 const speed = ref(1)
 const infoTip = ref('')
 const timeOfDay = ref('')
+const showBuildings = ref(true)
+const showLabels = ref(true)
+const sceneData = ref(null)
 
 let mapManager = null
 let flyTimer = null
@@ -126,10 +143,14 @@ function getTimeBasedSky() {
 async function loadFlyover() {
   try {
     const idParam = props.greenwayId > 0 ? `/${props.greenwayId}` : `/name/${encodeURIComponent(props.greenwayName)}`
-    const resp = await fetch(`/api/greenways${idParam}/flyover?maxPoints=45`)
+    const resp = await fetch(`/api/greenways${idParam}/flyover?maxPoints=45&scene=1`)
     const data = await resp.json()
     waypoints.value = data.waypoints || []
     resolvedGreenwayId = data.greenwayId || props.greenwayId
+    sceneData.value = {
+      buildings: data.buildings || [],
+      pois: data.pois || []
+    }
 
     // 加载绿道几何
     if (resolvedGreenwayId) {
@@ -199,6 +220,12 @@ async function initScene() {
   // ---- 2. 路径光珠 ----
   if (waypoints.value.length > 0) {
     createWaypointBeads()
+  }
+
+  // ---- 2.5 场景增强：真三维建筑 + 名称标注 ----
+  if (sceneData.value) {
+    createBuildingsLayer()
+    createPoiLabelsLayer()
   }
 
   // ---- 3. 飞行轨迹 (初始全未飞状态) ----
@@ -361,6 +388,149 @@ function addPathEndMarkers(polyline) {
   }))
 
   mapManager.addLayer('path-end-markers', markerLayer)
+}
+
+/** 真三维建筑：ExtrudeSymbol3DLayer 挤出（高度=面积估算），带名称标注 */
+function createBuildingsLayer() {
+  const mapManager = getMapManager()
+  const hour = new Date().getHours()
+  const isNight = hour >= 19 || hour < 5
+  const buildings = sceneData.value?.buildings || []
+  if (!buildings.length) return
+
+  // 建筑类型 → 颜色（白天暖色调，夜晚自动调暗成城市夜景）
+  const BCOLORS = {
+    apartments: '#DFC9A3', house: '#EAD9BC', residential: '#E8D5B7',
+    commercial: '#B8C6D8', retail: '#C3CFDD', office: '#A9BDD0',
+    industrial: '#C8C3B7', warehouse: '#C8C3B7', garage: '#CFCABF', garages: '#CFCABF',
+    school: '#C5D8B4', university: '#C5D8B4', hospital: '#D8C4C6',
+    church: '#D2C2D8', train_station: '#9FB8C9', stadium: '#BCD4C4',
+    default: '#D6CFC3'
+  }
+  const shade = (hex, f) => {
+    const m = hex.match(/^#([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i)
+    if (!m) return [214, 207, 195, 1]
+    return [
+      Math.round(parseInt(m[1], 16) * f), Math.round(parseInt(m[2], 16) * f),
+      Math.round(parseInt(m[3], 16) * f), 1
+    ]
+  }
+
+  const layer = new GraphicsLayer({ elevationInfo: { mode: 'relative-to-ground' } })
+
+  buildings.forEach(b => {
+    const color = shade(BCOLORS[b.type] || BCOLORS.default, isNight ? 0.42 : 1)
+    const ringSets = b.rings || []
+    if (!ringSets.length) return
+    layer.add(new Graphic({
+      geometry: new Polygon({ rings: ringSets, spatialReference: { wkid: 4326 } }),
+      attributes: { name: b.name || '' },
+      symbol: new PolygonSymbol3D({
+        symbolLayers: [
+          new ExtrudeSymbol3DLayer({
+            size: b.height || 12,
+            material: { color },
+            castShadows: false,
+            edges: { type: 'solid', color: [0, 0, 0, isNight ? 0.5 : 0.25], size: 0.6 }
+          })
+        ]
+      })
+    }))
+  })
+
+  // 建筑名称标注（labelingInfo，自动面向相机 + 避让，只显示有名字的建筑）
+  layer.labelingInfo = [{
+    labelExpressionInfo: {
+      expression: "IIf(IsEmpty($feature.name), '', $feature.name)"
+    },
+    labelPlacement: 'above-center',
+    symbol: new LabelSymbol3D({
+      symbolLayers: [new TextSymbol3DLayer({
+        text: '',
+        size: 12,
+        font: { family: 'Microsoft YaHei', weight: 'bold' },
+        material: { color: [255, 255, 255, isNight ? 0.92 : 1] },
+        halo: { color: [20, 30, 20, 0.8], size: 2 }
+      })],
+      verticalOffset: { screenLength: 14, maxWorldLength: 180, minWorldLength: 8 }
+    })
+  }]
+
+  mapManager.addLayer('scene-buildings', layer)
+}
+
+/** POI 名称标注：分类彩色圆点 + 名称（地铁/公交/景点/公园/餐饮等） */
+function createPoiLabelsLayer() {
+  const mapManager = getMapManager()
+  const hour = new Date().getHours()
+  const isNight = hour >= 19 || hour < 5
+  const pois = sceneData.value?.pois || []
+  if (!pois.length) return
+
+  const PCOLORS = {
+    '150500': '#1E88E5',  // 地铁
+    '150700': '#43A047',  // 公交
+    '060100': '#F57C00',  // 景点
+    '110200': '#7CB342',  // 公园
+    '110100': '#E53935',  // 餐饮
+    default: '#757575'
+  }
+
+  const layer = new GraphicsLayer({ elevationInfo: { mode: 'relative-to-ground', offset: 4 } })
+  const seen = new Set()
+
+  pois.forEach(p => {
+    if (seen.has(p.name)) return
+    seen.add(p.name)
+    const color = PCOLORS[p.type] || PCOLORS.default
+    layer.add(new Graphic({
+      geometry: new Point({ longitude: p.lng, latitude: p.lat, spatialReference: { wkid: 4326 } }),
+      attributes: { name: p.name },
+      symbol: new PointSymbol3D({
+        symbolLayers: [
+          new IconSymbol3DLayer({
+            resource: { primitive: 'circle' },
+            size: 7,
+            color: isNight ? [80, 110, 160, 0.95] : color,
+            outline: { color: [255, 255, 255, 0.9], size: 1.2 }
+          })
+        ]
+      })
+    }))
+  })
+
+  layer.labelingInfo = [{
+    labelExpressionInfo: { expression: '$feature.name' },
+    labelPlacement: 'above-center',
+    symbol: new LabelSymbol3D({
+      symbolLayers: [new TextSymbol3DLayer({
+        text: '',
+        size: 13,
+        font: { family: 'Microsoft YaHei', weight: 'bold' },
+        material: { color: [255, 255, 255, 1] },
+        halo: { color: [25, 50, 25, 0.85], size: 2.5 }
+      })],
+      verticalOffset: { screenLength: 18, maxWorldLength: 200, minWorldLength: 10 }
+    })
+  }]
+
+  mapManager.addLayer('scene-poi-labels', layer)
+}
+
+/** 切换三维建筑层可见性 */
+function toggleBuildings() {
+  showBuildings.value = !showBuildings.value
+  const layer = mapManager?.getLayer?.('scene-buildings')
+  if (layer) layer.visible = showBuildings.value
+}
+
+/** 切换名称标注层可见性 */
+function toggleLabels() {
+  showLabels.value = !showLabels.value
+  const b = mapManager?.getLayer?.('scene-buildings')
+  const p = mapManager?.getLayer?.('scene-poi-labels')
+  if (b) b.labelingInfo.visible = showLabels.value
+  if (p) p.labelingInfo.visible = showLabels.value
 }
 
 /** 路径光珠 */
@@ -672,6 +842,10 @@ onBeforeUnmount(() => {
 .btn-icon:disabled { opacity: .25; cursor: default; transform: none; }
 .btn-play { padding: 8px 12px; background: rgba(76,175,80,.15); border-color: rgba(76,175,80,.25); }
 .btn-play:hover { background: rgba(76,175,80,.25); }
+.sep { width: 1px; height: 20px; background: rgba(255,255,255,.15); margin: 0 2px; }
+.layer-toggle { color: #9FE8A0; border-color: rgba(76,175,80,.3); }
+.layer-toggle.off { opacity: .35; color: #999; border-color: rgba(255,255,255,.12); }
+.layer-toggle.off:hover { opacity: .6; }
 .speed-select {
   background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
   border-radius: 8px; color: #fff; padding: 4px 6px; font-size: .85em; cursor: pointer;
