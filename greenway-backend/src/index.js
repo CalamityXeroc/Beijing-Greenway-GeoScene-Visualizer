@@ -16,6 +16,7 @@ import poiRouter from './routes/poi.js';
 import favoritesRouter from './routes/favorites.js';
 import spatialRouter, { warmGridCache } from './routes/spatial.js';
 import recommendRouter from './routes/recommend.js';
+import assessRouter from './routes/assess.js';
 import accessibilityRouter from './routes/accessibility.js';
 import { cached, invalidate } from './cache.js';
 import { preloadFacilitiesCache } from './routes/poi.js';
@@ -84,6 +85,7 @@ app.use('/api', favoritesRouter);
 // 挂载空间分析路由
 app.use('/api/spatial', spatialRouter);
 app.use('/api/greenways', recommendRouter);
+app.use('/api/greenways', assessRouter);
 app.use('/api/accessibility', accessibilityRouter);
 
 // 启动后异步预热功能区划网格缓存（3 档），避免用户首次请求等待远程传输

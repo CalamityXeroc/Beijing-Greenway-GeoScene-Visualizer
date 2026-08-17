@@ -35,18 +35,10 @@ router.post('/recommend', async (req, res) => {  try {
     const heatRes = await req.pool.query(
       'SELECT greenway_name, heat_index FROM greenway_heatmap'
     )
-    // 3. 设施统计（按空间 1km 关联，与详情页 nearby-facilities 口径一致）
-    const facRes = await req.pool.query(`
-      SELECT g.name AS greenway_name,
-        COUNT(poi.id) AS cnt,
-        COUNT(*) FILTER (WHERE poi.poi_type = '150500') AS metro,
-        COUNT(*) FILTER (WHERE poi.poi_type = '150900') AS parking,
-        COUNT(*) FILTER (WHERE poi.poi_type = '200300') AS restroom
-      FROM greenways g
-      LEFT JOIN points_of_interest poi
-        ON ST_DWithin(poi.geometry::geography, g.geometry::geography, 1000)
-      GROUP BY g.name
-    `)
+    // 3. 设施统计（预聚合表 greenway_facility_stats，1km 口径与详情页 nearby-facilities 一致，毫秒级）
+    const facRes = await req.pool.query(
+      'SELECT greenway_name, cnt, metro, parking, restroom FROM greenway_facility_stats'
+    )
     // 4. 长度 + 入口坐标
     const geoRes = await req.pool.query(`
       SELECT name, ST_Length(geometry::geography) / 1000 AS len_km,

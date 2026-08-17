@@ -31,14 +31,19 @@ function clearSession() {
   localStorage.removeItem(USER_KEY)
 }
 
-function apiFetch(url, options = {}) {
+async function apiFetch(url, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) }
   if (state.token) headers['Authorization'] = `Bearer ${state.token}`
-  
+
   const baseUrl = getApiBaseUrl()
   const fullPath = url.startsWith('http') ? url : `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
-  
-  return fetch(fullPath, { ...options, headers })
+
+  const res = await fetch(fullPath, { ...options, headers })
+
+  // token 过期/无效：立即清除本地会话，避免收藏等接口静默失效（与 adminAuth 行为一致）
+  if (res.status === 401) clearSession()
+
+  return res
 }
 
 export function useUserAuth() {

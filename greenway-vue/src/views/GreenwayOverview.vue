@@ -23,6 +23,8 @@
                 @toggle-recommend="showRecommend = !showRecommend"
                 @toggle-accessibility="showAccessibility = !showAccessibility"
                 :showAccessibility="showAccessibility"
+                @toggle-assess="showAssess = !showAssess"
+                :showAssess="showAssess"
                 @toggle-heatmap="toggleHeatmap($event)"
                 @toggle-facilities="toggleFacilities($event)"
                 @toggle-beijing="toggleBeijing($event)"
@@ -137,6 +139,12 @@
       <RecommendPanel
         v-if="showRecommend"
         @close="showRecommend = false"
+        @locate-greenway="locateRecommendGreenway"
+        @go-route="goRecommendRoute"
+      />
+      <AssessPanel
+        v-if="showAssess"
+        @close="showAssess = false"
         @locate-greenway="locateRecommendGreenway"
         @go-route="goRecommendRoute"
       />
@@ -376,6 +384,7 @@ import { buildPoiPopupTemplate, buildClusterPopupTemplate, bindPoiPopupNavigatio
 import { useGlobalTheme } from '@/utils/useTheme'
 import RecommendPanel from '@/components/RecommendPanel.vue'
 import AccessibilityPanel from '@/components/AccessibilityPanel.vue'
+import AssessPanel from '@/components/AssessPanel.vue'
 import { getApiBaseUrl } from '@/mobile/services/api'
 
 const router = useRouter()
@@ -997,33 +1006,57 @@ const showFacilities = sessionRef('gw_showFacilities', false)
 const showBeijing = sessionRef('gw_showBeijing', true)
 const showGreenways = sessionRef('gw_showGreenways', true)
 const showFunctionLayer = sessionRef('gw_showFunctionLayer', false)
-const showFunctionCard = ref(true)  // 说明卡独立开关：关闭卡片不影响图层
+const showFunctionCard = sessionRef('gw_showFunctionCard', true)  // 说明卡独立开关：关闭即持久化，不再每次开启图层/刷新后弹回
 const showFunctionMore = ref(false)
 const showHeatmapCard = ref(true)
-const showFacilitiesCard = ref(true)
+const showFacilitiesCard = sessionRef('gw_showFacilitiesCard', true)
 
 // POI 搜索选中处理
-function onPoiSearchSelect(poi) {
+async function onPoiSearchSelect(poi) {
   if (!mapManager.value) return
   // 确保设施图层已开启
   if (!showFacilities.value) toggleFacilities(true)
   const view = mapManager.value.getView()
-  if (view) {
-    view.goTo({ center: [poi.lng, poi.lat], zoom: 15 }, { duration: 800 })
-  }
-  // 显示 popup
-  popup.isPoi = true
-  popup.poiName = poi.name
-  popup.poiTypeName = poi.type_name
-  popup.poiSvg = `/images/poi/${FACILITY_CONFIG[poi.poi_type]?.icon || 'subway.svg'}`
-  popup.poiColor = poi.color || '#666'
-  popup.poiAddress = poi.address || ''
-  popup.poiDistance = ''
-  popup.poiGreenway = poi.greenway_name || ''
-  popup.title = poi.name
-  popup.position = { x: window.innerWidth / 2, y: 200 }
-  popup.visible = true
+  if (!view) return
+  view.goTo({ center: [poi.lng, poi.lat], zoom: 15 }, { duration: 800 }).catch(() => {})
   tooltip.visible = false
+
+  // 优先走 GeoScene 原生 popup：从设施图层查到对应要素，与直接点击 POI 点保持一致
+  const layer = mapManager.value.getLayer(facilitiesLayerId)
+  try {
+    if (layer?.queryFeatures) {
+      const res = await layer.queryFeatures({
+        where: `id = ${Number(poi.id)}`,
+        outFields: ['id', 'name', 'poi_type', 'type_name', 'address', 'greenway_name'],
+        returnGeometry: true
+      })
+      const feat = res?.features?.[0]
+      if (feat) {
+        // 用 openPopup 初始化并打开原生 popup（view.popup 为懒初始化，首次 narrows 前无 .open）
+        view.openPopup({ location: feat.geometry, features: [feat], updateLocationEnabled: true }).catch?.(() => {})
+        return
+      }
+    }
+  } catch (e) {
+    console.warn('[POI搜索] 查询设施要素失败，回退到构造要素', e)
+  }
+
+  // 兜底：用搜索数据构造一个带图层 popupTemplate 的要素，同样走原生 popup
+  const att = {
+    id: poi.id, name: poi.name, poi_type: poi.poi_type,
+    type_name: poi.type_name, address: poi.address,
+    greenway_name: poi.greenway_name || '', distance_m: null
+  }
+  const graphic = new Graphic({
+    geometry: new Point({ x: poi.lng, y: poi.lat }),
+    attributes: att,
+    popupTemplate: layer?.popupTemplate
+  })
+  try {
+    view.openPopup({ location: graphic.geometry, features: [graphic], updateLocationEnabled: true }).catch?.(() => {})
+  } catch (e) {
+    console.warn('[POI搜索] 原生 popup 打开失败', e)
+  }
 }
 
 // POI popup 跳转到绿道详情页
@@ -1061,6 +1094,7 @@ const routeStore = getRouteStore()
 const showPathPlanning = sessionRef('gw_showPathPlanning', false)
 const showRecommend = sessionRef('gw_showRecommend', false)
 const showAccessibility = sessionRef('gw_showAccessibility', false)
+const showAssess = sessionRef('gw_showAssess', false)
 const accessibilityPanelRef = ref(null)
 const pickingAccessibilityOrigin = ref(false)
 let accessibilityHullLayerId = null
@@ -1421,7 +1455,7 @@ const toggleHeatmap = async (visible) => {
 
 const toggleFacilities = async (visible) => {
   showFacilities.value = visible
-  if (visible) showFacilitiesCard.value = true  // 开启图层时说明卡重新出现
+  // 说明卡状态由 showFacilitiesCard（sessionRef 持久化）独立控制，不再每次开启图层/恢复时强制弹回
 
   if (!mapManager.value) return
 
@@ -1537,7 +1571,7 @@ const toggleFunctionLayer = (visible) => {
   if (layer) layer.visible = visible
   if (visible) {
     applyFunctionGridSize()
-    showFunctionCard.value = true  // 开启图层时说明卡重新出现
+    // 说明卡状态由 showFunctionCard（sessionRef 持久化）独立控制，不再每次开启图层/恢复时强制弹回
   }
 }
 

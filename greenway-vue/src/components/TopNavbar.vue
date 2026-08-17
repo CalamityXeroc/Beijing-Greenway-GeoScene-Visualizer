@@ -405,6 +405,13 @@
             </svg>
             可达圈分析
           </button>
+          <button class="dd-btn" :class="{ active: showAssess }"
+                  @click="emit('toggle-assess')">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+            绿道评估
+          </button>
           <div class="dd-divider"/>
           <button class="dd-btn dd-btn--danger" @click="callTool('clearSpatialAnalysis')">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
@@ -560,13 +567,14 @@ const props = defineProps({
   showFacilities: { type: Boolean, default: false },
   showRecommend: { type: Boolean, default: false },
   showAccessibility: { type: Boolean, default: false },
+  showAssess: { type: Boolean, default: false },
   showBeijing: { type: Boolean, default: true },
   showGreenways: { type: Boolean, default: true },
   showFunctionLayer: { type: Boolean, default: false },
   facilityTypeFilters: { type: Object, default: () => ({}) }
 })
 
-const emit = defineEmits(['toggle-path-planning', 'toggle-recommend', 'toggle-accessibility', 'toggle-heatmap', 'toggle-facilities', 'toggle-beijing', 'toggle-greenways', 'toggle-function-layer', 'toggle-facility-type'])
+const emit = defineEmits(['toggle-path-planning', 'toggle-recommend', 'toggle-accessibility', 'toggle-assess', 'toggle-heatmap', 'toggle-facilities', 'toggle-beijing', 'toggle-greenways', 'toggle-function-layer', 'toggle-facility-type'])
 
 const facilitySubTypes = {
   '150500': '地铁站', '150700': '公交站', '150900': '停车场',
