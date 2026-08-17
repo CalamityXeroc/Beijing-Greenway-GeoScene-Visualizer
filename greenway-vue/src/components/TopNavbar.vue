@@ -405,13 +405,6 @@
             </svg>
             可达圈分析
           </button>
-          <button class="dd-btn" :class="{ active: showAssess }"
-                  @click="emit('toggle-assess')">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-            </svg>
-            绿道评估
-          </button>
           <div class="dd-divider"/>
           <button class="dd-btn dd-btn--danger" @click="callTool('clearSpatialAnalysis')">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
@@ -447,6 +440,19 @@
             <path d="M3 21l9-9"/><path d="M12.2 6.2L11 5"/>
           </svg>
           智能推荐
+        </button>
+      </div>
+
+      <!-- 绿道评估 -->
+      <div class="nav-item">
+        <button class="nav-btn" :class="{ active: showAssess }"
+                @click="emit('toggle-assess')">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          绿道评估
         </button>
       </div>
     </div>

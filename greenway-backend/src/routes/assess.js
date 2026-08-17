@@ -24,8 +24,8 @@ const DOMINANT_CN = { eco: '生态型', scenic: '风景型', history: '历史文
 // 总分权重：综合体检面向所有市民，维度均衡（生态/便捷/设施/热度/休闲）
 const W = { eco: 0.25, transport: 0.20, facility: 0.20, heat: 0.15, leisure: 0.20 }
 
-// 等级划分（市民话术）
-const gradeOf = (score) => (score >= 85 ? '优' : score >= 70 ? '良' : score >= 55 ? '中' : '待提升')
+// 等级划分（市民话术）——阈值放宽：多数绿道应落在"良/中"，让市民感知绿道整体品质不错
+const gradeOf = (score) => (score >= 82 ? '优' : score >= 70 ? '良' : score >= 55 ? '中' : '待提升')
 
 router.get('/assess', async (req, res) => {
   try {
@@ -72,8 +72,9 @@ router.get('/assess', async (req, res) => {
       const len = geo.len_km || 10
 
       // ── 维度 1：生态自然度（生态 + 风景×0.6 的占比，反映"绿色质量"）──
+      // 公式放宽（×2.0）：让城市绿道也能拿到中等偏上的生态分，避免"城市型=低分"的观感
       const ecoRaw = profile.eco + profile.scenic * 0.6
-      const dimEco = Math.round(Math.min(1, ecoRaw * 1.6) * 100)
+      const dimEco = Math.round(Math.min(1, ecoRaw * 2.0) * 100)
 
       // ── 维度 2：出行便捷度（地铁覆盖为主，设施密度为辅）──
       const metro = parseInt(fac.metro) || 0
@@ -100,10 +101,13 @@ router.get('/assess', async (req, res) => {
       const dimLeisure = Math.round((lenFit * 0.6 + balance * 0.4) * 100)
 
       const dims = { eco: dimEco, transport: dimTransport, facility: dimFacility, heat: dimHeat, leisure: dimLeisure }
-      const score = Math.round(
+      const raw = (
         W.eco * dimEco + W.transport * dimTransport + W.facility * dimFacility +
         W.heat * dimHeat + W.leisure * dimLeisure
       )
+      // 总分放宽：基础分 36 + 0.65×加权分（满分 100 的"市民友好"映射），
+      // 让绿道整体落在 55~85 区间，避免"全市没几条好绿道"的消极观感
+      const score = Math.round(36 + 0.65 * raw)
 
       return { name: p.greenway_name, score, grade: gradeOf(score), dims, profile, heat, len, geo, fac, metro }
     })
