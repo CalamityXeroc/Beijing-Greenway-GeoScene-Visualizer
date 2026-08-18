@@ -70,6 +70,20 @@ export const fetchGreenwayById = async (id) => {
 }
 
 /**
+ * 获取全城绿道体检评估数据（与 Web 端绿道体检一致）
+ * @returns {Promise<{items: Array, avgDims: Object, total: number}>}
+ * items[i] = { name, score, grade, rank, dims, profile, lenKm, heatRank, heat, metro, highlights, weakPoints, lng, lat }
+ */
+export const fetchGreenwayAssess = async () => {
+  const res = await fetch(buildUrl('/api/greenways/assess'))
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(data.error || `HTTP ${res.status}`)
+  }
+  return data
+}
+
+/**
  * 获取指定绿道详情
  * @param {string} name 绿道名称
  * @returns {Promise<Object>} GeoJSON FeatureCollection

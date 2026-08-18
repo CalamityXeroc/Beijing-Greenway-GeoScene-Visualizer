@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { isMobileDevice } from '@/utils/useMobileOptimization'
 import { Capacitor } from '@capacitor/core'
 import { useAdminAuth } from '@/stores/adminAuth'
+import { useUserAuth } from '@/stores/userAuth'
 
 // 使用各自独立的详情页面组件（不再使用统一模板）
 
@@ -81,19 +82,19 @@ const routes = [
         path: 'admin',
         name: 'MobileAdmin',
         component: () => import('@/mobile/views/AdminHomeView.vue'),
-        meta: { title: '管理中心', requiresAdmin: true }
+        meta: { title: '管理中心', requiresMobileAdmin: true }
       },
       {
         path: 'admin/users',
         name: 'MobileAdminUsers',
         component: () => import('@/mobile/views/AdminUsersView.vue'),
-        meta: { title: '用户管理', requiresAdmin: true }
+        meta: { title: '用户管理', requiresMobileAdmin: true }
       },
       {
         path: 'admin/comments',
         name: 'MobileAdminComments',
         component: () => import('@/mobile/views/AdminCommentsView.vue'),
-        meta: { title: '评论审核', requiresAdmin: true }
+        meta: { title: '评论审核', requiresMobileAdmin: true }
       },
       {
         path: 'settings',
@@ -340,6 +341,15 @@ router.beforeEach((to, from, next) => {
     const { isLoggedIn } = useAdminAuth()
     if (!isLoggedIn.value) {
       next({ path: '/admin/login', query: { redirect: to.fullPath } })
+      return
+    }
+  }
+
+  // 移动端管理员功能：使用前台用户身份（role=admin 即可），无需管理后台二次登录
+  if (to.meta.requiresMobileAdmin) {
+    const { isLoggedIn: userLoggedIn, currentUser } = useUserAuth()
+    if (!userLoggedIn.value || currentUser.value?.role !== 'admin') {
+      next({ path: '/mobile/login', query: { redirect: to.fullPath } })
       return
     }
   }

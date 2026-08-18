@@ -79,7 +79,7 @@
               </svg>
             </div>
             <h3>感谢您的反馈！</h3>
-            <p>我们会在 3 个工作日内回复您。</p>
+            <p>您的反馈已记录，我们会认真对待每一条建议。</p>
             <button class="done-btn" @click="showSuccess = false">知道了</button>
           </div>
         </div>

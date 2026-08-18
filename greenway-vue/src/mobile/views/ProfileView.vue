@@ -152,6 +152,26 @@
       <div class="nav-spacer"></div>
     </div>
 
+    <!-- 关于应用弹窗 -->
+    <Teleport to="body">
+      <div class="modal-overlay" v-if="showAboutModal" @click="showAboutModal = false">
+        <div class="modal-content about-modal" @click.stop>
+          <div class="about-header">
+            <div class="app-icon">
+              <img src="/logo.svg" alt="绿脉伴侣" style="width:72px;height:72px;display:block;object-fit:contain" />
+            </div>
+            <h2>绿脉伴侣</h2>
+            <p class="version">版本 1.0.0</p>
+          </div>
+          <div class="about-body">
+            <p>绿脉伴侣是一款北京绿道智慧服务平台，提供绿道信息查询、深度学习功能画像、智能推荐、路径规划、可达圈分析、AI 助手问答、社区互动等功能。</p>
+            <p class="copyright">© 2025-2026 绿脉伴侣团队</p>
+          </div>
+          <button class="modal-close" @click="showAboutModal = false">关闭</button>
+        </div>
+      </div>
+    </Teleport>
+
     <MobileBottomNav v-model="activeTab" />
   </div>
 </template>
@@ -163,10 +183,10 @@ import MobileBottomNav from '../components/MobileBottomNav.vue'
 import { useAppTheme } from '../composables/useAppTheme'
 import { useUserAuth } from '@/stores/userAuth'
 import { fetchUserStats } from '@/services/favoritesApi'
-import { toast } from '../composables/useToast'
 
 const router = useRouter()
 const activeTab = ref('profile')
+const showAboutModal = ref(false)
 const { isDark, toggleTheme } = useAppTheme()
 const { isLoggedIn, currentUser, nickname, username, clearSession } = useUserAuth()
 
@@ -225,11 +245,11 @@ const goToPage = (p) => {
     return
   }
   if (p === 'help') {
-    toast('帮助文档即将上线', 'info')
+    router.push('/mobile/feedback')
     return
   }
   if (p === 'about') {
-    router.push('/mobile/settings')
+    showAboutModal.value = true
     return
   }
 }
@@ -533,4 +553,58 @@ const goToPage = (p) => {
 }
 
 .nav-spacer { height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom,0px) + 36px); }
+
+/* 关于应用弹窗 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn var(--transition-base);
+}
+@keyframes fadeIn { from { opacity: 0; } }
+
+.modal-content {
+  width: 100%;
+  max-width: 340px;
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  animation: scaleIn var(--transition-base);
+}
+@keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } }
+
+.about-modal .about-header {
+  background: linear-gradient(135deg, var(--color-primary), #059669);
+  padding: 32px 24px;
+  text-align: center;
+  color: #fff;
+}
+.about-header .app-icon { margin-bottom: 16px; }
+.about-header h2 { margin: 0 0 8px; font-size: 22px; }
+.about-header .version { margin: 0; font-size: var(--text-sm); opacity: 0.9; }
+
+.about-body { padding: 24px; text-align: center; }
+.about-body p {
+  margin: 0 0 16px;
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+.about-body .copyright { font-size: var(--text-xs); color: var(--color-text-tertiary); }
+
+.modal-close {
+  width: 100%;
+  padding: 16px;
+  background: var(--color-surface-2);
+  border: none;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+}
 </style>

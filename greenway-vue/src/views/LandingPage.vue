@@ -18,14 +18,8 @@
       <div class="lp-header__inner">
         <div class="lp-logo">
           <div class="lp-logo__icon">
-            <svg viewBox="0 0 40 40" fill="none">
-              <circle cx="20" cy="20" r="18" fill="#1B5E20" opacity="0.3"/>
-              <path d="M20 6 C12 12 8 18 8 24 C8 30 13.5 34 20 34 C26.5 34 32 30 32 24 C32 18 28 12 20 6Z" fill="#2E7D32" opacity="0.85"/>
-              <path d="M20 9 L20 32 M13 22 C16 18 20 17 25 18.5" stroke="#A5D6A7" stroke-width="1.5" stroke-linecap="round"/>
-              <circle cx="20" cy="22" r="2.5" fill="#69F0AE" opacity="0.9"/>
-            </svg>
+            <img src="/logo_icon.svg" alt="绿脉伴侣" />
           </div>
-          <span class="lp-logo__text">绿脉伴侣</span>
         </div>
 
         <nav class="lp-nav">
@@ -281,14 +275,9 @@
               <div class="footer-inner">
                 <div class="footer-brand">
                   <div class="lp-logo">
-                    <div class="lp-logo__icon" style="width:30px;height:30px">
-                      <svg viewBox="0 0 40 40" fill="none">
-                        <circle cx="20" cy="20" r="18" fill="#1B5E20" opacity="0.3"/>
-                        <path d="M20 6 C12 12 8 18 8 24 C8 30 13.5 34 20 34 C26.5 34 32 30 32 24 C32 18 28 12 20 6Z" fill="#2E7D32" opacity="0.85"/>
-                        <path d="M20 9 L20 32 M13 22 C16 18 20 17 25 18.5" stroke="#A5D6A7" stroke-width="1.5" stroke-linecap="round"/>
-                      </svg>
+                    <div class="lp-logo__icon" style="width:60px;height:60px">
+                      <img src="/logo_icon.svg" alt="绿脉伴侣" style="width:60px;height:60px" />
                     </div>
-                    <span class="lp-logo__text" style="font-size:0.88rem">绿脉伴侣</span>
                   </div>
                   <p class="footer-slogan">智绘微观绿道，定制你的专属自然</p>
                 </div>
@@ -696,6 +685,21 @@ function initGlobe() {
     [[35,126],[38,126],[40,128],[42,127],[40,125],[37,125],[35,126]],
     [[8,78],[10,76],[15,74],[20,72],[22,75],[28,76],[25,80],[22,82],[18,83],[15,80],[10,78],[8,78]],
   ]
+  // 其他大洲轮廓：北美 / 南美 / 非洲 / 澳洲 / 格陵兰 / 南极
+  paths.push(
+    // 北美洲
+    [[72,-160],[70,-140],[68,-120],[66,-100],[60,-90],[55,-82],[48,-78],[44,-70],[40,-75],[35,-78],[30,-82],[25,-80],[22,-90],[18,-95],[22,-105],[28,-114],[33,-118],[40,-124],[48,-126],[55,-130],[60,-140],[66,-150],[70,-155],[72,-160]],
+    // 南美洲
+    [[10,-78],[8,-75],[5,-72],[2,-60],[-3,-50],[-8,-38],[-12,-38],[-18,-42],[-25,-45],[-32,-52],[-40,-62],[-48,-72],[-54,-70],[-50,-76],[-42,-74],[-33,-72],[-25,-70],[-18,-72],[-10,-78],[-2,-80],[5,-78],[10,-78]],
+    // 非洲
+    [[35,-6],[34,2],[33,10],[31,18],[30,25],[26,32],[22,36],[17,40],[12,43],[11,48],[8,50],[3,46],[-2,42],[-8,40],[-15,38],[-22,35],[-30,32],[-34,24],[-34,18],[-28,16],[-20,14],[-12,10],[-5,6],[2,2],[8,-2],[12,-8],[16,-14],[22,-16],[28,-12],[33,-6],[35,-6]],
+    // 澳洲
+    [[-12,130],[-14,136],[-18,142],[-22,148],[-28,153],[-34,150],[-38,144],[-38,140],[-34,136],[-30,133],[-28,128],[-30,120],[-32,115],[-28,113],[-22,114],[-16,122],[-13,128],[-12,130]],
+    // 格陵兰
+    [[83,-45],[80,-30],[75,-20],[70,-22],[66,-38],[64,-48],[70,-54],[76,-53],[81,-48],[83,-45]],
+    // 南极洲（简化环带）
+    [[-72,0],[-70,40],[-68,80],[-72,120],[-70,160],[-72,-160],[-70,-120],[-68,-80],[-72,-40],[-72,0]]
+  )
   paths.forEach(function(pts) {
     var curve = new THREE.CatmullRomCurve3(pts.map(function(p) { return ll2v(p[0], p[1], 1.015) }), true)
     pivot.add(new THREE.Mesh(
@@ -822,7 +826,7 @@ onBeforeUnmount(() => {
 ══════════════════════════════════════════════════ */
 .lp-header {
   position: fixed; top: 0; left: 0; right: 0; z-index: 9000;
-  padding: 0 48px; height: 70px;
+  padding: 0 24px 0 8px; height: 70px;
   display: flex; align-items: center;
   background: rgba(6,13,20,0.45);
   backdrop-filter: blur(12px);
@@ -836,11 +840,12 @@ onBeforeUnmount(() => {
   box-shadow: 0 4px 24px rgba(0,0,0,0.3);
 }
 .lp-header__inner {
-  width: 100%; max-width: 1280px; margin: 0 auto;
-  display: flex; align-items: center; gap: 48px;
+  width: 100%; margin: 0;
+  display: flex; align-items: center; gap: 48px; padding-left: 0;
 }
-.lp-logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.lp-logo__icon { width: 36px; height: 36px; }
+.lp-logo { display: flex; align-items: center; flex-shrink: 0; }
+.lp-logo__icon { width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; }
+.lp-logo__icon img { width: 72px; height: 72px; object-fit: contain; display: block; }
 .lp-logo__text {
   font-size: 1.05rem; font-weight: 700; letter-spacing: 0.01em;
   background: linear-gradient(135deg, #A5D6A7, #69F0AE);
@@ -1052,14 +1057,28 @@ onBeforeUnmount(() => {
   position: absolute; border-radius: 50%;
   border: 1px solid transparent; animation: orbital linear infinite; pointer-events: none;
 }
+/* 绿色轨道：轨道边框 + 绿球一起转（相对静止也无所谓，绿球慢不明显） */
 .orbit--1 { width: 290px; height: 290px; top: 25px; left: 25px; border-color: rgba(105,240,174,0.14); animation-duration: 11s; }
-.orbit--2 { width: 370px; height: 195px; top: 73px; left: -15px; border-color: rgba(64,196,255,0.09); animation-duration: 17s; animation-direction: reverse; }
+/* 蓝色轨道：边框静止不转，蓝球独立沿椭圆运动 */
+.orbit--2 { width: 450px; height: 300px; top: 20px; left: -55px; border-color: rgba(64,196,255,0.16); animation: none; }
 .orbit__dot {
   width: 7px; height: 7px; border-radius: 50%; background: #69F0AE;
   position: absolute; top: -3.5px; left: 50%; transform: translateX(-50%);
   box-shadow: 0 0 8px #69F0AE;
 }
-.orbit__dot--2 { background: #40C4FF; box-shadow: 0 0 8px #40C4FF; }
+/* 蓝球：沿椭圆轨道独立公转（轨道边框不动） */
+.orbit__dot--2 {
+  background: #40C4FF; box-shadow: 0 0 8px #40C4FF;
+  width: 7px; height: 7px; top: auto; left: auto; transform: none;
+  /* 椭圆路径：圆心 (225,150)，半轴 225×150，与轨道边框重合 */
+  offset-path: path('M 225,0 A 225,150 0 1,1 224.99,0 Z');
+  offset-rotate: 0deg;
+  animation: blue-orbit 6s linear infinite reverse;
+}
+@keyframes blue-orbit {
+  from { offset-distance: 0%; }
+  to   { offset-distance: 100%; }
+}
 @keyframes orbital { to { transform: rotate(360deg); } }
 
 /* ══════════════════════════════════════════════════
@@ -1249,10 +1268,30 @@ a.fl-link:hover { color: #A5D6A7; }
 }
 @media (max-width: 600px) {
   .hero-inner, .page-inner, .final-inner { padding-left: 20px; padding-right: 20px; }
-  .lp-header { padding: 0 20px; }
+  .lp-header { padding: 0 12px; height: 60px; }
+  .lp-header__inner { gap: 10px; }
+  .lp-logo__icon { width: 44px; height: 44px; }
+  .lp-logo__icon img { width: 44px; height: 44px; }
+  .lp-logo__text { display: none; }
+  .btn-ghost, .btn-primary, .btn-admin {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+  }
+  .lp-user-area { padding: 0 8px 0 6px; gap: 4px; }
+  .lp-user-area .lp-nickname { display: none; }
   .feat-grid { grid-template-columns: 1fr; }
   .gw-grid { grid-template-columns: repeat(2, 1fr); }
   .footer-links { flex-wrap: wrap; gap: 22px; }
+}
+
+/* 超窄屏（≤420px）：进一步压缩操作按钮，防止溢出 */
+@media (max-width: 420px) {
+  .lp-header__actions { gap: 6px; }
+  .btn-ghost, .btn-primary, .btn-admin {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+  .lp-header__inner { gap: 8px; }
 }
 
 /* ══════════════════════════════════════════════════

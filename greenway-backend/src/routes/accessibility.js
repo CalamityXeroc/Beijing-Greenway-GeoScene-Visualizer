@@ -10,6 +10,7 @@
  */
 import express from 'express'
 import { getGraph, dijkstraAll, nearestNode } from './roadGraph.js'
+import { wgs84ToGcj02, gcj02ToWgs84 } from '../utils/coordTransform.js'
 
 const router = express.Router()
 
@@ -58,6 +59,9 @@ router.post('/reach', async (req, res) => {
     const speed = SPEED[travelMode]
     const maxMinutes = 30
     const maxDist = speed * maxMinutes * 60  // 30 分钟最远距离
+
+    // 起点坐标为 GCJ-02（高德底图/POI），路网为 OSM WGS-84，先转换再匹配路网
+    const [wgsLng, wgsLat] = gcj02ToWgs84(lng, lat)
     const margin = (maxDist + 1000) / 111320  // 度（含 1km 余量）
     const spanKm = (maxDist + 1000) / 1000
 
@@ -65,17 +69,17 @@ router.post('/reach', async (req, res) => {
     // 加载路网图（全路网，强制非主干道模式）
     const { graph } = await getGraph(
       req.pool,
-      lng - margin, lat - margin, lng + margin, lat + margin,
+      wgsLng - margin, wgsLat - margin, wgsLng + margin, wgsLat + margin,
       Math.min(spanKm, 8)  // 保持全路网（avoid 主干道降级）
     )
     console.log(`[可达圈] 路网就绪 ${graph.nodeIdx}节点 ${Date.now() - t0}ms`)
 
-    // 距离场
+    // 距离场（WGS-84 路网坐标）
     const t1 = Date.now()
-    const dists = dijkstraAll(graph, lng, lat, maxDist)
+    const dists = dijkstraAll(graph, wgsLng, wgsLat, maxDist)
     console.log(`[可达圈] 距离场 ${dists.size}节点 ${Date.now() - t1}ms`)
 
-    // 各时间档凸包
+    // 各时间档凸包（路网 WGS-84 → 转回 GCJ-02 与高德底图对齐）
     const hulls = {}
     for (const min of LEVELS) {
       const limit = speed * min * 60
@@ -86,7 +90,7 @@ router.post('/reach', async (req, res) => {
           if (c) pts.push(c)
         }
       }
-      hulls[min] = convexHull(pts)
+      hulls[min] = convexHull(pts).map(([hlng, hlat]) => wgs84ToGcj02(hlng, hlat))
     }
 
     // 可达绿道：绿道最近入口 → 最近路网节点 → 路网距离
@@ -98,7 +102,7 @@ router.post('/reach', async (req, res) => {
       const coords = g.geom?.coordinates
       if (!coords) continue
       const lines = g.geom.type === 'MultiLineString' ? coords : [coords]
-      // 起点到绿道线最近点（欧氏）
+      // 起点与绿道线同属 GCJ-02，直接点线最近（坐标系一致）
       let best = { d: Infinity, lng: 0, lat: 0 }
       for (const line of lines) {
         for (let i = 0; i < line.length - 1; i++) {
@@ -107,12 +111,14 @@ router.post('/reach', async (req, res) => {
         }
       }
       if (!Number.isFinite(best.d)) continue
-      // 最近入口点 → 最近路网节点 → 路网距离
-      const nodeId = nearestNode(graph, best.lng, best.lat)
+      // 绿道最近点（GCJ-02）→ WGS-84 → 最近路网节点 → 路网距离
+      const gwWgs = gcj02ToWgs84(best.lng, best.lat)
+      const nodeId = nearestNode(graph, gwWgs[0], gwWgs[1])
       const distM = nodeId != null ? (dists.get(nodeId) ?? Infinity) : Infinity
       if (distM <= maxDist) {
         greenways.push({
           name: g.name,
+          // 返回给前端的是 GCJ-02（与底图一致）
           lng: best.lng,
           lat: best.lat,
           distM: Math.round(distM),

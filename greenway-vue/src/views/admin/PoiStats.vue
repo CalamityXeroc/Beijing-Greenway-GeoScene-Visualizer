@@ -109,8 +109,7 @@ async function loadAll() {
   try {
     topPois.value = await fetchTopPois(10)
   } catch { }
-  loadTypeChart()
-  loadTrend(30)
+  // 图表渲染由 init 成功后触发（loadTypeChart/loadTrend）
 }
 
 async function loadTypeChart() {
@@ -151,19 +150,44 @@ async function loadTrend(days) {
 
 onMounted(async () => {
   await nextTick()
-  if (typePieDom.value) { typePieInst = echarts.init(typePieDom.value) }
-  if (trendDom.value) { trendInst = echarts.init(trendDom.value) }
+  // 参照 HeatAdmin 模式：先加载数据（给布局留时间），再初始化图表，避免 Capacitor WebView 布局时机问题
   await loadAll()
+  const tryInit = () => {
+    if (typePieDom.value && !typePieInst && typePieDom.value.clientWidth > 0) {
+      typePieInst = echarts.init(typePieDom.value)
+      loadTypeChart()
+    }
+    if (trendDom.value && !trendInst && trendDom.value.clientWidth > 0) {
+      trendInst = echarts.init(trendDom.value)
+      loadTrend(trendDays.value)
+    }
+    return !!(typePieInst && trendInst)
+  }
+  if (!tryInit()) {
+    // 布局未就绪，重试
+    let attempts = 0
+    const timer = setInterval(() => {
+      attempts++
+      if (tryInit() || attempts > 15) clearInterval(timer)
+    }, 200)
+  }
   themeObs = new MutationObserver(() => {
     if (typePieInst) { typePieInst.setOption({ legend: { textStyle: { color: textColor() } } }) }
     loadTypeChart(); loadTrend(trendDays.value)
   })
   themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+  window.addEventListener('resize', handleResize)
 })
+
+function handleResize() {
+  typePieInst?.resize()
+  trendInst?.resize()
+}
 
 onBeforeUnmount(() => {
   typePieInst?.dispose(); trendInst?.dispose()
   themeObs?.disconnect()
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -192,6 +216,33 @@ onBeforeUnmount(() => {
 .heat-table td { padding: 0.55rem 0.8rem; border-bottom: 1px solid #f3f4f6; }
 .rank { font-weight: 700; color: #4CAF50; }
 .tag { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 10px; font-size: 0.72rem; font-weight: 600; }
+
+/* 移动端适配 */
+@media (max-width: 1200px) {
+  .stats-cards { grid-template-columns: repeat(2, 1fr); }
+  .charts-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .stats-cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat-card { padding: 14px; gap: 10px; }
+  .stat-icon { width: 40px; height: 40px; font-size: 1rem; }
+  .stat-value { font-size: 1.4rem; }
+  .chart-card { padding: 0.8rem; }
+  .chart-dom { height: 220px; }
+  .page-title { font-size: 1.2rem; }
+}
+
+/* 超窄屏：统计卡单列 + 趋势按钮不再绝对定位 */
+@media (max-width: 480px) {
+  .stats-cards { grid-template-columns: 1fr; }
+  .stat-card { padding: 12px; }
+  .chart-card { padding: 0.8rem 0.5rem; }
+  .trend-btns { position: static; margin-bottom: 8px; }
+  .trend-btns button { min-height: 36px; padding: 6px 12px; }
+  .chart-title { padding-right: 0; }
+  .heat-table { font-size: 0.75rem; }
+  .heat-table th, .heat-table td { padding: 0.4rem 0.5rem; }
+}
 
 [data-theme="night"] .page-title { color: #e5e7eb; }
 [data-theme="night"] .stat-card { background: #1f2937; border-color: #374151; }

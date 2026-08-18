@@ -3,18 +3,7 @@
     <!-- 左：Logo + 标题 -->
     <div class="nav-brand">
       <div class="brand-logo">
-        <svg viewBox="0 0 40 40" width="36" height="36" fill="none">
-          <circle cx="20" cy="20" r="20" fill="#2E7D32"/>
-          <path d="M8 30 Q13 10 20 20 Q27 30 32 12" stroke="#A5D6A7" stroke-width="2.5"
-                fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="20" cy="20" r="3.5" fill="#E8F5E9"/>
-          <circle cx="13" cy="24" r="2" fill="#81C784"/>
-          <circle cx="27" cy="16" r="2" fill="#81C784"/>
-        </svg>
-      </div>
-      <div class="brand-text">
-        <span class="brand-title">绿脉伴侣</span>
-        <span class="brand-sub">智绘微观绿道 · 定制你的专属自然</span>
+        <img src="/logo_icon.svg" alt="绿脉伴侣" class="brand-logo-img" />
       </div>
     </div>
 
@@ -32,7 +21,7 @@
       <!-- 绘制工具 -->
       <div class="nav-item" :class="{ 'has-active': isDrawActive }"
            @mouseenter="openMenu('draw')" @mouseleave="closeMenu('draw')">
-        <button class="nav-btn" :class="{ active: isDrawActive }">
+        <button class="nav-btn" :class="{ active: isDrawActive }" @click="toggleMenu('draw')">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round">
             <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
@@ -160,7 +149,7 @@
       <!-- 测量工具 -->
       <div class="nav-item" :class="{ 'has-active': isMeasureActive }"
            @mouseenter="openMenu('measure')" @mouseleave="closeMenu('measure')">
-        <button class="nav-btn" :class="{ active: isMeasureActive }">
+        <button class="nav-btn" :class="{ active: isMeasureActive }" @click="toggleMenu('measure')">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round">
             <path d="M2 12h20M2 12l4-4M2 12l4 4M22 12l-4-4M22 12l-4 4"/>
@@ -200,7 +189,7 @@
       <!-- 图层管理 -->
       <div class="nav-item"
            @mouseenter="openMenu('layers')" @mouseleave="closeMenu('layers')">
-        <button class="nav-btn">
+        <button class="nav-btn" @click="toggleMenu('layers')">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round">
             <polygon points="12 2 2 7 12 12 22 7 12 2"/>
@@ -331,7 +320,7 @@
       <!-- 地图主题 -->
       <div class="nav-item"
            @mouseenter="openMenu('theme')" @mouseleave="closeMenu('theme')">
-        <button class="nav-btn">
+        <button class="nav-btn" @click="toggleMenu('theme')">
           <svg v-if="!isNight" viewBox="0 0 24 24" width="15" height="15" fill="none"
                stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <circle cx="12" cy="12" r="5"/>
@@ -380,7 +369,7 @@
 
       <!-- 空间分析 -->
       <div class="nav-item" @mouseenter="openMenu('spatial')" @mouseleave="closeMenu('spatial')">
-        <button class="nav-btn" :class="{ active: toolbarRef.activeTool?.value === 'spatial' }">
+        <button class="nav-btn" :class="{ active: toolbarRef.activeTool?.value === 'spatial' }" @click="toggleMenu('spatial')">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-8"/>
@@ -464,7 +453,7 @@
     <div class="nav-right">
       <div class="user-menu" @mouseenter="openMenu('user')" @mouseleave="closeMenu('user')">
         <!-- 未登录且非管理员 -->
-        <button v-if="!userAuth.isLoggedIn.value && !adminIsLoggedIn" class="user-btn">
+        <button v-if="!userAuth.isLoggedIn.value && !adminIsLoggedIn" class="user-btn" @click="toggleMenu('user')">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -475,14 +464,14 @@
                stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <!-- 管理员已登录，前台账号未登录 -->
-        <button v-else-if="adminIsLoggedIn && !userAuth.isLoggedIn.value" class="user-btn user-btn--loggedin">
+        <button v-else-if="adminIsLoggedIn && !userAuth.isLoggedIn.value" class="user-btn user-btn--loggedin" @click="toggleMenu('user')">
           <span class="avatar avatar--admin">管</span>
           <span>{{ adminUser?.username || '管理员' }}</span>
           <svg class="chevron" viewBox="0 0 24 24" width="11" height="11" fill="none"
                stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <!-- 前台用户已登录 -->
-        <button v-else class="user-btn user-btn--loggedin">
+        <button v-else class="user-btn user-btn--loggedin" @click="toggleMenu('user')">
           <span class="avatar">{{ userAuth.nickname.value?.[0] || 'U' }}</span>
           <span>{{ userAuth.nickname.value }}</span>
           <svg class="chevron" viewBox="0 0 24 24" width="11" height="11" fill="none"
@@ -560,7 +549,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useUserAuth } from '@/stores/userAuth'
 import { useAdminAuth } from '@/stores/adminAuth'
 import { useGlobalTheme } from '@/utils/useTheme'
@@ -641,12 +630,23 @@ const isMeasureActive = computed(() => {
 
 let closeTimer = null
 
+// 触屏设备检测：手机上 hover 不可用，使用 click 切换菜单
+const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+
 function openMenu(id) {
   clearTimeout(closeTimer)
-  openMenuId.value = id
+  // 触屏设备无 hover：忽略 mouseenter，避免与 click 切换冲突
+  if (!isTouch) openMenuId.value = id
 }
 function closeMenu() {
-  closeTimer = setTimeout(() => { openMenuId.value = null }, 150)
+  clearTimeout(closeTimer)
+  closeTimer = setTimeout(() => { if (!isTouch) openMenuId.value = null }, 150)
+}
+
+// 点击切换菜单（触屏设备）/ 已开再点关闭
+function toggleMenu(id) {
+  clearTimeout(closeTimer)
+  openMenuId.value = openMenuId.value === id ? null : id
 }
 
 // 调用工具栏方法，并同步本地绘制状态
@@ -677,6 +677,19 @@ function handleLogout() {
   userAuth.clearSession()
   openMenuId.value = null
 }
+
+// 触屏设备：点击导航栏外部区域时关闭已打开的菜单
+function onDocClick(e) {
+  if (isTouch && openMenuId.value && !e.target.closest('.top-navbar')) {
+    openMenuId.value = null
+  }
+}
+onMounted(() => {
+  if (isTouch) document.addEventListener('click', onDocClick)
+})
+onBeforeUnmount(() => {
+  if (isTouch) document.removeEventListener('click', onDocClick)
+})
 </script>
 
 <style scoped>
@@ -726,6 +739,7 @@ function handleLogout() {
   margin-right: 8px;
 }
 .brand-logo { display: flex; align-items: center; }
+.brand-logo-img { width: 48px; height: 48px; object-fit: contain; display: block; }
 .brand-text  { display: flex; flex-direction: column; line-height: 1.1; }
 .brand-title { font-size: 1.05rem; font-weight: 800; color: #1B5E20; letter-spacing: 1px; white-space: nowrap; }
 .brand-sub   { font-size: 0.62rem; color: #81C784; font-weight: 400; letter-spacing: 0.5px; }
@@ -1010,5 +1024,105 @@ function handleLogout() {
   height: 8px;
   border-radius: 4px;
   background: linear-gradient(to right, #00c800, #ffff00, #ff8c00, #ff0000);
+}
+
+/* ══════════════════════════════════════════════════
+   手机端适配（≤768px）
+══════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .top-navbar {
+    height: 56px;
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+  /* Logo 区压缩 */
+  .nav-brand .brand-logo {
+    width: 34px;
+    height: 34px;
+  }
+  .nav-brand .brand-logo-img {
+    width: 34px;
+    height: 34px;
+  }
+  .nav-brand .brand-text {
+    display: none;
+  }
+
+  /* 返回主界面按钮：手机上隐藏文字只留图标 */
+  .back-home-btn span {
+    display: none;
+  }
+  .back-home-btn {
+    padding: 8px 10px;
+  }
+
+  /* 工具区：允许横向滚动，保证所有工具可达 */
+  .nav-tools {
+    flex: 1 1 auto !important;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    margin-right: 4px;
+  }
+  .nav-tools::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* 按钮压缩 */
+  .nav-btn {
+    padding: 7px 9px;
+    height: 36px;
+    font-size: 0.8rem;
+    gap: 4px;
+  }
+
+  /* 搜索区压缩：允许收缩 */
+  .poi-search,
+  :deep(.poi-search) {
+    max-width: 140px;
+    min-width: 96px;
+    flex: 0 1 auto !important;
+  }
+  .poi-search-input-wrap {
+    width: 100%;
+  }
+  .poi-search-input {
+    padding: 7px 10px 7px 28px;
+    font-size: 0.8rem;
+  }
+
+  /* 右侧用户区压缩：只保留头像/图标，隐藏文字 */
+  .user-btn {
+    padding: 6px 9px;
+    font-size: 0.8rem;
+    gap: 4px;
+  }
+  .user-btn .avatar {
+    width: 26px;
+    height: 26px;
+  }
+  .user-btn span:not(.avatar),
+  .user-btn .chevron {
+    display: none;
+  }
+}
+
+/* 超窄屏（≤480px）：进一步压缩，工具栏主要展示图标 */
+@media (max-width: 480px) {
+  .top-navbar {
+    padding: 0 6px;
+    gap: 4px;
+  }
+  .nav-btn {
+    padding: 7px 6px;
+  }
+  /* 搜索框缩小 */
+  .poi-search {
+    max-width: 104px;
+  }
 }
 </style>

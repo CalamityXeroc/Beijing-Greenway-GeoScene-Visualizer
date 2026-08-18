@@ -38,6 +38,16 @@
           <circle cx="12" cy="10" r="3"/>
         </svg>
       </button>
+      <button class="poi-fab locate-fab" :class="{ active: hasLocation }" @click="manualLocate" aria-label="定位到我的位置" title="定位到我的位置">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <circle cx="12" cy="12" r="8" opacity="0.35"/>
+          <line x1="12" y1="2" x2="12" y2="5"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+          <line x1="2" y1="12" x2="5" y2="12"/>
+          <line x1="19" y1="12" x2="22" y2="12"/>
+        </svg>
+      </button>
     </div>
 
     <!-- AI 绿道助手 -->
@@ -53,7 +63,7 @@
 
     <!-- 空间分析绘制控制条 -->
     <Transition name="fade">
-      <div v-if="spatialDrawing" class="spatial-draw-bar">
+      <div v-if="spatialDrawing" class="spatial-draw-bar" :class="{ 'with-poi-bar': showPoi && poiTypeList.length }">
         <span class="sdb-hint">在地图上绘制分析区域多边形</span>
         <div class="sdb-actions">
           <button class="sdb-btn cancel" @click="cancelSpatialDraw">取消</button>
@@ -753,6 +763,25 @@ const locateUser = async (silent = false) => {
   }
 }
 
+/**
+ * 手动定位（点击"定位到我的位置"按钮）：
+ * 非静默模式 —— 权限未授予时触发系统弹窗；失败时 Toast 提示引导用户开启
+ */
+const manualLocate = async () => {
+  if (isLocating.value) return
+  const { toast } = await import('../composables/useToast')
+  await locateUser(false)
+  if (userLocation.value) {
+    toast('已定位到当前位置', 'success')
+    return
+  }
+  if (locationStatus.value === 'denied') {
+    toast('位置权限被拒绝，请在系统设置中开启定位权限', 'error')
+  } else {
+    toast('无法获取位置，请检查系统定位服务是否已开启', 'error')
+  }
+}
+
 const showSearch = () => router.push('/mobile/poi-search')
 
 let resizeObserver = null
@@ -1001,6 +1030,10 @@ onUnmounted(() => {
   box-shadow: 0 6px 20px rgba(109, 40, 217, 0.4);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+/* 与 POI 类型条同时打开时不重叠：上移到 POI 条上方（POI条：底40 + 高52 + 间距12） */
+.spatial-draw-bar.with-poi-bar {
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 104px);
 }
 .sdb-hint { flex: 1; color: #fff; font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
 .sdb-actions { display: flex; gap: 8px; flex-shrink: 0; }

@@ -1,4 +1,6 @@
-const BASE = '/api/route'
+import { getApiBaseUrl } from '@/mobile/services/api'
+
+const BASE = `${getApiBaseUrl()}/api/route`
 
 export async function saveRouteRecord(data) {
   const response = await fetch(`${BASE}/record`, {

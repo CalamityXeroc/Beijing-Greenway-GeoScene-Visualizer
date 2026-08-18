@@ -318,7 +318,7 @@ async function removeFav(item) {
   background: #fff;
   color: #2E7D32;
   border-radius: 999px;
-  padding: 8px 16px;
+  padding: 10px 16px;
   font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;

@@ -1,6 +1,7 @@
 import express from 'express'
 const router = express.Router()
 import { getGraph, dijkstra, nearestNode } from './roadGraph.js'
+import { wgs84ToGcj02, gcj02ToWgs84 } from '../utils/coordTransform.js'
 
 /**
  * Node.js 内存图 Dijkstra 路径规划
@@ -68,8 +69,11 @@ router.post('/route', async (req, res) => {
     }
 
     const pool = req.pool
-    const olng = origin.lng, olat = origin.lat
-    const dlng = destination.lng, dlat = destination.lat
+    // 前端/底图坐标为 GCJ-02（高德），路网为 OSM WGS-84，需先转成 WGS-84 才能匹配路网
+    const [wgOlng, wgOlat] = gcj02ToWgs84(origin.lng, origin.lat)
+    const [wgDlng, wgDlat] = gcj02ToWgs84(destination.lng, destination.lat)
+    const olng = wgOlng, olat = wgOlat
+    const dlng = wgDlng, dlat = wgDlat
 
     // 包围盒：按起终点距离自适应扩展（至少 2km，最多 12km）
     const lngDist = Math.abs(dlng - olng) * 111320 * Math.cos((olat + dlat) / 2 * Math.PI / 180)
@@ -112,17 +116,25 @@ router.post('/route', async (req, res) => {
       }]
     }
 
+    // 路网坐标为 OSM WGS-84，转回 GCJ-02 与高德底图/绿道对齐
+    const gcjCoords = coordinates.map(([lng, lat]) => wgs84ToGcj02(lng, lat))
+    const gcjSteps = steps.map(s => ({
+      ...s,
+      coordinates: s.coordinates ? s.coordinates.map(([lng, lat]) => wgs84ToGcj02(lng, lat)) : s.coordinates
+    }))
+    // 步骤距离不受坐标转换影响，保持原样
+
     res.json({
-      origin: `${olng},${olat}`,
-      destination: `${dlng},${dlat}`,
+      origin: `${origin.lng},${origin.lat}`,
+      destination: `${destination.lng},${destination.lat}`,
       paths: [{
         distance: totalDist,
         duration: totalDuration,
-        coordinates,
-        steps
+        coordinates: gcjCoords,
+        steps: gcjSteps
       }]
     })
-    console.log(`[路由] 完成 ${Date.now() - tStart}ms`)
+    console.log(`[路由] 完成 ${Date.now() - tStart}ms, 坐标已转 GCJ-02 与底图对齐`)
   } catch (e) {
     console.error('[路径规划] 错误:', e.message)
     res.status(502).json({ error: e.message || '路径规划服务暂不可用' })

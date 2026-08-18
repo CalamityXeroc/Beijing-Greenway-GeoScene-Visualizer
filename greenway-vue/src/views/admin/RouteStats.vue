@@ -286,6 +286,17 @@ onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
   .stats-cards { grid-template-columns: repeat(2, 1fr); }
   .charts-row { flex-direction: column; }
 }
+@media (max-width: 768px) {
+  .route-stats-page { padding: 12px; }
+  .stats-cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat-card { padding: 14px; gap: 10px; }
+  .stat-icon { width: 40px; height: 40px; font-size: 1rem; }
+  .stat-value { font-size: 1.4rem; }
+  .chart-card { padding: 12px; }
+  .chart-box { height: 220px; }
+  .chart-box--bar { height: 320px; }
+  .page-title { font-size: 1.2rem; }
+}
 
 /* 夜间模式覆盖 —— 确保使用中性灰黑而非绿色系 */
 [data-theme="night"] .page-title { color: #e8e8e8; }

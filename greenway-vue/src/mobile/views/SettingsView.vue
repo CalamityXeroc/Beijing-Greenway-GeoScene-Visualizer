@@ -12,47 +12,6 @@
     </div>
 
     <div class="settings-content">
-      <!-- 账号安全 -->
-      <section class="setting-section">
-        <h2 class="section-title">
-          <span class="icon-box account">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-          </span>
-          账号安全
-        </h2>
-        <div class="setting-group">
-          <div class="setting-item" @click="editProfile">
-            <span class="item-label">个人资料</span>
-            <div class="item-right">
-              <span class="item-hint">修改头像、昵称</span>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
-            </div>
-          </div>
-          <div class="setting-item" @click="changePassword">
-            <span class="item-label">修改密码</span>
-            <div class="item-right">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
-            </div>
-          </div>
-          <div class="setting-item" @click="bindPhone">
-            <span class="item-label">手机绑定</span>
-            <div class="item-right">
-              <span class="item-hint">{{ maskedPhone || '未绑定' }}</span>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <!-- 通用设置 -->
       <section class="setting-section">
         <h2 class="section-title">
@@ -248,16 +207,7 @@
         <div class="modal-content about-modal" @click.stop>
           <div class="about-header">
             <div class="app-icon">
-              <svg viewBox="0 0 100 100" width="72" height="72">
-                <defs>
-                  <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#34d399"/>
-                    <stop offset="100%" style="stop-color:#059669"/>
-                  </linearGradient>
-                </defs>
-                <rect width="100" height="100" rx="22" fill="url(#greenGrad)"/>
-                <path d="M50 20 C30 35, 25 55, 50 80 C75 55, 70 35, 50 20" fill="white" opacity="0.9"/>
-              </svg>
+              <img src="/logo.svg" alt="绿脉伴侣" style="width:72px;height:72px;display:block;object-fit:contain" />
             </div>
             <h2>绿脉伴侣</h2>
             <p class="version">版本 {{ appVersion }}</p>
@@ -274,7 +224,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserAuth } from '@/stores/userAuth'
 import { useAppTheme } from '@/mobile/composables/useAppTheme'
@@ -282,7 +232,7 @@ import { initGeoScene, getGeoSceneSdkInfo } from '@/mobile/services/geoSceneNati
 import { toast, confirmDialog } from '@/mobile/composables/useToast'
 
 const router = useRouter()
-const { isLoggedIn, clearSession, currentUser } = useUserAuth()
+const { isLoggedIn, clearSession } = useUserAuth()
 const { isDark: darkMode, isAuto, toggleTheme, setTheme } = useAppTheme()
 const toggleDarkMode = toggleTheme
 
@@ -316,12 +266,6 @@ const cacheSize = ref('计算中...')
 const appVersion = ref('1.0.0')
 const showAboutModal = ref(false)
 
-const maskedPhone = computed(() => {
-  if (!currentUser.value?.phone) return ''
-  const p = currentUser.value.phone
-  return p.slice(0, 3) + '****' + p.slice(-4)
-})
-
 function calcCacheSize() {
   try {
     let total = 0
@@ -344,18 +288,6 @@ function calcCacheSize() {
 
 function goBack() {
   router.back()
-}
-
-function editProfile() {
-  toast('个人资料编辑功能即将上线', 'info')
-}
-
-function changePassword() {
-  toast('修改密码功能即将上线', 'info')
-}
-
-function bindPhone() {
-  toast('手机绑定功能即将上线', 'info')
 }
 
 // toggleDarkMode 由 useAppTheme 提供

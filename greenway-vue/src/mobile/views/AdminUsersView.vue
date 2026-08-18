@@ -138,12 +138,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAdminAuth } from '@/stores/adminAuth'
+import { useUserAuth } from '@/stores/userAuth'
 import { fetchAdminUsers, updateUserStatus, updateUser, deleteUser } from '../services/api'
 import { toast, confirmDialog } from '../composables/useToast'
 
 const router = useRouter()
-const { token, isLoggedIn } = useAdminAuth()
+const { token, isLoggedIn } = useUserAuth()
 
 const loading = ref(true)
 const users = ref([])
@@ -178,7 +178,7 @@ const formatDate = (iso) => {
 
 const loadUsers = async () => {
   if (!isLoggedIn.value) {
-    router.replace('/admin/login')
+    router.replace('/mobile/login')
     return
   }
   loading.value = true

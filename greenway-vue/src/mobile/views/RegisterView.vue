@@ -12,12 +12,7 @@
     <!-- 品牌区域 -->
     <div class="brand-section">
       <div class="brand-icon">
-        <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-          <circle cx="8.5" cy="7" r="4"></circle>
-          <line x1="20" y1="8" x2="20" y2="14"></line>
-          <line x1="23" y1="11" x2="17" y2="11"></line>
-        </svg>
+        <img src="/logo.svg" alt="绿脉伴侣" style="width:72px;height:72px;display:block;object-fit:contain" />
       </div>
       <h1 class="brand-title">创建账号</h1>
       <p class="brand-sub">加入绿道探索社区</p>
@@ -72,13 +67,13 @@
 
       <!-- 邮箱 -->
       <div class="field-group">
-        <label class="field-label">邮箱（可选）</label>
+        <label class="field-label">邮箱</label>
         <div class="field-wrapper" :class="{ focused: focusField === 'email', error: !!fieldErrors.email }">
           <svg class="field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
             <polyline points="22,6 12,13 2,6"></polyline>
           </svg>
-          <input v-model="form.email" type="email" class="field-input" placeholder="example@mail.com"
+          <input v-model="form.email" type="email" class="field-input" placeholder="请输入邮箱"
             autocomplete="email" @focus="focusField = 'email'" @blur="focusField = ''" />
         </div>
         <p v-if="fieldErrors.email" class="field-error">{{ fieldErrors.email }}</p>
@@ -203,7 +198,9 @@ const validate = () => {
   } else if (!/^[a-zA-Z0-9_]+$/.test(form.username)) {
     fieldErrors.username = '用户名只能含字母、数字和下划线'; ok = false
   }
-  if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+  if (!form.email.trim()) {
+    fieldErrors.email = '邮箱不能为空'; ok = false
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
     fieldErrors.email = '邮箱格式不正确'; ok = false
   }
   if (form.password.length < 6) {
@@ -225,9 +222,8 @@ const handleRegister = async () => {
   errorMsg.value = ''
   successMsg.value = ''
   try {
-    const body = { username: form.username, password: form.password }
+    const body = { username: form.username, email: form.email, password: form.password }
     if (form.nickname) body.nickname = form.nickname
-    if (form.email) body.email = form.email
 
     const json = await registerUser(body)
 
@@ -275,9 +271,7 @@ const goLogin = () => router.push('/mobile/login')
   padding: 20px 24px 16px; gap: 8px;
 }
 .brand-icon {
-  width: 72px; height: 72px; border-radius: 20px;
-  background: var(--fill-primary); color: var(--color-primary);
-  display: flex; align-items: center; justify-content: center; margin-bottom: 4px;
+  width: 72px; height: 72px; margin-bottom: 4px;
 }
 .brand-title { font-size: var(--text-3xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
 .brand-sub { font-size: var(--text-base); color: var(--color-text-secondary); }

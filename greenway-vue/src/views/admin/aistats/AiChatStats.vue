@@ -282,6 +282,15 @@ function formatTime(iso) {
 .range-btn:hover  { border-color: #2E7D32; color: #2E7D32; }
 .range-btn.active { background: #dcfce7; border-color: #86efac; color: #15803d; font-weight: 600; }
 
+/* 手机端：加大触控目标 */
+@media (max-width: 768px) {
+  .range-btn {
+    min-height: 36px;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+  }
+}
+
 /* 统计行 */
 .stats-row {
   display: grid;

@@ -365,6 +365,37 @@ router.get('/admin/stats', authMiddleware, adminOnly, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/dashboard/stats
+ * 移动端管理中心统计（注册用户/评论/待审核/今日新增/今日活跃）
+ */
+router.get('/admin/dashboard/stats', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const [users, comments, pending, newUsers, newComments, activeToday] = await Promise.all([
+      req.pool.query('SELECT COUNT(*) FROM users'),
+      req.pool.query('SELECT COUNT(*) FROM greenway_comments'),
+      req.pool.query("SELECT COUNT(*) FROM greenway_comments WHERE status='pending'"),
+      req.pool.query("SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE"),
+      req.pool.query("SELECT COUNT(*) FROM greenway_comments WHERE created_at::date = CURRENT_DATE"),
+      req.pool.query("SELECT COUNT(*) FROM users WHERE status='active' AND last_login::date = CURRENT_DATE"),
+    ]);
+    res.json({
+      code: 200,
+      data: {
+        totalUsers:       parseInt(users.rows[0].count),
+        totalComments:    parseInt(comments.rows[0].count),
+        pendingComments:  parseInt(pending.rows[0].count),
+        newUsersToday:    parseInt(newUsers.rows[0].count),
+        newCommentsToday: parseInt(newComments.rows[0].count),
+        activeToday:      parseInt(activeToday.rows[0].count),
+      }
+    });
+  } catch (err) {
+    console.error('[dashboard/stats]', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+});
+
+/**
  * GET /api/admin/logs?page=1&pageSize=20&action=&keyword=
  * 系统操作日志列表（管理员）
  */

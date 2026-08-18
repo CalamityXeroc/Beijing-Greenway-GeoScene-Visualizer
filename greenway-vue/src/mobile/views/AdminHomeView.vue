@@ -127,12 +127,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAdminAuth } from '@/stores/adminAuth'
+import { useUserAuth } from '@/stores/userAuth'
 import { fetchDashboardStats } from '../services/api'
 import { toast } from '../composables/useToast'
 
 const router = useRouter()
-const { token, isLoggedIn } = useAdminAuth()
+const { token, isLoggedIn } = useUserAuth()
 
 const stats = ref({
   totalUsers: 0,
@@ -174,7 +174,7 @@ const clearCache = () => {
 
 onMounted(() => {
   if (!isLoggedIn.value) {
-    router.replace('/admin/login')
+    router.replace('/mobile/login')
     return
   }
   refreshStats()

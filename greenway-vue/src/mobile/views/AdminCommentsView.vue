@@ -123,7 +123,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAdminAuth } from '@/stores/adminAuth'
+import { useUserAuth } from '@/stores/userAuth'
 import {
   fetchAdminComments,
   updateCommentStatus,
@@ -135,7 +135,7 @@ import {
 import { toast, confirmDialog } from '../composables/useToast'
 
 const router = useRouter()
-const { token, isLoggedIn } = useAdminAuth()
+const { token, isLoggedIn } = useUserAuth()
 
 const loading = ref(true)
 const comments = ref([])
@@ -170,7 +170,7 @@ const formatTime = (iso) => {
 
 const loadComments = async () => {
   if (!isLoggedIn.value) {
-    router.replace('/admin/login')
+    router.replace('/mobile/login')
     return
   }
   loading.value = true

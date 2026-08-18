@@ -11,7 +11,7 @@
     </div>
 
     <div class="content">
-      <div class="last-updated">最后更新：2024 年 12 月</div>
+      <div class="last-updated">最后更新：2026 年 8 月 17 日</div>
 
       <section class="section">
         <h2>1. 信息收集</h2>
@@ -69,7 +69,7 @@
       <section class="section">
         <h2>6. 联系我们</h2>
         <p>如有隐私相关问题，请通过以下方式联系我们：</p>
-        <p class="contact">邮箱：privacy@bjgreenway.cn</p>
+        <p class="contact">邮箱：2749955791@qq.com</p>
       </section>
     </div>
   </div>

@@ -209,6 +209,7 @@ import { getRouteStore } from '@/stores/route.js'
 import { useUserAuth } from '@/stores/userAuth'
 import { reverseGeocode } from '@/services/gaodeApi.js'
 import { saveRouteRecord } from '@/services/routeApi.js'
+import { wgs84ToGcj02 } from '@/utils/coordinateTransform'
 import Graphic from '@geoscene/core/Graphic.js'
 import Polyline from '@geoscene/core/geometry/Polyline.js'
 import Point from '@geoscene/core/geometry/Point.js'
@@ -332,8 +333,10 @@ async function handleGPSLocate(target) {
         enableHighAccuracy: true, timeout: 10000, maximumAge: 0
       })
     })
-    // OSRM 使用 WGS84，GPS 原生坐标直接可用，无需转 GCJ02
-    const { longitude: lng, latitude: lat } = pos.coords
+    // OSRM 使用 WGS84 路网，但高德底图为 GCJ-02：定位坐标先转 GCJ-02 与底图/后端统一
+    // 后端 /api/osrm/route 会将 GCJ-02 转回 WGS-84 匹配路网
+    const gcj = wgs84ToGcj02(pos.coords.longitude, pos.coords.latitude)
+    const { lng, lat } = gcj
     let address = ''
     try { address = await reverseGeocode(lng, lat) } catch {}
     const point = { lng, lat, address: address || '我的位置' }

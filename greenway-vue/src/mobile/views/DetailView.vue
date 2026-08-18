@@ -124,32 +124,27 @@
       <section class="section">
         <h3 class="section-title">详细信息</h3>
         <div class="info-table">
-          <div class="info-row" v-if="trail.length">
-            <span class="row-label">总长度</span>
-            <span class="row-value">{{ trail.length }} km</span>
-          </div>
-          <div class="info-row" v-if="trail.area || trail.district">
+          <div class="info-row" v-if="trail.location || trail.area || trail.district">
             <span class="row-label">所在区域</span>
-            <span class="row-value">{{ trail.area || trail.district }}</span>
+            <span class="row-value">{{ trail.location || trail.area || trail.district }}</span>
           </div>
-          <div class="info-row" v-if="trail.surface">
-            <span class="row-label">路面类型</span>
-            <span class="row-value">{{ trail.surface }}</span>
+          <div class="info-row" v-if="trail.coverage_area">
+            <span class="row-label">覆盖范围</span>
+            <span class="row-value">{{ trail.coverage_area }}</span>
           </div>
-          <div class="info-row" v-if="trail.start_name">
-            <span class="row-label">起点</span>
-            <span class="row-value">{{ trail.start_name }}</span>
+          <div class="info-row" v-if="trail.construction_area">
+            <span class="row-label">建设面积</span>
+            <span class="row-value">{{ trail.construction_area }}</span>
           </div>
-          <div class="info-row" v-if="trail.end_name">
-            <span class="row-label">终点</span>
-            <span class="row-value">{{ trail.end_name }}</span>
-          </div>
-          <div class="info-row" v-if="trail.id || trail.gid">
-            <span class="row-label">编号</span>
-            <span class="row-value"># {{ trail.id || trail.gid }}</span>
+          <div class="info-row" v-if="trail.features">
+            <span class="row-label">特色</span>
+            <span class="row-value">{{ trail.features }}</span>
           </div>
         </div>
       </section>
+
+      <!-- 绿道体检评估（深度学习评价） -->
+      <AssessBlock v-if="trail?.name" :trail-name="trail.name" />
 
       <section class="section comments-section">
         <div class="comments-header">
@@ -266,6 +261,7 @@ import { useAppTheme } from '../composables/useAppTheme'
 import { toast, confirmDialog } from '../composables/useToast'
 import { useFavorites } from '@/stores/favorites'
 import WeatherBlock from '../components/WeatherBlock.vue'
+import AssessBlock from '../components/AssessBlock.vue'
 
 const router = useRouter()
 const route = useRoute()

@@ -152,7 +152,7 @@
         v-if="showAccessibility"
         ref="accessibilityPanelRef"
         @close="closeAccessibility"
-        @pick-origin="pickingAccessibilityOrigin = true"
+        @pick-origin="(v) => pickingAccessibilityOrigin = v"
         @hull-change="renderAccessibilityHull"
         @origin-set="onAccessOriginSet"
         @locate-greenway="locateRecommendGreenway"
@@ -2067,6 +2067,7 @@ onBeforeUnmount(() => {
   width: 100%;
   min-height: 100vh;
   margin: 0;
+  overflow-x: hidden;
   /* 允许垂直滚动，信息区域在地图下方自然流动 */
 }
 

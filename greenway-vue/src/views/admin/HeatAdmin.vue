@@ -353,7 +353,17 @@ onBeforeUnmount(() => {
 .heat-bar-inner { height: 100%; border-radius: 4px; background: linear-gradient(to right, #52c41a, #faad14, #ff4d4f); transition: width 0.4s ease; }
 
 @media (max-width: 1200px) { .stats-cards { grid-template-columns: repeat(2, 1fr); } .charts-row { grid-template-columns: 1fr; } }
-@media (max-width: 768px) { .stats-cards { grid-template-columns: 1fr; } }
+@media (max-width: 768px) {
+  .stats-cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat-card { padding: 14px; gap: 10px; }
+  .stat-icon { width: 40px; height: 40px; font-size: 1.1rem; }
+  .stat-value { font-size: 1.4rem; }
+  .chart-card { padding: 12px; }
+  .chart-body { height: 240px; }
+  .chart-title { font-size: 0.9rem; margin-bottom: 10px; }
+  .page-title { font-size: 1.2rem; }
+  .table-card { padding: 12px; }
+}
 
 [data-theme="night"] .page-title { color: #e5e7eb; }
 [data-theme="night"] .page-subtitle { color: #9ca3af; }

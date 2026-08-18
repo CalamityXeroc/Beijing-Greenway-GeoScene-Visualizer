@@ -1,8 +1,12 @@
 /**
  * 热度热力图 API 服务
+ * 兼容 Web（相对路径走 Vite 代理）与 Capacitor App（使用后端真实地址）
  */
+import { getApiBaseUrl } from '@/mobile/services/api'
 
-const API_BASE = '';
+const API_BASE = getApiBaseUrl();
+
+function adminToken() { return localStorage.getItem('greenway_admin_token') || localStorage.getItem('greenway_user_token') }
 
 export async function fetchHeatmapData() {
   const res = await fetch(`${API_BASE}/api/heatmap/data`);
@@ -35,7 +39,7 @@ export async function recordGreenwayClick(greenwayName, userId) {
 }
 
 export async function fetchHeatmapOverview() {
-  const token = localStorage.getItem('greenway_admin_token');
+  const token = adminToken();
   const res = await fetch(`${API_BASE}/api/admin/heatmap/overview`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
@@ -45,7 +49,7 @@ export async function fetchHeatmapOverview() {
 }
 
 export async function fetchHeatmapTrend(days = 30) {
-  const token = localStorage.getItem('greenway_admin_token');
+  const token = adminToken();
   const res = await fetch(`${API_BASE}/api/admin/heatmap/trend?days=${days}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
@@ -55,7 +59,7 @@ export async function fetchHeatmapTrend(days = 30) {
 }
 
 export async function fetchHeatmapRank(limit = 10) {
-  const token = localStorage.getItem('greenway_admin_token');
+  const token = adminToken();
   const res = await fetch(`${API_BASE}/api/admin/heatmap/rank?limit=${limit}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
@@ -65,7 +69,7 @@ export async function fetchHeatmapRank(limit = 10) {
 }
 
 export async function fetchHeatmapCompare() {
-  const token = localStorage.getItem('greenway_admin_token');
+  const token = adminToken();
   const res = await fetch(`${API_BASE}/api/admin/heatmap/compare`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
@@ -75,7 +79,7 @@ export async function fetchHeatmapCompare() {
 }
 
 export async function fetchCommentStats() {
-  const token = localStorage.getItem('greenway_admin_token');
+  const token = adminToken();
   const res = await fetch(`${API_BASE}/api/admin/heatmap/comment-stats`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
@@ -85,7 +89,7 @@ export async function fetchCommentStats() {
 }
 
 export async function fetchCommentRank(limit = 10) {
-  const token = localStorage.getItem('greenway_admin_token');
+  const token = adminToken();
   const res = await fetch(`${API_BASE}/api/admin/heatmap/comment-rank?limit=${limit}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
@@ -95,7 +99,7 @@ export async function fetchCommentRank(limit = 10) {
 }
 
 export async function fetchCommentTrend(days = 30) {
-  const token = localStorage.getItem('greenway_admin_token');
+  const token = adminToken();
   const res = await fetch(`${API_BASE}/api/admin/heatmap/comment-trend?days=${days}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });

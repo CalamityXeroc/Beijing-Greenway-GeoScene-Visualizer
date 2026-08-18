@@ -2,12 +2,7 @@
   <div class="login-bg">
     <div class="login-card">
       <div class="logo">
-        <svg viewBox="0 0 40 40" width="36" height="36" fill="none">
-          <circle cx="20" cy="20" r="20" fill="#2E7D32"/>
-          <path d="M10 26 Q15 10 20 18 Q25 26 30 14" stroke="#A5D6A7" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-          <circle cx="20" cy="18" r="3" fill="#fff"/>
-        </svg>
-        <span class="logo-name">绿脉伴侣</span>
+        <img src="/logo_icon.svg" alt="绿脉伴侣" />
       </div>
       <h1 class="card-title">创建账号</h1>
       <p class="card-sub">注册后即可探索更多绿道功能</p>
@@ -24,8 +19,8 @@
           </div>
         </div>
         <div class="field">
-          <label class="label">邮箱</label>
-          <input v-model="form.email" type="email" class="inp" placeholder="email@example.com"/>
+          <label class="label">邮箱 *</label>
+          <input v-model="form.email" type="email" class="inp" placeholder="请输入邮箱"/>
         </div>
         <div class="field">
           <label class="label">密码 *</label>
@@ -76,6 +71,12 @@ const successMsg = ref('')
 async function handleSubmit() {
   errMsg.value     = ''
   successMsg.value = ''
+  if (!form.value.email.trim()) {
+    errMsg.value = '邮箱不能为空'; return
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.email)) {
+    errMsg.value = '邮箱格式不正确'; return
+  }
   if (form.value.password !== form.value.confirm) {
     errMsg.value = '两次密码输入不一致'; return
   }
@@ -87,7 +88,7 @@ async function handleSubmit() {
     const body = {
       username: form.value.username,
       password: form.value.password,
-      email:    form.value.email || undefined,
+      email:    form.value.email,
       nickname: form.value.nickname || undefined
     }
     const res = await fetch(`${getApiBaseUrl()}/api/auth/register`, {
@@ -122,7 +123,8 @@ async function handleSubmit() {
   width: 100%; max-width: 460px; background: #fff; border-radius: 16px;
   padding: 40px 36px; box-shadow: 0 10px 40px rgba(0,0,0,.12);
 }
-.logo { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
+.logo { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 24px; }
+.logo img { width: 56px; height: 56px; object-fit: contain; display: block; }
 .logo-name { font-size: 1.1rem; font-weight: 700; color: #2E7D32; }
 .card-title { font-size: 1.6rem; font-weight: 800; color: #111827; margin: 0 0 4px; }
 .card-sub   { font-size: 0.875rem; color: #6b7280; margin: 0 0 28px; }
@@ -139,6 +141,8 @@ async function handleSubmit() {
 .eye-btn {
   position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
   background: none; border: none; cursor: pointer; color: #9ca3af; padding: 0; line-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
 }
 .err-msg { font-size: 0.82rem; color: #dc2626; margin: -8px 0 12px; }
 .ok-msg  { font-size: 0.82rem; color: #16a34a; margin: -8px 0 12px; }

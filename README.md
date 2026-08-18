@@ -92,6 +92,16 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  **Community Feed API**: New `/api/comments/recent` endpoint returns the latest cross-greenway top-level comments for the Discover feed.
 -  **Global Toast Fix & Favorites Refresh**: Toast prompts now display their message text (were blank colored blocks); favorites page reloads on every entry (keep-alive aware) so new favorites appear immediately.
 -  Capacitor-based mobile app (enhanced UI/UX)
+-  **Mobile Greenway Health Assessment (移动端绿道体检)**: Every greenway detail page now embeds the same deep-learning assessment as the web — five-dimension scores vs city average, functional profile share bar, highlights/weak-points, and an AI deep-report button (DeepSeek), all styled with the mobile design system.
+-  **Mobile Locate-Me Button + Permission Guide**: New "locate me" FAB on the mobile map triggers the system location-permission dialog (and toast guidance when GPS/permission is off), fixing location on real devices.
+-  **Admin Entry Fix (mobile)**: Mobile admin pages now authenticate with the frontend user identity (role=admin), removing the double-login when entering admin from the profile page.
+-  **Admin Dashboard Stats API**: New `GET /api/admin/dashboard/stats` endpoint powers the mobile admin home cards (users/comments/pending/today).
+-  **Admin Stats Pages Work on Mobile**: route/heatmap/POI stats services now use the adaptive API base (`getApiBaseUrl`), so the three dashboards load real data inside the Capacitor app; responsive layout (2-col cards, compact charts) + chart-init timing fix for the WebView.
+-  **Native Splash Polish**: App boot shows a pure dark-green splash (no white flash, no icon), seamlessly transitioning into the Vue green animation; new transparent text-free logo (`logo_icon.svg`) used in the splash.
+-  **GeoScene Native Engine Registered**: `MainActivity` now registers the `GeoScene` Capacitor plugin, so the settings page shows "connected · 200.8.0" (Developer license) instead of unavailable.
+-  **Detail Info Table Refine**: Removed redundant length/ID rows; shows real data (area / coverage / construction area / features).
+-  **Mobile Map UI Conflict Fix**: Spatial-analysis bar no longer overlaps the POI-type bar when both are open (auto lifts above).
+-  **Coordinate Alignment (GCJ-02)**: Path planning & reachability outputs are converted WGS-84 ↔ GCJ-02 to align with the Amap basemap (shared `coordTransform.js` backend util + frontend helper).
 
 ---
 
@@ -370,6 +380,8 @@ GET /api/heatmap/data            # heatmap points with centroids & weighted inde
 GET /api/heatmap/points          # dense-sampled heatmap points along greenway lines
 
 # Admin routes (Bearer JWT required)
+GET /api/admin/stats               # platform overview counts (users/greenways/active)
+GET /api/admin/dashboard/stats     # mobile admin home stats (users/comments/pending/today)
 GET /api/admin/ai-stats?days=7  # word cloud + daily trend (7/14/30d)
 GET /api/admin/ai-stats/recent  # recent raw messages
 GET /api/admin/comments         # comment list with filters/pagination

@@ -73,48 +73,9 @@
 
     <!-- 中心内容 -->
     <div class="splash-content">
-      <!-- 植物图标 -->
+      <!-- 新版 Logo（透明无文字纯图形） -->
       <div class="splash-logo">
-        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" fill="none">
-          <!-- 外圆环 -->
-          <circle cx="60" cy="60" r="54" stroke="rgba(126,217,154,0.3)" stroke-width="0.8" class="ring ring-outer"/>
-          <circle cx="60" cy="60" r="46" stroke="rgba(126,217,154,0.15)" stroke-width="0.5" class="ring ring-inner"/>
-
-          <!-- 主叶片 -->
-          <path d="M60,100 C38,82 22,62 26,40 C29,24 42,18 60,17 C78,18 91,24 94,40 C98,62 82,82 60,100Z"
-            fill="rgba(56,168,80,0.18)" stroke="#6ec887" stroke-width="1.2" class="main-leaf"/>
-
-          <!-- 主脉 -->
-          <line x1="60" y1="100" x2="60" y2="17"
-            stroke="#7ed99a" stroke-width="1" class="main-vein"/>
-
-          <!-- 左侧叶脉 -->
-          <path d="M60,82 Q44,73 36,68" stroke="#7ed99a" stroke-width="0.8" class="vein v1"/>
-          <path d="M60,67 Q42,57 33,51" stroke="#7ed99a" stroke-width="0.8" class="vein v2"/>
-          <path d="M60,52 Q43,42 35,37" stroke="#7ed99a" stroke-width="0.8" class="vein v3"/>
-          <path d="M60,37 Q45,28 41,24" stroke="#7ed99a" stroke-width="0.8" class="vein v4"/>
-
-          <!-- 右侧叶脉 -->
-          <path d="M60,82 Q76,73 84,68" stroke="#7ed99a" stroke-width="0.8" class="vein v5"/>
-          <path d="M60,67 Q78,57 87,51" stroke="#7ed99a" stroke-width="0.8" class="vein v6"/>
-          <path d="M60,52 Q77,42 85,37" stroke="#7ed99a" stroke-width="0.8" class="vein v7"/>
-          <path d="M60,37 Q75,28 79,24" stroke="#7ed99a" stroke-width="0.8" class="vein v8"/>
-
-          <!-- 叶芽光点 -->
-          <circle cx="60" cy="17" r="2.5" fill="#b2f0c4" class="bud-glow"/>
-          <!-- 叶基露珠 -->
-          <circle cx="60" cy="100" r="1.8" fill="rgba(178,240,196,0.8)" class="dewdrop"/>
-
-          <!-- 四角装饰小叶 -->
-          <path d="M22,22 C18,16 20,10 26,10 C32,10 33,16 29,22 C26,18 22,22Z"
-            fill="rgba(110,200,135,0.4)" class="deco-leaf dl1"/>
-          <path d="M98,22 C94,16 96,10 102,10 C108,10 108,16 104,22 C100,18 98,22Z"
-            fill="rgba(110,200,135,0.4)" class="deco-leaf dl2"/>
-          <path d="M22,98 C18,92 20,86 26,86 C32,86 33,92 29,98 C26,94 22,98Z"
-            fill="rgba(110,200,135,0.4)" class="deco-leaf dl3"/>
-          <path d="M98,98 C94,92 96,86 102,86 C108,86 108,92 104,98 C100,94 98,98Z"
-            fill="rgba(110,200,135,0.4)" class="deco-leaf dl4"/>
-        </svg>
+        <img src="/logo_icon.svg" alt="绿脉伴侣" style="width:120px;height:120px;display:block;object-fit:contain" />
       </div>
 
       <!-- 标题和副标题 -->

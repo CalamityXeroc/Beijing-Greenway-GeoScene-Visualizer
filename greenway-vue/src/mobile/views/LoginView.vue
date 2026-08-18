@@ -12,10 +12,7 @@
     <!-- 品牌区域 -->
     <div class="brand-section">
       <div class="brand-icon">
-        <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-          <polyline points="9 22 9 12 15 12 15 22"></polyline>
-        </svg>
+        <img src="/logo.svg" alt="绿脉伴侣" style="width:72px;height:72px;display:block;object-fit:contain" />
       </div>
       <h1 class="brand-title">欢迎回来</h1>
       <p class="brand-sub">登录以探索绿脉伴侣</p>
@@ -198,9 +195,6 @@ const goRegister = () => router.push('/mobile/register')
 .brand-icon {
   width: 72px; height: 72px;
   border-radius: 20px;
-  background: var(--fill-primary);
-  color: var(--color-primary);
-  display: flex; align-items: center; justify-content: center;
   margin-bottom: 4px;
 }
 .brand-title {

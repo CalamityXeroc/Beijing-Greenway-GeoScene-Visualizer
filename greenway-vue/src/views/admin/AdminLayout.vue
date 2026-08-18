@@ -1,15 +1,11 @@
 <template>
-  <div class="admin-shell" :class="{ collapsed }">
+  <div class="admin-shell" :class="{ collapsed, 'sidebar-open': sidebarOpen }">
+    <!-- 手机端抽屉遮罩 -->
+    <div class="sidebar-mask" :class="{ show: sidebarOpen }" @click="sidebarOpen = false"></div>
+
     <!-- 侧边栏 -->
     <aside class="sidebar">
-      <div class="sidebar-brand" @click="router.push('/admin/dashboard')">
-        <svg viewBox="0 0 36 36" width="32" height="32" fill="none">
-          <circle cx="18" cy="18" r="16" fill="#2E7D32" opacity="0.2"/>
-          <path d="M18 4 C10 10 6 16 6 22 C6 28 11.5 32 18 32 C24.5 32 30 28 30 22 C30 16 26 10 18 4Z"
-                fill="#2E7D32"/>
-          <path d="M18 8 L18 30 M12 20 C15 17 18 16 22 17" stroke="#A5D6A7" stroke-width="1.5"
-                stroke-linecap="round"/>
-        </svg>
+      <div class="sidebar-brand" @click="goDashboard">
         <span class="brand-text">绿道管理后台</span>
       </div>
 
@@ -17,7 +13,7 @@
         <div v-for="item in navItems" :key="item.path"
              class="nav-item"
              :class="{ active: isActive(item.path) }"
-             @click="router.push(item.path)">
+             @click="onNavClick(item.path)">
           <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18"
                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" v-html="item.icon"/>
           <span class="nav-label">{{ item.label }}</span>
@@ -44,15 +40,17 @@
     <div class="main-wrap">
       <!-- 顶部栏 -->
       <header class="topbar">
-        <button class="collapse-btn" @click="collapsed = !collapsed">
+        <button class="collapse-btn hamburger-btn" @click="toggleSidebar" :class="{ active: sidebarOpen }" title="菜单">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <line x1="3" y1="12" x2="21" y2="12"/>
-            <line x1="3" y1="6"  x2="21" y2="6"/>
-            <line x1="3" y1="18" x2="21" y2="18"/>
+            <line v-if="!sidebarOpen" x1="3" y1="12" x2="21" y2="12"/>
+            <line v-if="!sidebarOpen" x1="3" y1="6"  x2="21" y2="6"/>
+            <line v-if="!sidebarOpen" x1="3" y1="18" x2="21" y2="18"/>
+            <line v-if="sidebarOpen" x1="18" y1="6" x2="6" y2="18"/>
+            <line v-if="sidebarOpen" x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         </button>
         <div class="breadcrumb">
-          <span class="bcrumb-root" @click="router.push('/admin/dashboard')">管理后台</span>
+          <span class="bcrumb-root" @click="goDashboard">管理后台</span>
           <span class="bcrumb-sep">/</span>
           <span class="bcrumb-cur">{{ currentTitle }}</span>
         </div>
@@ -90,6 +88,26 @@ watch(isLoggedIn, (val) => {
 })
 
 const collapsed = ref(false)
+const sidebarOpen = ref(false)
+
+function toggleSidebar() {
+  // 手机端点击汉堡切换抽屉；桌面端切换折叠
+  if (window.innerWidth <= 768) {
+    sidebarOpen.value = !sidebarOpen.value
+  } else {
+    collapsed.value = !collapsed.value
+  }
+}
+
+function goDashboard() {
+  router.push('/admin/dashboard')
+  sidebarOpen.value = false
+}
+
+function onNavClick(path) {
+  router.push(path)
+  sidebarOpen.value = false
+}
 
 const navItems = [
   {
@@ -254,6 +272,8 @@ function confirmLogout() {
   color: #6b7280; cursor: pointer; padding: 4px;
   border-radius: 6px; display: flex; align-items: center;
   transition: color 0.2s, background 0.2s;
+  width: 36px; height: 36px;
+  justify-content: center;
 }
 .logout-btn:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
 
@@ -312,10 +332,74 @@ function confirmLogout() {
   overflow-y: auto;
 }
 
+/* 抽屉遮罩（仅手机显示） */
+.sidebar-mask {
+  display: none;
+}
+
+/* 汉堡按钮（仅手机显示） */
+.hamburger-btn {
+  display: none;
+}
+
+/* ═══════════ 手机端（≤768px）：抽屉模式 ═══════════ */
 @media (max-width: 768px) {
-  .sidebar { width: 64px; flex: 0 0 64px; }
-  .brand-text, .nav-label, .user-info { opacity: 0; width: 0; }
-  .main-wrap { margin-left: 64px; }
+  .sidebar {
+    width: 240px;
+    flex: 0 0 240px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.2);
+  }
+  .admin-shell.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+  .admin-shell.collapsed .sidebar {
+    width: 240px;
+    flex: 0 0 240px;
+  }
+  .brand-text, .nav-label, .user-info {
+    opacity: 1 !important;
+    width: auto !important;
+  }
+  .main-wrap, .admin-shell.collapsed .main-wrap {
+    margin-left: 0;
+  }
+  .collapse-btn { display: none; }
+  .hamburger-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+  }
+  .hamburger-btn.active { color: #2E7D32; background: rgba(46,125,50,0.1); }
+  .sidebar-mask {
+    display: block;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 90;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .sidebar-mask.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .page-content { padding: 12px; }
+  .topbar { padding: 0 10px; gap: 6px; }
+  .visit-site, .breadcrumb { font-size: 0.8rem; }
+  .visit-site span { display: none; }
+}
+
+/* 超窄屏（≤480px） */
+@media (max-width: 480px) {
+  .topbar { padding: 0 8px; }
+  .page-content { padding: 8px; }
+  .sidebar, .admin-shell.collapsed .sidebar { width: 220px; flex: 0 0 220px; }
 }
 
 /* ===== 夜间模式 ===== */
@@ -332,4 +416,69 @@ function confirmLogout() {
 [data-theme="night"] .visit-site  { color: #9ca3af; border-color: #3a3a3a; }
 [data-theme="night"] .visit-site:hover { color: #A5D6A7; border-color: #4CAF50; }
 [data-theme="night"] .page-content { background: #0f0f0f; }
+</style>
+
+<!-- ═══════════════════════════════════════════════
+     全局样式（非 scoped）：管理后台各页面手机端统一适配
+═══════════════════════════════════════════════ -->
+<style>
+@media (max-width: 768px) {
+  /* 页面头部允许换行 */
+  .page-header { flex-wrap: wrap; gap: 8px; }
+  .page-header > * { flex: 1 1 auto; }
+
+  /* 分页按钮：加大触控目标 */
+  .pagination .pg-btn,
+  .pg-btn {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 6px 10px;
+    font-size: 0.82rem;
+  }
+
+  /* 表格操作按钮：加大触控目标 */
+  .act-btn {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  /* 其他常见小按钮：加大触控目标 */
+  .btn-sm,
+  .btn-outline,
+  .btn-cancel,
+  .batch-btn {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  /* 表格容器：保留横向滚动并优化触屏滚动 */
+  .table-wrap,
+  .records-table-wrap,
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 统计卡片列数降到 2 */
+  .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .stats-cards { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+@media (max-width: 480px) {
+  /* 统计卡片单列 */
+  .stat-grid { grid-template-columns: 1fr !important; }
+  .stats-cards { grid-template-columns: 1fr !important; }
+
+  /* 页面头部紧凑 */
+  .page-title { font-size: 1.15rem !important; }
+  .page-desc, .page-subtitle { font-size: 0.75rem !important; }
+
+  /* 批量操作栏换行 */
+  .batch-bar, .toolbar, .filter-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
 </style>

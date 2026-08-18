@@ -1,9 +1,12 @@
 /**
  * POI 统计 API 服务（管理后台用）
+ * 兼容 Web（相对路径走 Vite 代理）与 Capacitor App（使用后端真实地址）
  */
-const API_BASE = '';
+import { getApiBaseUrl } from '@/mobile/services/api'
 
-function token() { return localStorage.getItem('greenway_admin_token') }
+const API_BASE = getApiBaseUrl();
+
+function token() { return localStorage.getItem('greenway_admin_token') || localStorage.getItem('greenway_user_token') }
 function authHeaders() { return { 'Authorization': `Bearer ${token()}` } }
 
 export async function fetchPoiStatsOverview() {

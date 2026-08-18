@@ -3,15 +3,6 @@
     <!-- 左侧品牌区 -->
     <div class="brand-panel">
       <div class="brand-content">
-        <div class="brand-logo">
-          <svg viewBox="0 0 60 60" width="56" height="56" fill="none">
-            <circle cx="30" cy="30" r="28" fill="#1B5E20" opacity="0.15"/>
-            <path d="M30 10 C18 18 10 26 10 35 C10 45 19 52 30 52 C41 52 50 45 50 35 C50 26 42 18 30 10Z"
-                  fill="#2E7D32" opacity="0.8"/>
-            <path d="M30 15 L30 48 M20 30 C24 26 30 24 36 26" stroke="#A5D6A7" stroke-width="2"
-                  stroke-linecap="round"/>
-          </svg>
-        </div>
         <h1 class="brand-title">绿脉伴侣</h1>
         <p class="brand-subtitle">管理后台</p>
         <ul class="brand-features">
@@ -181,7 +172,6 @@ async function handleLogin() {
   pointer-events: none;
 }
 .brand-content { position: relative; color: #fff; }
-.brand-logo { margin-bottom: 20px; }
 .brand-title {
   font-size: 2rem;
   font-weight: 800;

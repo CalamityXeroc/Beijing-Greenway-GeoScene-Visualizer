@@ -13,15 +13,16 @@
       <div class="ap-section">
         <div class="ap-label">我的位置</div>
         <div class="ap-locate-row">
-          <button class="ap-locate" :disabled="locating" @click="locateMe">
+          <button class="ap-locate" :class="{ active: !picking && origin?.source === 'geo' }" :disabled="locating" @click="locateMe">
             <i class="fas" :class="locating ? 'fa-spinner fa-spin' : 'fa-crosshairs'"></i>
             {{ locating ? '定位中…' : '使用我的位置' }}
           </button>
-          <button class="ap-locate ap-locate-alt" @click="$emit('pick-origin')">
+          <button class="ap-locate ap-locate-alt" :class="{ active: picking || origin?.source === 'map' }" @click="handlePickOrigin">
             <i class="fas fa-map-pin"></i> 地图选点
           </button>
         </div>
-        <p v-if="origin" class="ap-origin-text"><i class="fas fa-check-circle"></i> 起点：{{ origin.address || origin.lng.toFixed(4) + ',' + origin.lat.toFixed(4) }}</p>
+        <p v-if="picking" class="ap-picking-hint"><i class="fas fa-hand-pointer"></i> 请在左侧地图上点击任意位置作为起点</p>
+        <p v-if="origin && !picking" class="ap-origin-text"><i class="fas fa-check-circle"></i> 起点：{{ origin.address || origin.lng.toFixed(4) + ',' + origin.lat.toFixed(4) }}</p>
       </div>
 
       <!-- 出行方式 -->
@@ -81,6 +82,7 @@
 <script setup>
 import { ref, computed, onBeforeUnmount } from 'vue'
 import { getApiBaseUrl } from '@/mobile/services/api'
+import { wgs84ToGcj02 } from '@/utils/coordinateTransform'
 
 const emit = defineEmits(['close', 'pick-origin', 'hull-change', 'origin-set', 'locate-greenway', 'go-route'])
 
@@ -125,6 +127,7 @@ function changeMin(m) { currentMin.value = m; emitHull() }
 function changeIndex(i) { changeMin(LEVELS[i] ?? 15) }
 const locating = ref(false)
 const loading = ref(false)
+const picking = ref(false)
 
 const reachableNow = computed(() => {
   if (!result.value) return []
@@ -136,9 +139,15 @@ function setMode(m) {
   if (origin.value) recompute()
 }
 
+function handlePickOrigin() {
+  picking.value = !picking.value
+  emit('pick-origin', picking.value)
+}
+
 /* 供父组件调用：地图选点结果 */
 function applyOrigin(pt) {
-  origin.value = pt
+  picking.value = false
+  origin.value = { ...pt, address: '地图选点', source: 'map' }
   recompute()
 }
 defineExpose({ applyOrigin })
@@ -148,12 +157,15 @@ async function locateMe() {
     alert('您的浏览器不支持定位功能，请使用地图选点')
     return
   }
+  picking.value = false
   locating.value = true
   try {
     const pos = await new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
     })
-    origin.value = { lng: pos.coords.longitude, lat: pos.coords.latitude, address: '我的位置' }
+    // 浏览器 geolocation 返回 WGS-84，高德底图为 GCJ-02，需转换
+    const gcj = wgs84ToGcj02(pos.coords.longitude, pos.coords.latitude)
+    origin.value = { lng: gcj.lng, lat: gcj.lat, address: '我的位置', source: 'geo' }
     await recompute()
   } catch {
     alert('定位失败，请使用地图选点')
@@ -255,18 +267,30 @@ function emitHull() {
   flex: 1;
   padding: 9px 0;
   border-radius: 10px;
-  border: 1.5px solid #1976D2;
-  background: rgba(25, 118, 210, 0.08);
-  color: #1565C0;
+  border: 1.5px solid var(--border-color, #e0e0e0);
+  background: transparent;
+  color: var(--text-secondary, #555);
   font-size: 0.84rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
 }
-.ap-locate:hover { background: rgba(25, 118, 210, 0.15); }
+.ap-locate:hover { border-color: #1976D2; color: #1565C0; background: rgba(25, 118, 210, 0.05); }
 .ap-locate:disabled { opacity: 0.6; cursor: not-allowed; }
-.ap-locate-alt { border-color: var(--border-color, #e0e0e0); background: transparent; color: var(--text-secondary, #555); }
+.ap-locate.active {
+  border-color: #1976D2;
+  background: rgba(25, 118, 210, 0.12);
+  color: #1565C0;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.18);
+}
+.ap-locate-alt.active {
+  border-color: #1976D2;
+  background: rgba(25, 118, 210, 0.12);
+  color: #1565C0;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.18);
+}
 .ap-locate-alt:hover { border-color: #1976D2; color: #1565C0; background: rgba(25,118,210,0.05); }
+.ap-picking-hint { margin: 8px 0 0; font-size: 0.74rem; color: #E65100; display: flex; align-items: center; gap: 5px; font-weight: 600; }
 .ap-origin-text { margin: 8px 0 0; font-size: 0.74rem; color: #2E7D32; display: flex; align-items: center; gap: 5px; }
 .ap-toggle { display: flex; gap: 10px; }
 .ap-mode {
