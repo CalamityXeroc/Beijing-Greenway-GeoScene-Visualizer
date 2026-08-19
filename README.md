@@ -102,6 +102,8 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  **Detail Info Table Refine**: Removed redundant length/ID rows; shows real data (area / coverage / construction area / features).
 -  **Mobile Map UI Conflict Fix**: Spatial-analysis bar no longer overlaps the POI-type bar when both are open (auto lifts above).
 -  **Coordinate Alignment (GCJ-02)**: Path planning & reachability outputs are converted WGS-84 ↔ GCJ-02 to align with the Amap basemap (shared `coordTransform.js` backend util + frontend helper).
+-  **Real-Device Geolocation Fix (国内真机定位修复)**: Capacitor's Geolocation plugin depends on Google Play Services (GMS), which is unavailable on domestic Android devices — added a native GeoScene location path (Android `LocationManager` via the GeoScene plugin) with three-level fallback: native LocationManager → browser HTML5 Geolocation → Capacitor plugin (network-location). The diagnostic page gains a "定位测试" button to verify the location chain on real devices.
+-  **Mobile Landing Native Scroll**: On mobile (≤768px) the landing page no longer uses full-screen page snapping; it restores native scrolling (fixes content clipping) with an `IntersectionObserver` driving section-active state, stats counters and card reveals; the hero globe scales to fit its container.
 
 ---
 

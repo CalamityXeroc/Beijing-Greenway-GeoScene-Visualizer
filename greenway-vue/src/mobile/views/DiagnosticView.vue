@@ -87,6 +87,16 @@
         </button>
       </section>
 
+      <!-- 定位测试 -->
+      <section class="section">
+        <h2>📍 定位测试</h2>
+        <button class="test-btn" @click="testLocation" :disabled="locTesting">
+          {{ locTesting ? '定位中...' : '测试定位' }}
+        </button>
+        <div class="test-result" v-if="locResult">{{ locResult }}</div>
+        <div class="test-error" v-if="locError">❌ {{ locError }}</div>
+      </section>
+
       <!-- 日志 -->
       <section class="section">
         <h2>请求日志</h2>
@@ -128,6 +138,30 @@ const tests = ref([
   { name: '绿道数据API', url: '', status: 'pending', result: '' },
   { name: '网络连接', url: '', status: 'pending', result: '' }
 ])
+
+// 定位测试状态
+const locTesting = ref(false)
+const locResult = ref('')
+const locError = ref('')
+
+async function testLocation() {
+  locTesting.value = true
+  locResult.value = ''
+  locError.value = ''
+  try {
+    const { getCurrentLocation } = await import('../composables/useCapacitor')
+    addLog('开始定位测试...', 'info')
+    const loc = await getCurrentLocation()
+    locResult.value = `✅ 定位成功: ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}（精度 ${Math.round(loc.accuracy)}m，来源 ${loc.source || '未知'}）`
+    addLog(`定位成功: ${loc.lat}, ${loc.lng} 精度${loc.accuracy} 来源${loc.source}`, 'success')
+  } catch (e) {
+    locError.value = `${e.message || String(e)}`
+    locResult.value = ''
+    addLog(`定位失败: ${e.message || String(e)}`, 'error')
+  } finally {
+    locTesting.value = false
+  }
+}
 
 function addLog(message, type = 'info') {
   const time = new Date().toLocaleTimeString('zh-CN', { hour12: false })

@@ -348,8 +348,19 @@ function handleLogout() {
 const TOTAL_PAGES = 6
 const currentPage = ref(0)
 let isAnimating = false
+let io = null // 移动端滚动位置监听（IntersectionObserver）
+
+// 移动端（≤768px）不使用全屏翻页，恢复原生滚动，避免内容被截断
+const isMobileView = () => window.matchMedia('(max-width: 768px)').matches
 
 function goTo(index) {
+  // 移动端：直接滚动到对应区块（原生滚动），不翻页
+  if (isMobileView()) {
+    const sections = document.querySelectorAll('.fp-section')
+    const target = sections[Math.max(0, Math.min(TOTAL_PAGES - 1, index))]
+    if (target) target.scrollIntoView({ behavior: 'smooth' })
+    return
+  }
   if (isAnimating) return
   const target = Math.max(0, Math.min(TOTAL_PAGES - 1, index))
   if (target === currentPage.value) return
@@ -363,6 +374,7 @@ function goTo(index) {
 let wheelAccum = 0
 let wheelTimer = null
 function onWheel(e) {
+  if (isMobileView()) return // 移动端使用原生滚动
   e.preventDefault()
   // 累积滚动量，在一个短时间窗口内汇总方向
   wheelAccum += e.deltaY
@@ -377,6 +389,7 @@ function onWheel(e) {
 
 // 键盘方向键 / PageUp / PageDown
 function onKeyDown(e) {
+  if (isMobileView()) return // 移动端使用原生滚动
   if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); goTo(currentPage.value + 1) }
   if (e.key === 'ArrowUp'   || e.key === 'PageUp')   { e.preventDefault(); goTo(currentPage.value - 1) }
 }
@@ -385,6 +398,7 @@ function onKeyDown(e) {
 let touchStartY = 0
 function onTouchStart(e) { touchStartY = e.touches[0].clientY }
 function onTouchEnd(e) {
+  if (isMobileView()) return // 移动端使用原生滚动，不做翻页
   const dy = touchStartY - e.changedTouches[0].clientY
   if (Math.abs(dy) < 50) return
   dy > 0 ? goTo(currentPage.value + 1) : goTo(currentPage.value - 1)
@@ -642,7 +656,9 @@ function initGlobe() {
   const canvas = globeCanvasRef.value
   if (!canvas) return
 
-  const SIZE = 340
+  // 尺寸跟随容器（手机端自动变小，避免溢出）
+  const wrap = globeWrapRef.value
+  const SIZE = wrap ? Math.min(wrap.clientWidth || 340, 340) : 340
   canvas.width = SIZE * 2; canvas.height = SIZE * 2
   canvas.style.width = SIZE + 'px'; canvas.style.height = SIZE + 'px'
 
@@ -752,6 +768,22 @@ function initGlobe() {
 
 onMounted(() => {
   initCanvas()
+  // 移动端（流式布局）：用 IntersectionObserver 监听滚动位置更新 currentPage，
+  // 使 stats 数字、卡片 reveal、header 状态在滚动时正常触发
+  if (isMobileView()) {
+    const sectionEls = document.querySelectorAll('.fp-section')
+    io = new IntersectionObserver((entries) => {
+      // 取最靠近视口顶部的 section
+      const visible = entries
+        .filter(e => e.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]
+      if (visible) {
+        const idx = [...sectionEls].indexOf(visible.target)
+        if (idx >= 0) currentPage.value = idx
+      }
+    }, { threshold: 0.25 })
+    sectionEls.forEach(s => io.observe(s))
+  }
   landingRoot.value?.addEventListener('wheel', onWheel, { passive: false })
   window.addEventListener('keydown', onKeyDown)
   landingRoot.value?.addEventListener('touchstart', onTouchStart, { passive: true })
@@ -782,6 +814,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (animFrameId) cancelAnimationFrame(animFrameId)
   if (wheelTimer) clearTimeout(wheelTimer)
+  io?.disconnect()
   landingRoot.value?.removeEventListener('wheel', onWheel)
   window.removeEventListener('keydown', onKeyDown)
   landingRoot.value?.removeEventListener('touchstart', onTouchStart)
@@ -1292,6 +1325,49 @@ a.fl-link:hover { color: #A5D6A7; }
     font-size: 0.8rem;
   }
   .lp-header__inner { gap: 8px; }
+}
+
+/* ══════════════════════════════════════════════════
+   移动端（≤768px）：禁用全屏翻页，恢复原生滚动
+   ═══════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .fp-root {
+    height: auto;
+    overflow: visible;
+  }
+  .fp-container {
+    position: relative;
+    height: auto;
+    overflow: visible;
+  }
+  .fp-slider {
+    transform: none !important;
+    will-change: auto;
+  }
+  .fp-section {
+    height: auto;
+    min-height: auto;
+    overflow: visible;
+  }
+  /* 装饰背景层改为跟随文档流，避免固定定位造成的视觉错位 */
+  .bg-canvas { position: fixed; } /* 背景动画保持固定即可 */
+  .geo-decor { position: fixed; }
+  /* 各区块内容对齐顶部，留出 header 高度 */
+  .fp-stats .page-inner,
+  .fp-about .page-inner,
+  .fp-greenways .page-inner,
+  .fp-features .page-inner {
+    justify-content: flex-start;
+    padding-top: 84px;
+  }
+  .fp-hero { align-items: stretch; }
+  /* 地球视觉：跟随容器收缩，防止溢出 */
+  .hero__visual { width: 220px; }
+  .globe-wrap { width: 220px; height: 220px; }
+  .globe-canvas { width: 220px; height: 220px; max-width: 100%; }
+  .orbit--1 { width: 190px; height: 190px; top: 15px; left: 15px; }
+  .orbit--2 { width: 280px; height: 190px; top: 15px; left: -30px; }
+  .scroll-hint { display: none; } /* 手机端不需要滚动提示 */
 }
 
 /* ══════════════════════════════════════════════════

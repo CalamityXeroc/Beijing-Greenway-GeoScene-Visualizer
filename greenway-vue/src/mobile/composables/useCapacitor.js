@@ -3,6 +3,7 @@ import { Geolocation } from '@capacitor/geolocation'
 import { App } from '@capacitor/app'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { SplashScreen } from '@capacitor/splash-screen'
+import { getNativeLocation } from '../services/geoSceneNative'
 
 /**
  * 检查是否在原生平台上运行
@@ -13,7 +14,10 @@ export const isNativePlatform = () => {
 
 /**
  * 获取当前位置
- * @returns {Promise<{lat: number, lng: number, accuracy: number}>}
+ * 真机定位修复（国内手机无 Google Play Services）：
+ * - Capacitor Geolocation 插件底层依赖 GMS 的 FusedLocationProvider，国内真机不可用
+ * - 改为优先使用浏览器 HTML5 Geolocation API（WebView 原生支持，用系统 LocationManager，不依赖 GMS）
+ * - 兜底仍保留 Capacitor 插件（有 GMS 的设备可增强精度）
  */
 export const getCurrentLocation = async () => {
   try {
@@ -22,38 +26,56 @@ export const getCurrentLocation = async () => {
       return await getBrowserLocation()
     }
 
-    // 原生平台：先检查并请求权限
-    const perm = await Geolocation.checkPermissions()
-    if (perm.location === 'denied') {
-      throw new Error('Permission denied: 位置权限被拒绝')
-    }
-    if (perm.location !== 'granted') {
-      const req = await Geolocation.requestPermissions()
-      if (req.location !== 'granted') {
-        throw new Error('Permission denied: 用户拒绝了位置权限')
-      }
+    // 原生平台：优先用 GeoScene 原生定位（Android LocationManager，不依赖 GMS，国内手机首选）
+    try {
+      const loc = await getNativeLocation()
+      console.log('[定位] 原生定位成功:', loc.source, '精度:', loc.accuracy)
+      return loc
+    } catch (nativeErr) {
+      console.warn('[定位] 原生定位失败，尝试浏览器定位:', nativeErr.message)
     }
 
-    // 权限已授予，获取位置
-    const coordinates = await Geolocation.getCurrentPosition({
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0
-    })
+    // 兜底：浏览器 Geolocation（WebView 内置，也支持系统 LocationManager）
+    try {
+      const loc = await getBrowserLocation()
+      return loc
+    } catch (webErr) {
+      console.warn('[定位] 浏览器定位失败，尝试 Capacitor 插件:', webErr.message)
+    }
 
-    return {
-      lat: coordinates.coords.latitude,
-      lng: coordinates.coords.longitude,
-      accuracy: coordinates.coords.accuracy,
-      altitude: coordinates.coords.altitude,
-      altitudeAccuracy: coordinates.coords.altitudeAccuracy,
-      heading: coordinates.coords.heading,
-      speed: coordinates.coords.speed,
-      timestamp: coordinates.timestamp
+    // 最后兜底：Capacitor 插件（有 Google Play Services 的设备可增强精度）
+    try {
+      const coordinates = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 10000
+      })
+      return formatPosition(coordinates)
+    } catch (highErr) {
+      console.warn('[定位] 高精度失败，降级网络定位:', highErr.message)
+      const coordinates = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 60000
+      })
+      return formatPosition(coordinates)
     }
   } catch (error) {
     console.error('获取位置失败:', error)
     throw error
+  }
+}
+
+function formatPosition(coordinates) {
+  return {
+    lat: coordinates.coords.latitude,
+    lng: coordinates.coords.longitude,
+    accuracy: coordinates.coords.accuracy,
+    altitude: coordinates.coords.altitude,
+    altitudeAccuracy: coordinates.coords.altitudeAccuracy,
+    heading: coordinates.coords.heading,
+    speed: coordinates.coords.speed,
+    timestamp: coordinates.timestamp
   }
 }
 
@@ -68,28 +90,39 @@ export const getBrowserLocation = () => {
       return
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          altitude: position.coords.altitude,
-          altitudeAccuracy: position.coords.altitudeAccuracy,
-          heading: position.coords.heading,
-          speed: position.coords.speed,
-          timestamp: position.timestamp
-        })
-      },
-      (error) => {
-        reject(new Error(`浏览器地理位置错误: ${error.message}`))
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
-    )
+    // 高精度优先，失败降级低精度（网络/基站，更快更稳，不依赖 GPS 冷启动）
+    const attempt = (highAccuracy) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            altitude: position.coords.altitude,
+            altitudeAccuracy: position.coords.altitudeAccuracy,
+            heading: position.coords.heading,
+            speed: position.coords.speed,
+            timestamp: position.timestamp
+          })
+        },
+        (error) => {
+          if (highAccuracy) {
+            // 高精度失败（室内/GPS 弱）：降级低精度再试一次
+            console.warn('[定位] 浏览器高精度失败，降级低精度:', error.message)
+            attempt(false)
+          } else {
+            reject(new Error(`浏览器地理位置错误: ${error.message}`))
+          }
+        },
+        {
+          enableHighAccuracy: highAccuracy,
+          timeout: highAccuracy ? 8000 : 15000,
+          maximumAge: highAccuracy ? 10000 : 60000
+        }
+      )
+    }
+
+    attempt(true)
   })
 }
 

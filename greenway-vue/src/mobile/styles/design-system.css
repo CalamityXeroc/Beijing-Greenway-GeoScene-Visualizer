@@ -1298,12 +1298,16 @@ input, textarea, select {
 
 button:focus-visible,
 a:focus-visible,
-[role="button"]:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* 输入框/选择框/文本域：去掉全局绿色 outline，避免与组件自身 focus 边框叠加成两层 */
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: none;
 }
 
 /* 减少动效偏好 */

@@ -207,14 +207,13 @@
         <div class="modal-content about-modal" @click.stop>
           <div class="about-header">
             <div class="app-icon">
-              <img src="/logo.svg" alt="绿脉伴侣" style="width:72px;height:72px;display:block;object-fit:contain" />
+              <img src="/logo.svg" alt="绿脉伴侣" style="width:120px;height:120px;display:block;object-fit:contain;margin:0 auto" />
             </div>
-            <h2>绿脉伴侣</h2>
             <p class="version">版本 {{ appVersion }}</p>
           </div>
           <div class="about-body">
             <p>绿脉伴侣是一款北京绿道智慧服务平台，提供绿道信息查询、深度学习功能画像、智能推荐、路径规划、可达圈分析、AI 助手问答、社区互动等功能。</p>
-            <p class="copyright">© 2025-2026 绿脉伴侣团队</p>
+            <p class="copyright">© 2025-2026 北京联合大学绿脉伴侣团队</p>
           </div>
           <button class="modal-close" @click="showAboutModal = false">关闭</button>
         </div>
@@ -684,12 +683,12 @@ input:checked + .slider::before {
 
 .about-modal .about-header {
   background: linear-gradient(135deg, var(--color-primary), #059669);
-  padding: 32px 24px;
+  padding: 36px 24px 28px;
   text-align: center;
   color: #fff;
 }
 .about-header .app-icon {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 .about-header h2 {
   margin: 0 0 8px;
@@ -699,6 +698,7 @@ input:checked + .slider::before {
   margin: 0;
   font-size: var(--text-sm);
   opacity: 0.9;
+  font-weight: var(--font-weight-medium);
 }
 
 .about-body {

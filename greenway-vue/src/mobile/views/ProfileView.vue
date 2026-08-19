@@ -3,6 +3,15 @@
     <!-- 顶部用户卡片 - 现代化重构 -->
     <div class="profile-hero">
       <div class="hero-bg"></div>
+      <!-- 背景光点装饰 -->
+      <div class="hero-dots" aria-hidden="true">
+        <i style="top:24%;left:12%;opacity:.9"></i>
+        <i style="top:18%;left:68%;width:6px;height:6px;opacity:.5"></i>
+        <i style="top:42%;left:82%;opacity:.7"></i>
+        <i style="top:30%;left:38%;width:3px;height:3px;opacity:.8"></i>
+        <i style="top:12%;left:48%;opacity:.5"></i>
+        <i style="top:55%;left:8%;width:6px;height:6px;opacity:.4"></i>
+      </div>
       <div class="hero-content">
         <div class="avatar-container">
           <div class="avatar-ring" :style="{ background: avatarBg }">
@@ -104,6 +113,17 @@
           </span>
           <svg class="chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
+        <button class="menu-row" @click="goToPage('diagnostic')">
+          <span class="menu-icon" style="background: linear-gradient(135deg, #007aff, #5ac8fa);">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </span>
+          <span class="menu-content">
+            <span class="menu-label">网络诊断</span>
+          </span>
+          <svg class="chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
         <button class="menu-row" style="justify-content: space-between;">
           <span style="display:flex;align-items:center;gap:14px;">
             <span class="menu-icon" style="background: linear-gradient(135deg, #1c1c1e, #3a3a3c);">
@@ -158,14 +178,13 @@
         <div class="modal-content about-modal" @click.stop>
           <div class="about-header">
             <div class="app-icon">
-              <img src="/logo.svg" alt="绿脉伴侣" style="width:72px;height:72px;display:block;object-fit:contain" />
+              <img src="/logo.svg" alt="绿脉伴侣" style="width:120px;height:120px;display:block;object-fit:contain;margin:0 auto" />
             </div>
-            <h2>绿脉伴侣</h2>
             <p class="version">版本 1.0.0</p>
           </div>
           <div class="about-body">
             <p>绿脉伴侣是一款北京绿道智慧服务平台，提供绿道信息查询、深度学习功能画像、智能推荐、路径规划、可达圈分析、AI 助手问答、社区互动等功能。</p>
-            <p class="copyright">© 2025-2026 绿脉伴侣团队</p>
+            <p class="copyright">© 2025-2026 北京联合大学绿脉伴侣团队</p>
           </div>
           <button class="modal-close" @click="showAboutModal = false">关闭</button>
         </div>
@@ -244,6 +263,10 @@ const goToPage = (p) => {
     router.push('/mobile/settings')
     return
   }
+  if (p === 'diagnostic') {
+    router.push('/mobile/diagnostic')
+    return
+  }
   if (p === 'help') {
     router.push('/mobile/feedback')
     return
@@ -268,46 +291,91 @@ const goToPage = (p) => {
   top: 0;
   left: 0;
   right: 0;
-  height: 160px;
-  background:
-    radial-gradient(ellipse at 18% 0%, rgba(45, 212, 191, 0.45), transparent 55%),
-    radial-gradient(ellipse at 85% 15%, rgba(14, 165, 233, 0.32), transparent 50%),
-    linear-gradient(160deg, #059669 0%, #16a34a 60%, #0d9488 100%);
-  border-radius: 0 0 36px 36px;
+  height: 200px;
+  overflow: hidden;
+  background-color: #0d8a5f; /* 纯色兜底：任何环境都保证深绿 */
+  background-image:
+    radial-gradient(ellipse at 12% -10%, rgba(94, 234, 212, 0.5), transparent 52%),
+    radial-gradient(ellipse at 88% 8%, rgba(56, 189, 248, 0.38), transparent 46%),
+    radial-gradient(ellipse at 50% 130%, rgba(52, 211, 153, 0.35), transparent 60%),
+    linear-gradient(155deg, #047857 0%, #059669 42%, #0d9488 100%);
+  border-radius: 0 0 40px 40px;
+}
+/* 弧形光带装饰（左上） */
+.hero-bg::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  left: -40px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.10);
+}
+/* 弧形光带装饰（右下） */
+.hero-bg::after {
+  content: '';
+  position: absolute;
+  bottom: -70px;
+  right: -50px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+}
+/* 小光点装饰 */
+.hero-dots {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 0 0 40px 40px;
+}
+.hero-dots i {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
 }
 .hero-content {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px 16px 24px;
+  padding: 28px 16px 28px;
+  z-index: 1;
 }
 .avatar-container {
   position: relative;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .avatar-container::before {
   content: '';
   position: absolute;
-  inset: -6px;
+  inset: -10px;
   border-radius: 50%;
-  background: var(--gradient-brand);
-  opacity: 0.15;
-  filter: blur(8px);
+  background: radial-gradient(circle, rgba(255,255,255,0.5), rgba(255,255,255,0) 70%);
+  opacity: 0.35;
+  filter: blur(6px);
   z-index: -1;
 }
 .avatar-ring {
-  width: 80px;
-  height: 80px;
+  width: 88px;
+  height: 88px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
   color: #fff;
-  border: 4px solid var(--color-surface);
-  box-shadow: var(--shadow-lg);
+  border: 4px solid rgba(255,255,255,0.95);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28), 0 0 0 5px rgba(255,255,255,0.15);
+  background-clip: padding-box;
 }
 .avatar-ring img {
   width: 100%;
@@ -318,25 +386,39 @@ const goToPage = (p) => {
 .admin-crown {
   position: absolute;
   top: -8px;
-  right: -4px;
-  font-size: 20px;
+  right: -6px;
+  font-size: 22px;
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.35));
 }
 .user-info {
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 .user-name {
-  font-size: 28px;
-  font-weight: var(--font-weight-bold);
+  font-size: 27px;
+  font-weight: 700;
   color: #ffffff;
   margin: 0;
-  letter-spacing: -0.5px;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  letter-spacing: -0.3px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
 }
 .user-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin: 34px 0 0;
+  padding: 6px 16px;
+  border-radius: 999px;
   font-size: var(--text-sm);
-  color: rgba(255, 255, 255, 0.85);
-  margin: 4px 0 0;
+  font-weight: var(--font-weight-medium);
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.30);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.25);
+  box-sizing: border-box;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 .auth-btns {
   display: flex;

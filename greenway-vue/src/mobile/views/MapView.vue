@@ -9,46 +9,52 @@
       <span class="location-dot"></span>
     </div>
 
-    <!-- 顶部悬浮搜索栏（悬浮在地图上方） -->
+    <!-- 顶部悬浮工具栏（重新设计：左搜索 + 右工具组 + 定位独立） -->
     <div class="top-bar">
-      <div class="search-pill" @click="showSearch">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <!-- 左侧：搜索按钮 -->
+      <button class="map-search-btn" @click="showSearch" aria-label="搜索绿道、设施">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <span>搜索绿道、设施…</span>
+        <span class="map-search-hint">搜索</span>
+      </button>
+
+      <!-- 右侧：功能工具组（AI / 路径 / 空间 / 设施） -->
+      <div class="map-tools">
+        <button class="tool-btn" @click="aiPanelOpen = true" aria-label="AI助手" title="绿道小助手">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3c0 1.31.83 2.42 2 2.83V19l2 2 2-2v-2.17c1.17-.41 2-1.52 2-2.83a3 3 0 0 0-3-3"/>
+          </svg>
+        </button>
+        <button class="tool-btn" @click="routePanelOpen = true" aria-label="路径规划" title="路径规划">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>
+          </svg>
+        </button>
+        <button class="tool-btn" :class="{ active: spatialDrawing }" @click="toggleSpatialDraw" aria-label="空间分析" title="空间分析">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-8"/>
+          </svg>
+        </button>
+        <button class="tool-btn" :class="{ active: showPoi && zoomOk && anyPoiTypeOn }" @click="onPoiFab" aria-label="设施" title="设施">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/>
+          </svg>
+        </button>
       </div>
-      <button class="topbar-icon-btn" @click="aiPanelOpen = true" aria-label="AI助手">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2a3 3 0 0 0-3 3c0 1.31.83 2.42 2 2.83V19l2 2 2-2v-2.17c1.17-.41 2-1.52 2-2.83a3 3 0 0 0-3-3"/>
-        </svg>
-      </button>
-      <button class="topbar-icon-btn route-btn" @click="routePanelOpen = true" aria-label="路径规划">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>
-        </svg>
-      </button>
-      <button class="topbar-icon-btn spatial-btn" :class="{ active: spatialDrawing }" @click="toggleSpatialDraw" aria-label="空间分析">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-8"/>
-        </svg>
-      </button>
-      <button class="poi-fab" :class="{ active: showPoi && zoomOk && anyPoiTypeOn }" @click="onPoiFab" aria-label="设施">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/>
-          <circle cx="12" cy="10" r="3"/>
-        </svg>
-      </button>
-      <button class="poi-fab locate-fab" :class="{ active: hasLocation }" @click="manualLocate" aria-label="定位到我的位置" title="定位到我的位置">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"/>
-          <circle cx="12" cy="12" r="8" opacity="0.35"/>
-          <line x1="12" y1="2" x2="12" y2="5"/>
-          <line x1="12" y1="19" x2="12" y2="22"/>
-          <line x1="2" y1="12" x2="5" y2="12"/>
-          <line x1="19" y1="12" x2="22" y2="12"/>
-        </svg>
-      </button>
     </div>
+
+    <!-- 定位按钮（独立 FAB，右下） -->
+    <button class="locate-fab" :class="{ active: hasLocation }" @click="manualLocate" aria-label="定位到我的位置" title="定位到我的位置">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <circle cx="12" cy="12" r="8" opacity="0.35"/>
+        <line x1="12" y1="2" x2="12" y2="5"/>
+        <line x1="12" y1="19" x2="12" y2="22"/>
+        <line x1="2" y1="12" x2="5" y2="12"/>
+        <line x1="19" y1="12" x2="22" y2="12"/>
+      </svg>
+    </button>
 
     <!-- AI 绿道助手 -->
     <AIChatPanel :visible="aiPanelOpen" @close="aiPanelOpen = false" />
@@ -750,7 +756,11 @@ watch(selectedPoi, () => {
 const locateUser = async (silent = false) => {
   await fetchLocation(silent)
   if (userLocation.value) {
-    const coord = fromLonLat([userLocation.value.lng, userLocation.value.lat])
+    // GPS 返回 WGS-84，高德底图为 GCJ-02：先转换再展示，避免位置偏移
+    const { wgs84ToGcj02 } = await import('@/utils/coordinateTransform')
+    const gcj = wgs84ToGcj02(userLocation.value.lng, userLocation.value.lat)
+    // 注意：wgs84ToGcj02 返回对象 { lng, lat }，不是数组
+    const coord = fromLonLat([gcj.lng, gcj.lat])
     // 更新位置标记 Overlay 的地理坐标
     if (locationOverlay) {
       locationOverlay.setPosition(coord)
@@ -893,7 +903,7 @@ onUnmounted(() => {
   filter: brightness(1.3) drop-shadow(0 0 6px rgba(100, 220, 140, 0.5));
 }
 
-/* 顶部悬浮搜索栏 + 设施按钮（flex 并列，避免重叠） */
+/* 顶部悬浮工具栏（重新设计：左搜索胶囊 + 右工具组） */
 .top-bar {
   position: absolute;
   top: 0;
@@ -904,30 +914,71 @@ onUnmounted(() => {
   pointer-events: none;
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
 }
 
-.search-pill {
+/* 左侧搜索按钮：胶囊形 + 文字提示 */
+.map-search-btn {
   pointer-events: auto;
-  flex: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 44px;
-  padding: 0 16px;
-  background: var(--color-surface);
-  border-radius: 22px;
-  box-shadow: var(--shadow-lg);
-  color: var(--color-text-secondary);
-  font-size: var(--text-base);
+  gap: 6px;
+  height: 42px;
+  padding: 0 16px 0 13px;
+  border: none;
+  border-radius: 21px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.10);
+  color: var(--color-primary);
   cursor: pointer;
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
-.theme-light .search-pill { background: rgba(255,255,255,0.92); }
-.theme-dark  .search-pill { background: rgba(44,44,46,0.92); }
-.search-pill:active { transform: scale(0.97); }
+.theme-dark .map-search-btn { background: rgba(40, 40, 44, 0.92); }
+.map-search-hint {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+.map-search-btn:active { transform: scale(0.96); }
+
+/* 右侧工具组：毛玻璃胶囊容器 */
+.map-tools {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.90);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.theme-dark .map-tools { background: rgba(40, 40, 44, 0.90); }
+
+/* 工具按钮：统一圆形图标 */
+.tool-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+.tool-btn:active { transform: scale(0.90); }
+.tool-btn:hover { background: var(--color-surface-2); color: var(--color-primary); }
+.tool-btn.active {
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4);
+}
 
 /* 地图数据加载失败提示条 */
 .map-error-bar {
@@ -963,59 +1014,32 @@ onUnmounted(() => {
 }
 .map-error-retry:active { opacity: 0.85; }
 
-/* 设施悬浮按钮（flex 项，与搜索 pill 并列） */
-.poi-fab {
+/* 定位按钮（独立 FAB，右下角） */
+.locate-fab {
+  position: absolute;
+  right: 16px;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 24px);
+  z-index: var(--z-float);
   pointer-events: auto;
-  flex: 0 0 44px;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-lg);
+  background: rgba(255,255,255,0.94);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
   color: var(--color-primary);
   cursor: pointer;
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   transition: transform var(--transition-fast), background var(--transition-fast);
 }
-.theme-light .poi-fab { background: rgba(255,255,255,0.92); }
-.theme-dark  .poi-fab { background: rgba(44,44,46,0.92); }
-.poi-fab.active { background: var(--color-primary); color: #fff; }
-.poi-fab:active { transform: scale(0.92); }
-
-/* 顶部栏图标按钮（AI 助手等）——与 poi-fab 同规格，品牌绿色强调 */
-.topbar-icon-btn {
-  pointer-events: auto;
-  flex: 0 0 44px;
-  width: 44px; height: 44px;
-  border-radius: 50%; border: none;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--gradient-brand);
-  box-shadow: var(--shadow-fab);
-  color: #fff;
-  cursor: pointer;
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  transition: transform var(--transition-fast);
-}
-.topbar-icon-btn:active { transform: scale(0.92); }
-/* 路径规划按钮：蓝色强调（与绿色 AI 区分） */
-.topbar-icon-btn.route-btn {
-  background: var(--gradient-ocean);
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
-}
-/* 空间分析按钮：紫色强调 */
-.topbar-icon-btn.spatial-btn {
-  background: linear-gradient(135deg, #8B5CF6, #6D28D9);
-  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
-}
-.topbar-icon-btn.spatial-btn.active {
-  background: #5B21B6;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.4), 0 4px 14px rgba(124, 58, 237, 0.5);
-}
+.theme-light .locate-fab { background: rgba(255,255,255,0.94); }
+.theme-dark  .locate-fab { background: rgba(44,44,46,0.92); color: #4ade80; }
+.locate-fab.active { background: var(--color-primary); color: #fff; }
+.locate-fab:active { transform: scale(0.92); }
 
 /* 空间分析绘制控制条 */
 .spatial-draw-bar {
