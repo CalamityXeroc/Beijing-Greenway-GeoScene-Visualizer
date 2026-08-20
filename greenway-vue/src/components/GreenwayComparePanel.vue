@@ -219,6 +219,12 @@ const DIM_KEY = ['eco', 'transport', 'facility', 'heat', 'leisure']
 
 function renderRadar() {
   if (!radarRef.value) return
+  // v-if（selected>=2）销毁再重建后，radarRef 是新的 DOM；
+  // 若旧 echarts 实例仍绑定在已脱离文档的旧 DOM 上，需销毁重建，否则 setOption 画在离屏旧 canvas 上导致图表“消失”。
+  if (radarChart && radarChart.getDom() !== radarRef.value) {
+    try { radarChart.dispose() } catch (e) { /* 忽略 */ }
+    radarChart = null
+  }
   if (!radarChart) radarChart = echarts.init(radarRef.value)
   const avg = result.value?.avgDims || {}
   const seriesData = selected.value.map((s, i) => ({
