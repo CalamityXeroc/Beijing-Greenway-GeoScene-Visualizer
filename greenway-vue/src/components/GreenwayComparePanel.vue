@@ -69,8 +69,9 @@
               <tr v-for="row in compareRows" :key="row.key">
                 <td>{{ row.label }}</td>
                 <td v-for="(v, i) in row.values" :key="i"
-                    :class="{ 'gc-best': v === row.best && row.best > 0 }">
-                  {{ v }}<span v-if="row.suffix"> {{ row.suffix }}</span>
+                    :class="{ 'gc-best': v === row.best && row.best > 0 && v !== null }">
+                  <template v-if="row.key === 'heatRank' && v === null">暂无</template>
+                  <template v-else>{{ v }}<span v-if="row.suffix"> {{ row.suffix }}</span></template>
                 </td>
               </tr>
             </tbody>
@@ -201,8 +202,16 @@ const DIM_CFG = [
   { key: 'heatRank', label: '热度排名', suffix: '名' }
 ]
 const compareRows = computed(() => DIM_CFG.map(cfg => {
-  const values = selected.value.map(s => cfg.key === 'score' ? s.score : s[cfg.key] ?? 0)
-  const best = cfg.key === 'heatRank' ? Math.min(...values) : Math.max(...values)
+  const values = selected.value.map(s => {
+    if (cfg.key === 'score') return s.score
+    if (cfg.key === 'lenKm') return s.lenKm ?? 0
+    if (cfg.key === 'heatRank') return s.heatRank ?? null  // 无数据保留 null
+    // 五维评分位于 assess 返回的 dims 嵌套对象中（如 s.dims.eco）
+    return s.dims?.[cfg.key] ?? 0
+  })
+  const best = cfg.key === 'heatRank'
+    ? Math.min(...values.filter(v => v !== null && v > 0)) || 0
+    : Math.max(...values)
   return { key: cfg.key, label: cfg.label, values, best, suffix: cfg.suffix }
 }))
 
