@@ -55,76 +55,8 @@
         </div>
       </section>
 
-      <!-- 社区动态 -->
-      <section class="section">
-        <div class="section-header">
-          <span class="section-title">社区动态</span>
-          <button class="section-action" @click="refreshFeed">刷新</button>
-        </div>
-        
-        <!-- 骨架屏 -->
-        <div v-if="feedLoading" class="feed-skeleton">
-          <div class="feed-card" v-for="i in 2" :key="i">
-            <div class="feed-card-header">
-              <div class="skeleton skeleton-avatar"></div>
-              <div class="feed-card-info">
-                <div class="skeleton skeleton-text" style="width: 80px;"></div>
-                <div class="skeleton skeleton-text-sm" style="width: 60px;"></div>
-              </div>
-            </div>
-            <div class="skeleton skeleton-text"></div>
-            <div class="skeleton skeleton-text" style="width: 70%;"></div>
-          </div>
-        </div>
-
-        <!-- 动态列表 -->
-        <div v-else class="feed-list">
-          <article class="feed-card" v-for="feed in feedList" :key="feed.id">
-            <div class="feed-card-header">
-              <div class="avatar avatar-md" :style="{ background: getAvatarBg(feed.user) }">
-                {{ feed.user?.charAt(0) || '?' }}
-              </div>
-              <div class="feed-card-info">
-                <span class="feed-card-name">{{ feed.user }}</span>
-                <span class="feed-card-meta">
-                  {{ feed.greenway }} · {{ formatTime(feed.time) }}
-                </span>
-              </div>
-              <span class="feed-rating">{{ renderStars(feed.rating) }}</span>
-            </div>
-            <p class="feed-card-content">{{ feed.content }}</p>
-            <div v-if="feed.cover" class="feed-cover" @click="viewComment(feed)">
-              <img :src="`/images/greenways/${feed.cover}`" :alt="feed.greenway" class="feed-cover-img" loading="lazy"
-                @error="e => e.target.style.display = 'none'" />
-            </div>
-            <div class="feed-card-actions">
-              <button class="feed-action-btn" :class="{ active: feed.liked }" @click="toggleFeedLike(feed)">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
-                </svg>
-                {{ feed.likes || 0 }}
-              </button>
-              <button class="feed-action-btn" @click="viewComment(feed)">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                </svg>
-                回复
-              </button>
-            </div>
-          </article>
-        </div>
-
-        <!-- 加载更多 -->
-        <div v-if="!feedLoading && feedList.length" class="load-more">
-          <button class="load-more-btn" @click="loadMoreFeed" :disabled="loadingMore">
-            {{ loadingMore ? '加载中...' : '加载更多动态' }}
-          </button>
-        </div>
-
-        <!-- 空/错误态 -->
-        <div v-if="!feedLoading && !feedList.length && feedError" class="feed-hint error">{{ feedError }}</div>
-        <div v-else-if="!feedLoading && !feedList.length && !feedError" class="feed-hint">还没有动态，来发布第一条吧</div>
-      </section>
+      <!-- 绿道智能推荐 -->
+      <RecommendSection />
 
       <!-- 底部安全区 -->
       <div class="nav-spacer"></div>
@@ -140,15 +72,12 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import MobileBottomNav from '../components/MobileBottomNav.vue'
 import TrailCard from '../components/TrailCard.vue'
-import { fetchGreenways, fetchRecentComments } from '../services/api'
+import RecommendSection from '../components/RecommendSection.vue'
+import { fetchGreenways } from '../services/api'
 
 const router = useRouter()
 const activeTab = ref('discover')
 const scrollEl = ref(null)
-const feedLoading = ref(true)
-const loadingMore = ref(false)
-const feedList = ref([])
-const feedError = ref('')
 const hotTrails = ref([])
 const allFeatures = ref([])
 const currentSlide = ref(0)
@@ -217,93 +146,10 @@ const loadHotTrails = async () => {
   }
 }
 
-// 社区动态封面映射：greenway_id → image（用全量绿道数据）
-const coverByGreenwayId = computed(() => {
-  const map = {}
-  allFeatures.value.forEach(f => {
-    const p = f.properties
-    if (p?.id != null && p?.image) map[String(p.id)] = p.image
-  })
-  return map
-})
-
-// 社区动态字段映射（loadFeed / loadMoreFeed 统一）
-const mapFeedItem = (c) => ({
-  id: c.id,
-  user: c.nickname || c.username || '绿道爱好者',
-  greenway_id: c.greenway_id,
-  greenway: c.greenway_name || `绿道#${c.greenway_id}`,
-  content: c.content,
-  rating: c.rating || 5,
-  time: c.created_at,
-  likes: c.like_count || 0,
-  liked: false,
-  cover: coverByGreenwayId.value[String(c.greenway_id)] || ''
-})
-
-// 加载社区动态
-const loadFeed = async () => {
-  feedLoading.value = true
-  feedError.value = ''
-  try {
-    const res = await fetchRecentComments(10)
-    feedList.value = (res.data?.list || []).map(mapFeedItem)
-  } catch (e) {
-    console.error('加载动态失败:', e)
-    feedList.value = []
-    feedError.value = '动态加载失败，请稍后重试'
-  } finally {
-    feedLoading.value = false
-  }
-}
-
-const refreshFeed = () => loadFeed()
-const loadMoreFeed = async () => {
-  loadingMore.value = true
-  try {
-    const data = await fetchRecentComments(feedList.value.length + 10)
-    const more = data.data?.list || []
-    if (more.length) {
-      feedList.value = [...feedList.value, ...more.map(mapFeedItem)]
-    }
-  } catch (e) {
-    console.error('加载更多动态失败:', e)
-  } finally {
-    loadingMore.value = false
-  }
-}
-
-// 工具函数
-const getAvatarBg = (name) => {
-  const colors = [
-    'linear-gradient(135deg, #667eea, #764ba2)',
-    'linear-gradient(135deg, #11998e, #38ef7d)',
-    'linear-gradient(135deg, #f093fb, #f5576c)',
-    'linear-gradient(135deg, #fc4a1a, #f7b733)'
-  ]
-  return colors[(name?.charCodeAt(0) || 0) % colors.length]
-}
-
-const renderStars = (n) => '★'.repeat(Math.min(5, Math.max(0, n))) + '☆'.repeat(5 - Math.min(5, Math.max(0, n)))
-
-const formatTime = (iso) => {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const now = new Date()
-  const diff = (now - d) / 1000
-  if (diff < 60) return '刚刚'
-  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
-  if (diff < 604800) return `${Math.floor(diff / 86400)}天前`
-  return d.toLocaleDateString('zh-CN')
-}
-
 // 交互
 const viewTrailDetail = (trail) => router.push(`/mobile/detail/${trail.id}`)
 const goToList = () => router.push('/mobile/list')
 const showSearch = () => router.push('/mobile/poi-search')
-const toggleFeedLike = (feed) => { feed.liked = !feed.liked; feed.likes += feed.liked ? 1 : -1 }
-const viewComment = (feed) => router.push(`/mobile/detail/${feed.greenway_id || 1}`)
 
 // Banner 自动轮播 + 触摸滑动
 let slideTimer = null
@@ -328,12 +174,9 @@ const onTouchEnd = (e) => {
 }
 
 onMounted(() => {
-  // 先加载绿道（封面映射依赖 allFeatures），完成后再加载社区动态
-  loadHotTrails().then(() => {
-    loadFeed()
-    startAutoSlide()
-  })
+  loadHotTrails()
   loadPoiCount()
+  startAutoSlide()
 })
 
 onUnmounted(() => stopAutoSlide())
@@ -508,57 +351,8 @@ onUnmounted(() => stopAutoSlide())
 }
 .card-rail::-webkit-scrollbar { display: none; }
 
-
-/* 动态（社区贴） */
-.feed-list {
-  padding: 0 16px;
-}
-.feed-card {
-  background: var(--color-surface);
-  border-radius: var(--radius-xl);
-  padding: 16px;
-  margin-bottom: 14px;
-  box-shadow: var(--shadow-soft);
-  border: 1px solid var(--color-border-light);
-}
-.feed-rating {
-  color: var(--color-warning);
-  font-size: 12px;
-}
-/* 社区贴封面图 */
-.feed-cover {
-  margin: 12px 0 2px;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  cursor: pointer;
-}
-.feed-cover-img {
-  width: 100%;
-  height: 150px;
-  object-fit: cover;
-  display: block;
-  transition: transform 0.3s ease;
-}
-.feed-cover:active .feed-cover-img { transform: scale(1.03); }
-
-/* 加载更多 */
-.load-more {
-  padding: 16px;
-  text-align: center;
-}
-.feed-hint {
-  padding: 24px 16px;
-  text-align: center;
-  font-size: var(--text-sm);
-  color: var(--color-text-tertiary);
-}
-.feed-hint.error { color: var(--color-error); }
+/* 通用 */
 .load-more-btn {
-  padding: 12px 32px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  color: var(--color-text-secondary);
   font-size: var(--text-sm);
   cursor: pointer;
   transition: all var(--transition-fast);

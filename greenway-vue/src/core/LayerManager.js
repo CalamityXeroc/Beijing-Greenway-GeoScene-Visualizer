@@ -21,7 +21,7 @@ class LayerManager {
       id: 'gaode-base-layer',
       title: '高德底图',
       urlTemplate: useProxy
-        ? `/api/tiles/gaode/${style}/{level}/{col}/{row}`
+        ? `${window.location.origin}/api/tiles/gaode/${style}/{level}/{col}/{row}`
         : `https://webrd0{subDomain}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=${style}&x={col}&y={row}&z={level}`,
       subDomains: subDomains,
       visible: true,

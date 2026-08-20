@@ -21,10 +21,8 @@
 
       <!-- 右侧：功能工具组（AI / 路径 / 空间 / 设施） -->
       <div class="map-tools">
-        <button class="tool-btn" @click="aiPanelOpen = true" aria-label="AI助手" title="绿道小助手">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2a3 3 0 0 0-3 3c0 1.31.83 2.42 2 2.83V19l2 2 2-2v-2.17c1.17-.41 2-1.52 2-2.83a3 3 0 0 0-3-3"/>
-          </svg>
+        <button class="tool-btn tool-btn--ai" @click="aiPanelOpen = true" aria-label="AI助手" title="绿道小助手">
+          <span class="tool-btn-ai-text">AI</span>
         </button>
         <button class="tool-btn" @click="routePanelOpen = true" aria-label="路径规划" title="路径规划">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -834,6 +832,25 @@ watch(() => route.query.poi, (val) => {
   }
 }, { immediate: true })
 
+// 从推荐页"去这里"跳转：/mobile/map?open=route&name=&lng=&lat=
+// → 打开路径规划 + 预填目的地 + 自动用用户定位为起点
+watch(() => route.query.open, async (val) => {
+  if (val !== 'route') return
+  const lng = parseFloat(route.query.lng)
+  const lat = parseFloat(route.query.lat)
+  const name = route.query.name || '目的地'
+  if (Number.isFinite(lng) && Number.isFinite(lat)) {
+    routePanelOpen.value = true
+    // 等 RoutePanel 挂载后再预填
+    await nextTick()
+    await new Promise(r => setTimeout(r, 300))
+    // 预填目的地（推荐返回的绿道起点坐标）
+    routePanelRef.value?.prefillDestination?.({ lng, lat, address: name })
+    // 自动用用户定位为起点
+    routePanelRef.value?.prefillOriginFromLocation?.()
+  }
+}, { immediate: true })
+
 onUnmounted(() => {
   resizeObserver?.disconnect()
   resizeObserver = null
@@ -980,6 +997,16 @@ onUnmounted(() => {
   box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4);
 }
 
+/* AI 按钮：字母样式（与其他图标按钮同规格，不冲突） */
+.tool-btn-ai-text {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  font-family: inherit;
+  line-height: 1;
+  user-select: none;
+}
+
 /* 地图数据加载失败提示条 */
 .map-error-bar {
   position: absolute;
@@ -1017,8 +1044,8 @@ onUnmounted(() => {
 /* 定位按钮（独立 FAB，右下角） */
 .locate-fab {
   position: absolute;
-  right: 16px;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 24px);
+  right: 12px;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 44px);
   z-index: var(--z-float);
   pointer-events: auto;
   width: 46px;

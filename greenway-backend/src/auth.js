@@ -469,6 +469,33 @@ router.get('/admin/stats/trend', authMiddleware, adminOnly, async (req, res) => 
   }
 });
 
+/**
+ * GET /api/community/stats
+ * 社区页公开统计（无需登录）：动态总数 / 今日新动态 / 社区用户 / 绿道总数
+ */
+router.get('/community/stats', async (req, res) => {
+  try {
+    const [comments, todayComments, users, greenways] = await Promise.all([
+      req.pool.query('SELECT COUNT(*) FROM greenway_comments WHERE status = \'visible\''),
+      req.pool.query("SELECT COUNT(*) FROM greenway_comments WHERE status = 'visible' AND created_at::date = CURRENT_DATE"),
+      req.pool.query('SELECT COUNT(*) FROM users WHERE status = \'active\''),
+      req.pool.query('SELECT COUNT(*) FROM greenways')
+    ]);
+    res.json({
+      code: 200,
+      data: {
+        totalComments:   parseInt(comments.rows[0].count),
+        todayComments:   parseInt(todayComments.rows[0].count),
+        totalUsers:      parseInt(users.rows[0].count),
+        totalGreenways:  parseInt(greenways.rows[0].count)
+      }
+    });
+  } catch (err) {
+    console.error('[community/stats]', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+});
+
 export { authMiddleware, adminOnly };
 export default router;
 

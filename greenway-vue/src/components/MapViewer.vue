@@ -224,9 +224,9 @@ onMounted(async () => {
       return
     }
 
-    const baseLayer = layerManager.createGaodeLayer(props.baseLayerStyle, { useProxy: false })
+    const baseLayer = layerManager.createGaodeLayer(props.baseLayerStyle, { useProxy: true })
     installBaseLayer(baseLayer)
-    console.log("[MapViewer] 已装载直连高德底图")
+    console.log("[MapViewer] 已装载代理高德底图")
 
     mapManager.setMapContainer(mapContainer.value)
 
@@ -266,7 +266,7 @@ onMounted(async () => {
         return
       }
 
-      const baseLayer = layerManager.createGaodeLayer(props.baseLayerStyle, { useProxy: false })
+      const baseLayer = layerManager.createGaodeLayer(props.baseLayerStyle, { useProxy: true })
       installBaseLayer(baseLayer)
       mapManager.setMapContainer(mapContainer.value)
 

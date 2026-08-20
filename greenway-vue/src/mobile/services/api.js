@@ -84,6 +84,42 @@ export const fetchGreenwayAssess = async () => {
 }
 
 /**
+ * 获取社区公开统计（动态总数/今日动态/用户数/绿道数）
+ * @returns {Promise<{totalComments:number,todayComments:number,totalUsers:number,totalGreenways:number}>}
+ */
+export const fetchCommunityStats = async () => {
+  const res = await fetch(buildUrl('/api/community/stats'))
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok || data.code !== 200) {
+    throw new Error(data.message || `HTTP ${res.status}`)
+  }
+  return data.data
+}
+
+/**
+ * 绿道智能推荐（与 Web 端 RecommendPanel 同一接口）
+ * @param {{mode:'walking'|'bicycling', interests:string[], needs:string[], topN?:number}} prefs
+ * @returns {Promise<{items:Array, mode:string, interests:Array, needs:Array}>}
+ */
+export const fetchRecommend = async (prefs) => {
+  const res = await fetch(buildUrl('/api/greenways/recommend'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      mode: prefs.mode || 'walking',
+      interests: prefs.interests && prefs.interests.length ? prefs.interests : ['balanced'],
+      needs: prefs.needs || [],
+      topN: prefs.topN || 3
+    })
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok || data.error) {
+    throw new Error(data.error || `推荐失败 (${res.status})`)
+  }
+  return data
+}
+
+/**
  * 获取指定绿道详情
  * @param {string} name 绿道名称
  * @returns {Promise<Object>} GeoJSON FeatureCollection

@@ -6,9 +6,14 @@
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
       </button>
       <h1 class="header-title">{{ trail?.name || '绿道详情' }}</h1>
-      <button class="icon-btn fav-btn" :class="{ active: isFavorite }" @click="toggleFavorite" aria-label="收藏">
-        <svg viewBox="0 0 24 24" width="20" height="20" :fill="isFavorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-      </button>
+      <div class="header-actions">
+        <button class="icon-btn" @click="openShareSheet" aria-label="分享">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
+        <button class="icon-btn fav-btn" :class="{ active: isFavorite }" @click="toggleFavorite" aria-label="收藏">
+          <svg viewBox="0 0 24 24" width="20" height="20" :fill="isFavorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+        </button>
+      </div>
     </div>
 
     <!-- 加载状态 -->
@@ -222,7 +227,7 @@
 
       <!-- 操作按钮 -->
       <div class="action-row">
-        <button class="action-btn primary" @click="shareTrail">
+        <button class="action-btn primary" @click="openShareSheet">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
           分享
         </button>
@@ -231,6 +236,36 @@
       <!-- 底部安全区 -->
       <div class="bottom-safe"></div>
     </div>
+
+    <!-- 分享弹层 -->
+    <BottomSheet v-model="shareSheetOpen" title="分享到">
+      <div class="share-sheet">
+        <!-- 分享预览 -->
+        <div class="share-preview">
+          <div class="share-preview-title">{{ trail?.name || '绿道详情' }}</div>
+          <div class="share-preview-desc">{{ shareDesc }}</div>
+          <div class="share-preview-url">{{ shareUrl }}</div>
+        </div>
+
+        <!-- 操作 -->
+        <div class="share-actions">
+          <button class="share-action" @click="shareSystem">
+            <span class="share-action-icon share-action-icon--system">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8l4-4m0 0l-4-4m4 4H7a4 4 0 0 0-4 4v8"/><path d="M3 22h14a2 2 0 0 0 2-2v-8"/></svg>
+            </span>
+            <span class="share-action-label">系统分享</span>
+          </button>
+          <button class="share-action" @click="copyShare">
+            <span class="share-action-icon share-action-icon--copy">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </span>
+            <span class="share-action-label">复制链接</span>
+          </button>
+        </div>
+
+        <p class="share-hint">复制链接后，可直接粘贴到微信/QQ 发送给好友，对方打开即为网页详情</p>
+      </div>
+    </BottomSheet>
   </div>
 </template>
 
@@ -262,6 +297,8 @@ import { toast, confirmDialog } from '../composables/useToast'
 import { useFavorites } from '@/stores/favorites'
 import WeatherBlock from '../components/WeatherBlock.vue'
 import AssessBlock from '../components/AssessBlock.vue'
+import BottomSheet from '../components/BottomSheet.vue'
+import { buildShareContent, shareViaSystem, copyText } from '../services/share'
 
 const router = useRouter()
 const route = useRoute()
@@ -559,13 +596,33 @@ async function toggleFavorite() {
   toast(prev ? '已取消收藏' : '收藏成功', 'success')
 }
 
-function shareTrail() {
-  if (navigator.share && trail.value) {
-    navigator.share({ title: trail.value.name, text: trail.value.description || trail.value.introduction || '' }).catch(() => {})
-  } else {
-    const url = window.location.href
-    navigator.clipboard?.writeText(url).then(() => toast('链接已复制', 'success')).catch(() => {})
+/* ---------- 分享 ---------- */
+const shareSheetOpen = ref(false)
+const shareDesc = computed(() => {
+  const d = (trail.value?.description || trail.value?.introduction || '').trim().replace(/\s+/g, ' ')
+  return d.length > 60 ? d.slice(0, 60) + '…' : (d || '北京绿道，快来体验！')
+})
+const shareUrl = computed(() => buildShareContent(trail.value, trail.value?.id ?? trailId).url)
+const shareText = computed(() => buildShareContent(trail.value, trail.value?.id ?? trailId).text)
+
+function openShareSheet() {
+  if (!trail.value) return
+  shareSheetOpen.value = true
+}
+
+async function copyShare() {
+  const ok = await copyText(shareText.value)
+  toast(ok ? '已复制，去微信/QQ 粘贴发送吧' : '复制失败，请重试', ok ? 'success' : 'error')
+}
+
+async function shareSystem() {
+  const ok = await shareViaSystem({ title: trail.value?.name || '绿道详情', text: shareText.value, url: shareUrl.value })
+  if (!ok) {
+    // 无系统分享时降级为复制
+    const copied = await copyText(shareText.value)
+    toast(copied ? '已复制链接' : '复制失败', copied ? 'success' : 'error')
   }
+  shareSheetOpen.value = false
 }
 
 onMounted(async () => {
@@ -1116,5 +1173,87 @@ onUnmounted(() => {
 
 .bottom-safe {
   height: calc(env(safe-area-inset-bottom, 0px) + 16px);
+}
+
+/* 头部右侧操作按钮组 */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+/* 分享弹层 */
+.share-sheet {
+  padding: 4px 16px 24px;
+}
+.share-preview {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.share-preview-title {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 4px;
+}
+.share-preview-desc {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.share-preview-url {
+  font-size: 11px;
+  color: var(--color-primary);
+  word-break: break-all;
+  line-height: 1.4;
+}
+.share-actions {
+  display: flex;
+  gap: 12px;
+}
+.share-action {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 8px;
+  border: 1px solid var(--color-border-light);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+.share-action:active { transform: scale(0.97); background: var(--color-surface-2); }
+.share-action-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.share-action-icon--system {
+  background: linear-gradient(135deg, #22c55e, #0d9488);
+}
+.share-action-icon--copy {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+.share-action-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.share-hint {
+  margin: 12px 2px 0;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  line-height: 1.5;
 }
 </style>

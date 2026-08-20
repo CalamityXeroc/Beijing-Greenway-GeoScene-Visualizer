@@ -152,6 +152,21 @@ const setPoint = (target, point) => {
   error.value = ''
 }
 
+/* 外部预填（由 MapView 从推荐/社区跳转调用） */
+const prefillOrigin = (point) => {
+  setPoint('origin', point)
+  toast('起点已设置', 'success')
+}
+const prefillDestination = (point) => {
+  setPoint('destination', point)
+  toast('目的地已设置', 'success')
+}
+/* 自动用用户定位为起点（推荐"去这里"联动） */
+const prefillOriginFromLocation = async () => {
+  if (origin.value) return  // 已有起点不覆盖
+  await useMyLocation('origin')
+}
+
 const useMyLocation = async (target) => {
   if (!userLocation.value) {
     await fetchLocation(false)
@@ -208,7 +223,7 @@ const emitRoute = () => {
   })
 }
 
-defineExpose({ isPicking, handleMapPick })
+defineExpose({ isPicking, handleMapPick, prefillOrigin, prefillDestination, prefillOriginFromLocation })
 </script>
 
 <style scoped>
