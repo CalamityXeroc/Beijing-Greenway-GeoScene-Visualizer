@@ -25,6 +25,8 @@
                 :showAccessibility="showAccessibility"
                 @toggle-assess="showAssess = !showAssess"
                 :showAssess="showAssess"
+                @toggle-compare="showCompare = !showCompare"
+                :showCompare="showCompare"
                 @toggle-heatmap="toggleHeatmap($event)"
                 @toggle-facilities="toggleFacilities($event)"
                 @toggle-beijing="toggleBeijing($event)"
@@ -147,6 +149,13 @@
         @close="showAssess = false"
         @locate-greenway="locateRecommendGreenway"
         @go-route="goRecommendRoute"
+      />
+      <GreenwayComparePanel
+        v-if="showCompare"
+        @close="onCompareClose"
+        @locate-greenway="locateRecommendGreenway"
+        @go-route="goRecommendRoute"
+        @compare-change="onCompareChange"
       />
       <AccessibilityPanel
         v-if="showAccessibility"
@@ -385,6 +394,7 @@ import { useGlobalTheme } from '@/utils/useTheme'
 import RecommendPanel from '@/components/RecommendPanel.vue'
 import AccessibilityPanel from '@/components/AccessibilityPanel.vue'
 import AssessPanel from '@/components/AssessPanel.vue'
+import GreenwayComparePanel from '@/components/GreenwayComparePanel.vue'
 import { getApiBaseUrl } from '@/mobile/services/api'
 
 const router = useRouter()
@@ -1095,6 +1105,7 @@ const showPathPlanning = sessionRef('gw_showPathPlanning', false)
 const showRecommend = sessionRef('gw_showRecommend', false)
 const showAccessibility = sessionRef('gw_showAccessibility', false)
 const showAssess = sessionRef('gw_showAssess', false)
+const showCompare = sessionRef('gw_showCompare', false)
 const accessibilityPanelRef = ref(null)
 const pickingAccessibilityOrigin = ref(false)
 let accessibilityHullLayerId = null
@@ -1231,6 +1242,71 @@ const clearLayerHighlight = (layerId) => {
   } else {
     layer.renderer = null
   }
+}
+
+// ═══════════════ 绿道对比面板：地图多色高亮 + 其余置灰 ═══════════════
+const COMPARE_COLORS = ['#E53935', '#1E88E5', '#43A047']  // 红 / 蓝 / 绿，与面板一致
+let compareHighlighted = []  // 当前被对比高亮的图层 id 列表
+let compareDimmed = []       // 当前被置灰的图层 id 列表
+
+// 图层置灰（透明度降低，突出对比项）
+const dimLayer = (layerId) => {
+  const mapViewerComponent = mapViewer.value
+  const mapManager = mapViewerComponent?.getMapManager?.()
+  const layer = mapManager?.getLayer?.(layerId)
+  if (layer && layer.opacity === undefined) {
+    layer._comparePrevOpacity = 1
+  }
+  if (layer) {
+    layer.opacity = 0.22
+  }
+}
+
+// 恢复图层透明度
+const undimLayer = (layerId) => {
+  const mapViewerComponent = mapViewer.value
+  const mapManager = mapViewerComponent?.getMapManager?.()
+  const layer = mapManager?.getLayer?.(layerId)
+  if (layer) {
+    layer.opacity = 1
+  }
+}
+
+// 对比项变化：更新地图高亮
+const onCompareChange = (list) => {
+  // 1. 恢复上一次对比高亮的绿道
+  compareHighlighted.forEach(lid => clearLayerHighlight(lid))
+  compareHighlighted = []
+  // 2. 恢复上一次置灰的绿道
+  compareDimmed.forEach(lid => undimLayer(lid))
+  compareDimmed = []
+  // 3. 无对比项 → 恢复原状
+  if (!list || !list.length) return
+  // 4. 非对比绿道置灰
+  Object.values(layerIdByDbName).forEach(lid => {
+    const inCompare = list.some(g => layerIdByDbName[g.name] === lid)
+    if (!inCompare) {
+      dimLayer(lid)
+      compareDimmed.push(lid)
+    }
+  })
+  // 5. 对比绿道按颜色高亮（红蓝绿）
+  list.forEach((g, i) => {
+    const lid = layerIdByDbName[g.name]
+    if (lid && i < COMPARE_COLORS.length) {
+      highlightLayer(lid, COMPARE_COLORS[i], 5, false)
+      compareHighlighted.push(lid)
+    }
+  })
+}
+
+// 关闭对比面板：恢复全部地图状态
+const onCompareClose = () => {
+  showCompare.value = false
+  compareHighlighted.forEach(lid => clearLayerHighlight(lid))
+  compareHighlighted = []
+  compareDimmed.forEach(lid => undimLayer(lid))
+  compareDimmed = []
 }
 
 // 要素点击

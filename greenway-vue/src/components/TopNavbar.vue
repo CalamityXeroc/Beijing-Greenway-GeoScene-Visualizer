@@ -418,31 +418,45 @@
         </button>
       </div>
 
-      <!-- 智能推荐 -->
-      <div class="nav-item">
-        <button class="nav-btn" :class="{ active: showRecommend }"
-                @click="emit('toggle-recommend')">
+      <!-- 绿道推荐（智能推荐 / 绿道评估 / 绿道对比） -->
+      <div class="nav-item" @mouseenter="openMenu('recommend')" @mouseleave="closeMenu('recommend')">
+        <button class="nav-btn"
+                :class="{ active: showRecommend || showAssess || showCompare }"
+                @click="toggleMenu('recommend')">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/>
             <path d="M17.8 11.8L19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2L19 5"/>
             <path d="M3 21l9-9"/><path d="M12.2 6.2L11 5"/>
           </svg>
-          智能推荐
+          绿道推荐
+          <svg class="chevron" viewBox="0 0 24 24" width="11" height="11" fill="none"
+               stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-      </div>
-
-      <!-- 绿道评估 -->
-      <div class="nav-item">
-        <button class="nav-btn" :class="{ active: showAssess }"
-                @click="emit('toggle-assess')">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-          绿道评估
-        </button>
+        <div class="dropdown" v-show="openMenuId === 'recommend'">
+          <div class="dropdown-section">绿道推荐</div>
+          <button class="dd-btn" :class="{ active: showRecommend }" @click="emit('toggle-recommend')">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2l3 7h7l-5.5 4.5L18.5 21 12 17l-6.5 4 1.5-7.5L1.5 9h7z"/>
+            </svg>
+            智能推荐
+          </button>
+          <button class="dd-btn" :class="{ active: showAssess }" @click="emit('toggle-assess')">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            绿道评估
+          </button>
+          <button class="dd-btn" :class="{ active: showCompare }" @click="emit('toggle-compare')">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 7v10"/><path d="M15 7v10"/><path d="M9 7v10"/><path d="M3 7v10"/>
+              <line x1="21" y1="3" x2="21" y2="7"/><line x1="21" y1="17" x2="21" y2="21"/>
+              <line x1="3" y1="3" x2="3" y2="7"/><line x1="3" y1="17" x2="3" y2="21"/>
+            </svg>
+            绿道对比
+          </button>
+        </div>
       </div>
     </div>
 
@@ -563,13 +577,14 @@ const props = defineProps({
   showRecommend: { type: Boolean, default: false },
   showAccessibility: { type: Boolean, default: false },
   showAssess: { type: Boolean, default: false },
+  showCompare: { type: Boolean, default: false },
   showBeijing: { type: Boolean, default: true },
   showGreenways: { type: Boolean, default: true },
   showFunctionLayer: { type: Boolean, default: false },
   facilityTypeFilters: { type: Object, default: () => ({}) }
 })
 
-const emit = defineEmits(['toggle-path-planning', 'toggle-recommend', 'toggle-accessibility', 'toggle-assess', 'toggle-heatmap', 'toggle-facilities', 'toggle-beijing', 'toggle-greenways', 'toggle-function-layer', 'toggle-facility-type'])
+const emit = defineEmits(['toggle-path-planning', 'toggle-recommend', 'toggle-accessibility', 'toggle-assess', 'toggle-compare', 'toggle-heatmap', 'toggle-facilities', 'toggle-beijing', 'toggle-greenways', 'toggle-function-layer', 'toggle-facility-type'])
 
 const facilitySubTypes = {
   '150500': '地铁站', '150700': '公交站', '150900': '停车场',
