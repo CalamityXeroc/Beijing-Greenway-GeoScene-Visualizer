@@ -514,4 +514,14 @@ async function askAI() {
   cursor: pointer;
   font-weight: 600;
 }
+
+/* 手机端：面板全宽，避免溢出屏幕 */
+@media (max-width: 480px) {
+  .recommend-panel {
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+    left: 8px !important;
+    top: 56px !important;
+  }
+}
 </style>

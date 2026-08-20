@@ -2708,6 +2708,19 @@ onBeforeUnmount(() => {
 
 @media (max-width: 768px) {
   /* 移动端: TopNavbar 组件自行处理响应式 */
+  /* 附近设施说明卡：桌面布局在左卡右侧(left:302px)，手机端会溢出屏幕，改为底部全宽 */
+  .function-legend-card--poi {
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
+  /* 说明卡堆叠容器：手机端限制宽度，避免遮挡地图 */
+  .flc-stack {
+    max-width: calc(100% - 32px);
+  }
+  .flc-stack .function-legend-card {
+    width: 100%;
+  }
 }
 
 /* === POI 弹窗类型标签 === */

@@ -392,4 +392,14 @@ onMounted(load)
 .as-ai-retry { margin-top: 8px; border: none; background: transparent; color: #2E7D32; font-size: 0.7rem; cursor: pointer; font-weight: 600; }
 .as-ai-retry:hover { text-decoration: underline; }
 .as-empty { text-align: center; color: var(--text-secondary, #888); font-size: 0.85rem; padding: 20px 0; }
+
+/* 手机端：面板全宽，避免溢出屏幕 */
+@media (max-width: 480px) {
+  .as-panel {
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+    left: 8px !important;
+    top: 56px !important;
+  }
+}
 </style>

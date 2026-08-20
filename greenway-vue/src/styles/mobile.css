@@ -8,10 +8,8 @@
    ============================================ */
 
 html, body {
-  /* 防止缩放 */
+  /* 防止长按呼出菜单（保留文本选择能力） */
   -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
   
   /* 禁用文本选择长按菜单 */
   -webkit-tap-highlight-color: transparent;

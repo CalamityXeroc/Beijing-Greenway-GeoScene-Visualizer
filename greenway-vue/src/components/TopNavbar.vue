@@ -630,8 +630,13 @@ const isMeasureActive = computed(() => {
 
 let closeTimer = null
 
-// 触屏设备检测：手机上 hover 不可用，使用 click 切换菜单
-const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+// 触屏设备检测：手机上 hover 不可用，使用 click 切换菜单。
+// 注意：不能只用 navigator.maxTouchPoints（Windows 触控板也报 >0），
+// 需以 pointer:coarse（主指针为触摸）为准，桌面鼠标/触控板仍走 hover。
+const isTouch = typeof window !== 'undefined' && (
+  window.matchMedia('(pointer: coarse)').matches ||
+  ('ontouchstart' in window && !window.matchMedia('(pointer: fine)').matches)
+)
 
 function openMenu(id) {
   clearTimeout(closeTimer)
@@ -1024,6 +1029,25 @@ onBeforeUnmount(() => {
   height: 8px;
   border-radius: 4px;
   background: linear-gradient(to right, #00c800, #ffff00, #ff8c00, #ff0000);
+}
+
+/* ══════════════════════════════════════════════════
+   中等宽度桌面（≤1400px）：导航工具条改为横向滚动，
+   避免 9 个菜单 + 搜索 + 用户区在 1024-1366px 宽度下溢出屏幕。
+══════════════════════════════════════════════════ */
+@media (max-width: 1400px) {
+  .nav-tools {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .nav-tools::-webkit-scrollbar { display: none; }
+  /* 用户区与搜索保持完整（桌面功能优先） */
+  .nav-right {
+    flex-shrink: 0;
+  }
 }
 
 /* ══════════════════════════════════════════════════

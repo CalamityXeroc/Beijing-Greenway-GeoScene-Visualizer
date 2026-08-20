@@ -506,7 +506,7 @@ onMounted(async () => {
   background: linear-gradient(180deg, #f8fcf9 0%, #f3faf5 100%);
 }
 .rating-row { display: flex; align-items: center; gap: 5px; margin-bottom: 10px; }
-.star-btn { border: none; background: transparent; color: #b8c6ba; font-size: 26px; cursor: pointer; padding: 0; }
+.star-btn { border: none; background: transparent; color: #b8c6ba; font-size: 26px; cursor: pointer; padding: 4px 6px; }
 .star-btn.active { color: var(--gw-star); }
 .rating-clear {
   border: 1px solid var(--gw-border);

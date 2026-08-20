@@ -349,4 +349,14 @@ function emitHull() {
 .ap-go:hover { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(21,101,192,0.35); }
 .ap-empty { text-align: center; color: var(--text-secondary, #888); font-size: 0.82rem; padding: 10px 0; line-height: 1.6; }
 .ap-empty-hint { border: 1px dashed var(--border-color, #ddd); border-radius: 10px; padding: 16px 10px; }
+
+/* 手机端：面板全宽，避免溢出屏幕 */
+@media (max-width: 480px) {
+  .acc-panel {
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+    left: 8px !important;
+    top: 56px !important;
+  }
+}
 </style>

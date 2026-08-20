@@ -138,9 +138,7 @@ onMounted(() => {
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
   
-  /* 移动端优化 */
-  -webkit-user-select: none;
-  user-select: none;
+  /* 移动端优化（保留触摸反馈透明，允许文本选择供用户复制内容） */
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -191,6 +189,24 @@ onMounted(() => {
 
 <!-- 全局夜间页面背景覆盖（非 scoped，避免详情页作用域问题） -->
 <style>
+/* ══════════════════════════════════════════════════
+   移动端修复：详情页标题
+   .header 默认 padding-left: 480px（桌面“地图居中”设计）。
+   ≤768px 时详情页为上下布局，480px 会把标题推出屏幕（375px 手机上不可见、且撑宽文档）。
+   此处统一归零，仅作用于 ≤768px，桌面端不受影响。
+══════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .header {
+    padding-left: 0 !important;
+  }
+  /* 详情页返回按钮：加大触控目标（原 26px 高偏小） */
+  .back-btn {
+    min-height: 36px;
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+  }
+}
+
 [data-theme="night"] .greenroad-page,
 [data-theme="night"] .beiyunhe-page,
 [data-theme="night"] .wenyu-page,

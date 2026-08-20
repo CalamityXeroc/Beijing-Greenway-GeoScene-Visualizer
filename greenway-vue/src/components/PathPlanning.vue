@@ -777,4 +777,14 @@ onBeforeUnmount(() => {
 .login-modal-btn.cancel:hover { background: var(--bg-tertiary, #eee); }
 .login-modal-btn.confirm { background: linear-gradient(135deg, #4CAF50, #66BB6A); color: #fff; box-shadow: 0 4px 12px rgba(76,175,80,0.3); }
 .login-modal-btn.confirm:hover { background: linear-gradient(135deg, #388E3C, #4CAF50); }
+
+/* 手机端：面板全宽，避免溢出屏幕 */
+@media (max-width: 480px) {
+  .path-planning-panel {
+    width: calc(100vw - 16px);
+    left: 8px !important;
+    bottom: 8px;
+    max-height: calc(100vh - 100px);
+  }
+}
 </style>

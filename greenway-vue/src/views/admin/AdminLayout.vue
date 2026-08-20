@@ -337,10 +337,7 @@ function confirmLogout() {
   display: none;
 }
 
-/* 汉堡按钮（仅手机显示） */
-.hamburger-btn {
-  display: none;
-}
+/* 汉堡按钮（仅手机显示；桌面同元素作为折叠按钮，默认由 .collapse-btn 显示） */
 
 /* ═══════════ 手机端（≤768px）：抽屉模式 ═══════════ */
 @media (max-width: 768px) {

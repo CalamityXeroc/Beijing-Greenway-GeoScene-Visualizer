@@ -121,6 +121,13 @@ function clear() {
   background: none; border: none; outline: none; color: #333;
   font-size: 0.82rem; width: 180px; line-height: 32px;
 }
+
+/* 手机端：固定输入字号，避免 :root rem 缩放（≤480px→12px）导致输入文字过小 */
+@media (max-width: 480px) {
+  .poi-search-input {
+    font-size: 14px;
+  }
+}
 .poi-search-input::placeholder { color: #999; }
 .poi-search-clear { background: none; border: none; color: #999; cursor: pointer; font-size: 1.1rem; padding: 0; line-height: 1; }
 .poi-search-clear:hover { color: #333; }

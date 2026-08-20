@@ -174,4 +174,14 @@ const poiDensity = (() => {
 [data-theme="night"] .sp-sum-num { color: #4CAF50; }
 [data-theme="night"] .sp-row:hover { background: #222; }
 [data-theme="night"] .sp-row-name { color: #e5e7eb; }
+
+/* 手机端：面板全宽，避免溢出屏幕 */
+@media (max-width: 480px) {
+  .spatial-panel {
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+    right: 8px;
+    top: 56px;
+  }
+}
 </style>
