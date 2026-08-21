@@ -422,6 +422,11 @@ const mapConfig = reactive({
   zoom: 8.5  // 降低缩放级别，确保完整显示北京
 })
 
+// GeoScene Server 公网服务地址（数据源替换目标）
+const GEO_SCENE_BASE = 'https://wandergreen.cn/rest/services'
+const GEO_SCENE_CORE = `${GEO_SCENE_BASE}/%E5%9C%B0%E5%9B%BE/MapServer`
+const GEO_SCENE_FN = `${GEO_SCENE_BASE}/greenwayfunction/MapServer`
+
 // 图层配置
 const layerConfig = sessionRef('gw_layerConfig_v2', [
   {
@@ -812,12 +817,13 @@ const layerConfig = sessionRef('gw_layerConfig_v2', [
     id: 'function-grid',
     name: '绿道功能区划',
     type: 'geojson',
-    url: '/api/spatial/grid?size=0.02',
+    // 数据源：GeoScene 服务（greenwayfunction/MapServer/1，按 size 过滤，字段 function_n 对应原 function_name）
+    url: `${GEO_SCENE_FN}/1/query?where=size%3D0.02&outFields=*&returnGeometry=true&f=geojson`,
     visible: false,
     zIndex: 8,
     interactive: false,
     style: {
-      uniqueField: 'function_name',
+      uniqueField: 'function_n',
       valueColorMap: {
         '历史文化绿道': 'rgba(215,169,126,0.65)',
         '风景绿道': 'rgba(79,195,247,0.65)',
@@ -831,6 +837,16 @@ const layerConfig = sessionRef('gw_layerConfig_v2', [
 // 迁移清理：过滤旧版 session 数据里残留的散点/分段图层（仅保留六边形网格）
 if (layerConfig.value.some(l => l.id === 'function-points' || l.id === 'function-segments')) {
   layerConfig.value = layerConfig.value.filter(l => l.id !== 'function-points' && l.id !== 'function-segments')
+}
+// 迁移清理：function-grid 数据源已替换为 GeoScene 服务（旧 session 可能保存了后端 url + function_name 字段，需强制更新）
+const gridCfg = layerConfig.value.find(l => l.id === 'function-grid')
+if (gridCfg) {
+  if (!gridCfg.url || gridCfg.url.startsWith('/api/')) {
+    gridCfg.url = `${GEO_SCENE_FN}/1/query?where=size%3D0.02&outFields=*&returnGeometry=true&f=geojson`
+  }
+  if (gridCfg.style && gridCfg.style.uniqueField !== 'function_n') {
+    gridCfg.style.uniqueField = 'function_n'
+  }
 }
 
 /* ── 绿道昼夜配色（随主题切换，避免夜间深蓝底图吞线色；参考 Mapbox/Carto 夜间路线规范：夜间用高亮色） ── */
@@ -875,6 +891,11 @@ const GREENWAY_NIGHT_COLORS = {
   'xiyi-greenway': '#81C784',
   'zhongxincheng-greenway': '#82B1FF'
 }
+
+// 绿道数据源已替换为 GeoScene 服务：初始隐藏 17 个 geojson 绿道图层（渲染由 GeoScene FeatureLayer 承担，info 仍保留用于交互）
+layerConfig.value.forEach(l => {
+  if (l.id.endsWith('-greenway')) l.visible = false
+})
 
 // 主题切换时更新绿道线颜色（白天深色/夜间亮色）
 watch(globalTheme, (t) => {
@@ -1147,6 +1168,9 @@ const onMapReady = (map) => {
     if (showFunctionLayer.value) {
       toggleFunctionLayer(true)
     }
+    if (showGreenways.value) {
+      toggleGreenways(true)
+    }
   }, 800)
 }
 
@@ -1280,8 +1304,18 @@ const onCompareChange = (list) => {
   // 2. 恢复上一次置灰的绿道
   compareDimmed.forEach(lid => undimLayer(lid))
   compareDimmed = []
+
+  const hasCompare = !!(list && list.length)
+
+  // GeoScene 服务不支持多色对比高亮：对比时临时切换回 geojson 图层（复用现有对比高亮/置灰逻辑）
+  const geosceneLayer = mapManager.value?.getLayer?.('geoscene-greenways')
+  if (geosceneLayer) geosceneLayer.visible = !hasCompare
+  layerConfig.value.forEach(l => {
+    if (l.id.endsWith('-greenway')) l.visible = hasCompare
+  })
+
   // 3. 无对比项 → 恢复原状
-  if (!list || !list.length) return
+  if (!hasCompare) return
   // 4. 非对比绿道置灰
   Object.values(layerIdByDbName).forEach(lid => {
     const inCompare = list.some(g => layerIdByDbName[g.name] === lid)
@@ -1307,9 +1341,75 @@ const onCompareClose = () => {
   compareHighlighted = []
   compareDimmed.forEach(lid => undimLayer(lid))
   compareDimmed = []
+  // 恢复 GeoScene 绿道图层 + 隐藏 geojson 绿道
+  const geosceneLayer = mapManager.value?.getLayer?.('geoscene-greenways')
+  if (geosceneLayer) geosceneLayer.visible = showGreenways.value
+  layerConfig.value.forEach(l => {
+    if (l.id.endsWith('-greenway')) l.visible = false
+  })
 }
 
 // 要素点击
+// 绿道名称规范化（服务数据“温榆河”↔ 前端配置“温榆河绿道”）
+const normalizeGreenwayName = (n) => (n || '').replace(/绿道$/, '')
+
+// 根据绿道名称从现有 layerConfig 找对应的 info（用于 GeoScene 服务图层点击时复用现有弹窗）
+const getGreenwayInfoByName = (name) => {
+  if (!name) return null
+  const norm = normalizeGreenwayName(name)
+  return layerConfig.value.find(l => l.info?.name && normalizeGreenwayName(l.info?.name) === norm)?.info || null
+}
+
+// 根据绿道名称找对应的 geojson 图层 id（容错匹配，用于详情跳转/选中态）
+const getLayerIdByGreenwayName = (name) => {
+  if (!name) return null
+  const norm = normalizeGreenwayName(name)
+  const key = Object.keys(layerIdByDbName).find(k => normalizeGreenwayName(k) === norm)
+  return key ? layerIdByDbName[key] : null
+}
+
+// ── GeoScene 绿道高亮（独立 GraphicsLayer 叠加画线，即时生效，效果与现有 highlightLayer 完全一致） ──
+let geosceneHighlightLayer = null
+
+const getGeoSceneHighlightLayer = () => {
+  const existing = mapManager.value?.getLayer?.('geoscene-greenway-highlight')
+  if (existing) return existing
+  const layer = new GraphicsLayer({ listMode: 'hide', visible: true })
+  layer._zIndex = 112
+  layer._interactive = false
+  mapManager.value?.addLayer?.('geoscene-greenway-highlight', layer)
+  geosceneHighlightLayer = layer
+  return layer
+}
+
+// 高亮单条绿道：在高亮图层上画该绿道的几何（加粗 + 变色 + 虚线/实线，与现有一致）
+const highlightGeoSceneGreenway = (feature, color, width, isHover = false) => {
+  if (!feature?.geometry) return
+  try {
+    const layer = getGeoSceneHighlightLayer()
+    layer.removeAll()
+    layer.add(new Graphic({
+      geometry: feature.geometry,
+      symbol: {
+        type: 'simple-line',
+        color,
+        width,
+        style: isHover ? 'short-dash' : 'solid',
+        cap: 'round',
+        join: 'round'
+      }
+    }))
+  } catch (e) {
+    console.warn('[GeoScene绿道] 高亮失败:', e.message)
+  }
+}
+
+// 清除高亮：清空高亮图层
+const clearGeoSceneGreenwayHighlight = () => {
+  const layer = mapManager.value?.getLayer?.('geoscene-greenway-highlight')
+  if (layer) layer.removeAll()
+}
+
 const onFeatureClick = ({ featuresWithLayers, pixel }) => {
   // 0. 检查是否点击了空间分析多边形（可再次点击查看）
   for (const item of (featuresWithLayers || [])) {
@@ -1333,6 +1433,44 @@ const onFeatureClick = ({ featuresWithLayers, pixel }) => {
       if (attr.cluster_count == null) {
         // 单个 POI 点击埋点
         fetch('/api/poi/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poi_id: attr.id, poi_name: attr.name, poi_type: attr.poi_type, greenway_id: attr.greenway_id }) }).catch(() => {})
+      }
+      return
+    }
+  }
+
+  // 1.5 检查是否点击了 GeoScene 服务图层（绿道/POI，交互与现有完全一致）
+  for (const item of (featuresWithLayers || [])) {
+    if (item.layerId === 'geoscene-greenways') {
+      const attr = item.feature?.attributes || {}
+      const info = getGreenwayInfoByName(attr.name)
+      if (info) {
+        // 映射回 geojson 图层 id（用于详情跳转/评论等，保持与现有完全一致）
+        const lid = getLayerIdByGreenwayName(attr.name) || 'geoscene-greenways'
+        if (selectedLayerId.value && selectedLayerId.value !== lid) {
+          clearLayerHighlight(selectedLayerId.value)
+        }
+        clearGeoSceneGreenwayHighlight()
+        highlightGeoSceneGreenway(item.feature, '#FF6B35', 5, false)
+        selectedLayerId.value = lid
+        tooltip.visible = false
+        selectedGreenway.value = info
+        popup.title = info.name
+        popup.content = info.description
+        popup.data = { info }
+        popup.greenwayId = attr.id ?? null
+        popup.position = { x: pixel[0], y: pixel[1] }
+        popup.visible = true
+        const userId = currentUser.value?.id
+        recordGreenwayClick(info.name, userId)
+      }
+      return
+    }
+    if (item.layerId === 'geoscene-pois') {
+      const attr = item.feature?.attributes || {}
+      popup.visible = false
+      tooltip.visible = false
+      if (attr.cluster_count == null) {
+        fetch('/api/poi/click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poi_id: attr.id, poi_name: attr.name, poi_type: attr.poi_type, greenway_id: attr.greenway_i }) }).catch(() => {})
       }
       return
     }
@@ -1375,6 +1513,7 @@ const onFeatureClick = ({ featuresWithLayers, pixel }) => {
 
 // 要素悬停
 let lastHoveredLayerId = null
+let lastHoveredGreenwayName = null  // GeoScene 绿道 hover 跟踪（避免同一条重复重建 renderer）
 
 const onFeatureHover = ({ featuresWithLayers, pixel }) => {
   // POI 设施悬浮 tooltip
@@ -1395,6 +1534,31 @@ const onFeatureHover = ({ featuresWithLayers, pixel }) => {
       }
       scheduleTooltipPosition(pixel)
       tooltip.visible = true
+      return
+    }
+  }
+
+  // GeoScene 服务图层绿道悬浮 tooltip + 金色高亮（交互与现有一致）
+  for (const item of (featuresWithLayers || [])) {
+    if (item.layerId === 'geoscene-greenways' && !popup.visible) {
+      const attr = item.feature?.attributes || {}
+      const info = getGreenwayInfoByName(attr.name)
+      if (info) {
+        tooltip.title = info.name
+        tooltip.data = {
+          length: info.length,
+          area: info.area,
+          description: info.description
+        }
+        scheduleTooltipPosition(pixel)
+        tooltip.visible = true
+        // 只在 hover 绿道变化时改 renderer（鼠标在绿道上移动时高亮保持稳定，不闪烁）
+        if (!selectedLayerId.value && lastHoveredGreenwayName !== attr.name) {
+          highlightGeoSceneGreenway(item.feature, '#FFD700', 6, true)
+          lastHoveredGreenwayName = attr.name
+        }
+        hoveredFeature.value = item.feature
+      }
       return
     }
   }
@@ -1430,6 +1594,12 @@ const onFeatureHover = ({ featuresWithLayers, pixel }) => {
   }
 
   tooltip.visible = false
+
+  // GeoScene 绿道 hover 移出：未选中时清除高亮
+  if (!selectedLayerId.value) {
+    clearGeoSceneGreenwayHighlight()
+    lastHoveredGreenwayName = null
+  }
 
   if (!isLayerSelected && lastHoveredLayerId) {
     clearLayerHighlight(lastHoveredLayerId)
@@ -1529,6 +1699,53 @@ const toggleHeatmap = async (visible) => {
   }
 }
 
+// ── GeoScene 服务 POI 数据源替换（交互与替换前完全一致，仅数据源改为服务 query） ──
+let greenwayIdNameMap = {}
+let greenwayIdNameMapLoaded = false
+
+// 从后端拉取绿道 id→name 映射（补齐服务数据缺失的 greenway_name 字段）
+const loadGreenwayIdNameMap = async () => {
+  if (greenwayIdNameMapLoaded) return
+  try {
+    const resp = await fetch('/api/greenways')
+    const data = await resp.json()
+    for (const f of (data.features || [])) {
+      const p = f.properties || {}
+      if (p.id != null && p.name) greenwayIdNameMap[p.id] = p.name
+    }
+    greenwayIdNameMapLoaded = true
+  } catch (e) {
+    console.warn('[设施] 绿道映射加载失败:', e.message)
+  }
+}
+
+// 从 GeoScene 服务 query POI，转换为与现有 /api/facilities/geojson 相同结构的 GeoJSON
+const queryGeoScenePois = async () => {
+  await loadGreenwayIdNameMap()
+  const url = `${GEO_SCENE_CORE}/1/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson`
+  const resp = await fetch(url)
+  if (!resp.ok) throw new Error(`服务查询失败 HTTP ${resp.status}`)
+  const data = await resp.json()
+  const feats = (data.features || []).map(f => {
+    const a = f.properties || {}
+    return {
+      type: 'Feature',
+      geometry: f.geometry,
+      properties: {
+        id: a.FID ?? a.id,
+        name: a.name || '',
+        poi_type: a.poi_type || '',
+        type_name: FACILITY_CONFIG[a.poi_type]?.name || '',
+        color: FACILITY_CONFIG[a.poi_type]?.color || '#999',
+        greenway_id: a.greenway_i ?? null,
+        greenway_name: greenwayIdNameMap[a.greenway_i] || '',
+        address: a.descriptio || ''
+      }
+    }
+  })
+  return { type: 'FeatureCollection', features: feats }
+}
+
 const toggleFacilities = async (visible) => {
   showFacilities.value = visible
   // 说明卡状态由 showFacilitiesCard（sessionRef 持久化）独立控制，不再每次开启图层/恢复时强制弹回
@@ -1542,8 +1759,8 @@ const toggleFacilities = async (visible) => {
         existing.visible = true
         return
       }
-      const resp = await fetch(`/api/facilities/geojson`)
-      const geojson = await resp.json()
+      // 数据源：GeoScene 服务 query（字段补齐后与 /api/facilities/geojson 结构完全一致）
+      const geojson = await queryGeoScenePois()
       if (!geojson.features || geojson.features.length === 0) {
         showFacilities.value = false
         return
@@ -1633,11 +1850,21 @@ const toggleBeijing = (visible) => {
 // 全部绿道聚合开关（控制图上所有绿道线）
 const toggleGreenways = (visible) => {
   showGreenways.value = visible
+  // GeoScene 服务替代：现有 17 个 geojson 绿道图层始终隐藏（数据源已替换为 GeoScene 服务）
   layerConfig.value.forEach((layer) => {
     if (layer.id.endsWith('-greenway')) {
-      layer.visible = visible
+      layer.visible = false
     }
   })
+  if (visible) {
+    loadGeoSceneLayer('geoscene-greenways')
+  } else {
+    removeGeoSceneLayer('geoscene-greenways')
+    // 同时清理 GeoScene 高亮图层与悬浮状态
+    removeGeoSceneLayer('geoscene-greenway-highlight')
+    geosceneHighlightLayer = null
+    lastHoveredGreenwayName = null
+  }
 }
 
 // 功能分区图层开关（深度学习评价节点，按功能类型着色）
@@ -1649,6 +1876,149 @@ const toggleFunctionLayer = (visible) => {
     applyFunctionGridSize()
     // 说明卡状态由 showFunctionCard（sessionRef 持久化）独立控制，不再每次开启图层/恢复时强制弹回
   }
+}
+
+// GeoScene 服务图层开关（FeatureLayer + 自定义符号化 + 交互适配，与现有 UI/UX 完全一致）
+// 服务字段被 shp 截断，这里做字段名映射
+const GEO_SCENE_FIELD_ALIAS = {
+  descriptio: 'description',
+  introducti: 'introduction',
+  function_n: 'function_name',
+  greenway_n: 'greenway_name',
+  function_t: 'function_type',
+  coverage_a: 'coverage_area',
+  constructi: 'construction_area',
+  greenway_i: 'greenway_id',
+  manual_con: 'manual_confidence'
+}
+
+// 配色映射（与现有前端一致）
+const GEO_SCENE_GREENWAY_COLORS = {
+  '环二环城市绿道': '#F57C00',
+  '昌平42绿道': '#1565C0',
+  '温榆河': '#00ACC1',
+  '亮马河绿道': '#29B6F6',
+  '北运河绿道': '#26A69A',
+  '南沙绿道': '#00B8D4',
+  '奥林匹克森林公园绿道': '#00BCD4',
+  '常营半马绿道': '#0277BD',
+  '丽都商圈绿道': '#1976D2',
+  '营城建都绿道': '#E64A19',
+  '朝阳绿道': '#00897B',
+  '北翼山水绿道': '#3949AB',
+  '东翼大河绿道': '#5C6BC0',
+  '郊野休闲环绿道': '#03A9F4',
+  '三山五园绿道': '#9C27B0',
+  '西翼山水绿道': '#43A047',
+  '中心城滨水绿道': '#1E88E5'
+}
+
+const GEO_SCENE_FACILITY_COLORS = {
+  '150500': '#E53935',
+  '150700': '#FB8C00',
+  '150900': '#1E88E5',
+  '200300': '#43A047',
+  '060100': '#8E24AA',
+  '080600': '#6A1B9A',
+  '110100': '#E65100',
+  '110200': '#E65100'
+}
+
+const GEO_SCENE_FUNCTION_COLORS = {
+  '历史文化绿道': '#A0522D',
+  '风景绿道': '#2196F3',
+  '生态绿道': '#4CAF50',
+  '城市绿道': '#607D8B'
+}
+
+// 5 个子图层（FeatureLayer，客户端渲染 + 自定义 renderer）
+const GEO_SCENE_SERVICE_LAYERS = [
+  {
+    id: 'geoscene-greenways',
+    title: '绿道（GeoScene）',
+    url: `${GEO_SCENE_CORE}/2`,
+    geometryType: 'polyline',
+    uniqueField: 'name',
+    valueColorMap: GEO_SCENE_GREENWAY_COLORS,
+    lineWidth: 4,
+    zIndex: 110,
+    opacity: 1
+  },
+  {
+    id: 'geoscene-pois',
+    title: '设施（GeoScene）',
+    url: `${GEO_SCENE_CORE}/1`,
+    geometryType: 'point',
+    uniqueField: 'poi_type',
+    valueColorMap: GEO_SCENE_FACILITY_COLORS,
+    pointRadius: 5,
+    zIndex: 111,
+    opacity: 1
+  },
+  {
+    id: 'geoscene-segments',
+    title: '功能分段（GeoScene）',
+    url: `${GEO_SCENE_CORE}/0`,
+    geometryType: 'polyline',
+    uniqueField: 'function_n',
+    valueColorMap: GEO_SCENE_FUNCTION_COLORS,
+    lineWidth: 3,
+    zIndex: 112,
+    opacity: 0.9
+  },
+  {
+    id: 'geoscene-function-nodes',
+    title: '功能节点（GeoScene）',
+    url: `${GEO_SCENE_FN}/0`,
+    geometryType: 'point',
+    uniqueField: 'function_n',
+    valueColorMap: GEO_SCENE_FUNCTION_COLORS,
+    pointRadius: 4,
+    zIndex: 113,
+    opacity: 0.8
+  },
+  {
+    id: 'geoscene-function-grid',
+    title: '功能网格（GeoScene）',
+    url: `${GEO_SCENE_FN}/1`,
+    geometryType: 'polygon',
+    uniqueField: 'function_n',
+    valueColorMap: GEO_SCENE_FUNCTION_COLORS,
+    zIndex: 114,
+    opacity: 1,
+    polygonOpacity: 0.35
+  }
+]
+
+// 加载单个 GeoScene 服务图层（FeatureLayer + 自定义符号化）
+const loadGeoSceneLayer = async (layerId) => {
+  try {
+    const lm = mapViewer.value?.getLayerManager?.()
+    if (!lm || !mapViewer.value) return
+    const cfg = GEO_SCENE_SERVICE_LAYERS.find(c => c.id === layerId)
+    if (!cfg) return
+    const existing = mapManager.value?.getLayer?.(layerId)
+    if (existing) return
+    const layer = lm.createFeatureLayerFromService(cfg.url, {
+      zIndex: cfg.zIndex,
+      opacity: cfg.opacity,
+      title: cfg.title,
+      geometryType: cfg.geometryType,
+      uniqueField: cfg.uniqueField,
+      valueColorMap: cfg.valueColorMap,
+      lineWidth: cfg.lineWidth,
+      pointRadius: cfg.pointRadius,
+      polygonOpacity: cfg.polygonOpacity
+    })
+    mapViewer.value.addLayer(cfg.id, layer, { type: 'featureserver', url: cfg.url })
+    console.log(`[GeoScene服务] 已加载图层: ${layerId}`)
+  } catch (err) {
+    console.error(`[GeoScene服务] 加载图层 ${layerId} 失败:`, err.message || err)
+  }
+}
+
+const removeGeoSceneLayer = (layerId) => {
+  mapViewer.value?.removeLayer?.(layerId)
 }
 
 // 地图缩放变化（MapViewer 事件）——功能分区开启时联动六边形网格大小
@@ -1667,7 +2037,8 @@ const applyFunctionGridSize = () => {
   if (zoom == null) return
   const s = FUNCTION_GRID_SIZES.find(x => zoom < x.maxZoom)?.size || 0.01
   const layer = layerConfig.value.find(l => l.id === 'function-grid')
-  const url = `/api/spatial/grid?size=${s}`
+  // 数据源：GeoScene 服务按 size 过滤（服务已预生成 0.04/0.02/0.01 三档网格，与现有缩放联动一致）
+  const url = `${GEO_SCENE_FN}/1/query?where=size%3D${s}&outFields=*&returnGeometry=true&f=geojson`
   if (layer && layer.url !== url) {
     layer.url = url
   }
@@ -1726,6 +2097,7 @@ const closePopup = () => {
 
   if (selectedLayerId.value) {
     clearLayerHighlight(selectedLayerId.value)
+    clearGeoSceneGreenwayHighlight()
     selectedLayerId.value = null
   }
 }

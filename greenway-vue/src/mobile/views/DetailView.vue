@@ -238,7 +238,7 @@
     </div>
 
     <!-- 分享弹层 -->
-    <BottomSheet v-model="shareSheetOpen" title="分享到">
+    <BottomSheet v-if="shareSheetOpen" v-model="shareSheetOpen" title="分享到">
       <div class="share-sheet">
         <!-- 分享预览 -->
         <div class="share-preview">
@@ -247,21 +247,11 @@
           <div class="share-preview-url">{{ shareUrl }}</div>
         </div>
 
-        <!-- 操作 -->
-        <div class="share-actions">
-          <button class="share-action" @click="shareSystem">
-            <span class="share-action-icon share-action-icon--system">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8l4-4m0 0l-4-4m4 4H7a4 4 0 0 0-4 4v8"/><path d="M3 22h14a2 2 0 0 0 2-2v-8"/></svg>
-            </span>
-            <span class="share-action-label">系统分享</span>
-          </button>
-          <button class="share-action" @click="copyShare">
-            <span class="share-action-icon share-action-icon--copy">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </span>
-            <span class="share-action-label">复制链接</span>
-          </button>
-        </div>
+        <!-- 操作：复制链接 -->
+        <button class="share-copy-btn" @click="copyShare">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          复制链接
+        </button>
 
         <p class="share-hint">复制链接后，可直接粘贴到微信/QQ 发送给好友，对方打开即为网页详情</p>
       </div>
@@ -298,7 +288,7 @@ import { useFavorites } from '@/stores/favorites'
 import WeatherBlock from '../components/WeatherBlock.vue'
 import AssessBlock from '../components/AssessBlock.vue'
 import BottomSheet from '../components/BottomSheet.vue'
-import { buildShareContent, shareViaSystem, copyText } from '../services/share'
+import { buildShareContent, copyText } from '../services/share'
 
 const router = useRouter()
 const route = useRoute()
@@ -613,16 +603,7 @@ function openShareSheet() {
 async function copyShare() {
   const ok = await copyText(shareText.value)
   toast(ok ? '已复制，去微信/QQ 粘贴发送吧' : '复制失败，请重试', ok ? 'success' : 'error')
-}
-
-async function shareSystem() {
-  const ok = await shareViaSystem({ title: trail.value?.name || '绿道详情', text: shareText.value, url: shareUrl.value })
-  if (!ok) {
-    // 无系统分享时降级为复制
-    const copied = await copyText(shareText.value)
-    toast(copied ? '已复制链接' : '复制失败', copied ? 'success' : 'error')
-  }
-  shareSheetOpen.value = false
+  if (ok) shareSheetOpen.value = false
 }
 
 onMounted(async () => {
@@ -1212,44 +1193,25 @@ onUnmounted(() => {
   word-break: break-all;
   line-height: 1.4;
 }
-.share-actions {
-  display: flex;
-  gap: 12px;
-}
-.share-action {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 8px;
-  border: 1px solid var(--color-border-light);
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  transition: transform var(--transition-fast), background var(--transition-fast);
-}
-.share-action:active { transform: scale(0.97); background: var(--color-surface-2); }
-.share-action-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+/* 复制链接按钮（单个绿色大按钮） */
+.share-copy-btn {
+  width: 100%;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--gradient-brand);
   color: #fff;
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.32);
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
 }
-.share-action-icon--system {
-  background: linear-gradient(135deg, #22c55e, #0d9488);
-}
-.share-action-icon--copy {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-.share-action-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
+.share-copy-btn:active { transform: scale(0.98); opacity: 0.9; }
 .share-hint {
   margin: 12px 2px 0;
   font-size: 11px;

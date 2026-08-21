@@ -5,6 +5,8 @@
 import WebTileLayer from '@geoscene/core/layers/WebTileLayer.js'
 import GeoJSONLayer from '@geoscene/core/layers/GeoJSONLayer.js'
 import GraphicsLayer from '@geoscene/core/layers/GraphicsLayer.js'
+import MapImageLayer from '@geoscene/core/layers/MapImageLayer.js'
+import FeatureLayer from '@geoscene/core/layers/FeatureLayer.js'
 import { markRaw } from 'vue'
 
 class LayerManager {
@@ -99,6 +101,15 @@ class LayerManager {
 
   /** 按属性字段分类着色（unique-value renderer，支持点/线/面） */
   _createUniqueValueRenderer(config = {}, geometryType = 'polyline') {
+    const hexToRgba = (hex, alpha = 1) => {
+      if (!hex || !hex.startsWith('#')) return hex
+      const h = hex.replace('#', '')
+      const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h
+      const r = parseInt(full.slice(0, 2), 16)
+      const g = parseInt(full.slice(2, 4), 16)
+      const b = parseInt(full.slice(4, 6), 16)
+      return `rgba(${r},${g},${b},${alpha})`
+    }
     const makeSymbol = (color) => {
       if (geometryType === 'point') {
         return {
@@ -111,7 +122,7 @@ class LayerManager {
       if (geometryType === 'polygon') {
         return {
           type: 'simple-fill',
-          color,
+          color: hexToRgba(color, config.polygonOpacity ?? 0.35),
           outline: { color: '#ffffff', width: 1 }
         }
       }
@@ -176,6 +187,75 @@ class LayerManager {
     })
     layer._zIndex = zIndex
     layer._interactive = interactive !== false
+    return layer
+  }
+
+  /**
+   * 创建 GeoScene 服务图层（MapImageLayer，服务端渲染）
+   * 用于叠加展示 GeoScene Server 发布的地图服务（竞赛演示：国产平台服务被真实调用）
+   */
+  createMapImageLayer(url, options = {}) {
+    const {
+      zIndex = 100,
+      visible = true,
+      opacity = 0.8,
+      title = 'GeoScene 服务',
+      interactive = true
+    } = options
+    const layer = new MapImageLayer({
+      url,
+      visible,
+      opacity,
+      title
+    })
+    layer._zIndex = zIndex
+    layer._interactive = interactive !== false
+    return layer
+  }
+
+  /**
+   * 创建 GeoScene 要素服务图层（FeatureLayer，客户端渲染 + 自定义符号化）
+   * 与前端现有 UI/UX 完全一致：unique-value renderer 按字段分类着色
+   */
+  createFeatureLayerFromService(url, options = {}) {
+    const {
+      zIndex = 100,
+      visible = true,
+      opacity = 1,
+      title = 'GeoScene 服务',
+      geometryType = 'polyline',
+      uniqueField = null,
+      valueColorMap = null,
+      lineWidth = 3,
+      pointRadius = 6,
+      pointOutlineColor = '#ffffff',
+      polygonOpacity = 0.35
+    } = options
+
+    const layer = new FeatureLayer({
+      url,
+      visible,
+      opacity,
+      title,
+      outFields: ['*']
+    })
+
+    if (uniqueField && valueColorMap) {
+      layer.renderer = this._createUniqueValueRenderer(
+        {
+          uniqueField,
+          valueColorMap,
+          lineWidth,
+          pointRadius,
+          pointOutlineColor,
+          polygonOpacity
+        },
+        geometryType
+      )
+    }
+
+    layer._zIndex = zIndex
+    layer._interactive = true
     return layer
   }
 

@@ -516,6 +516,7 @@ async function syncLayers(layersConfig = []) {
 
   loadedLayers.forEach((record, id) => {
     if (id === 'base') return
+    if (id.startsWith('geoscene-')) return // GeoScene 服务图层由外部 addLayer 管理，不随 layerConfig 清理
     if (!targetIds.has(id)) {
       teardownLayer(id)
     }
