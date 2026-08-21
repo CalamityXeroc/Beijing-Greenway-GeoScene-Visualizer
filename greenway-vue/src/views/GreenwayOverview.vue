@@ -1134,6 +1134,36 @@ let accessibilityHullLayerId = null
 const mapViewer = ref(null)
 const mapManager = shallowRef(null)
 
+// GeoScene 绿道 FeatureLayer 主题配色（白天深色/夜间亮色，与现有 geojson 17 色一致）
+const applyGeoSceneGreenwayTheme = (theme) => {
+  const geosceneLayer = mapManager.value?.getLayer?.('geoscene-greenways')
+  const lm = mapViewer.value?.getLayerManager?.()
+  if (!geosceneLayer || !lm || !geosceneLayer.renderer) return
+  const palette = theme === 'night' ? GREENWAY_NIGHT_COLORS : GREENWAY_DAY_COLORS
+  // key 必须用服务数据 name（GEO_SCENE_GREENWAY_COLORS 的 key 即服务 name），值取对应图层的日间/夜间色
+  // 注意：服务 name 大多是完整名（“环二环城市绿道”），只有温榆河是无后缀（“温榆河”），不能统一去后缀
+  const colors = {}
+  Object.keys(GEO_SCENE_GREENWAY_COLORS).forEach((svcName) => {
+    const norm = (n) => (n || '').replace(/绿道$/, '')
+    const l = layerConfig.value.find(x => x.info?.name && norm(x.info.name) === norm(svcName))
+    if (l && palette[l.id]) colors[svcName] = palette[l.id]
+  })
+  if (!Object.keys(colors).length) return
+  try {
+    geosceneLayer.renderer = lm._createUniqueValueRenderer(
+      { uniqueField: 'name', valueColorMap: colors, lineWidth: 4 },
+      'polyline'
+    )
+  } catch (e) {
+    console.warn('[GeoScene绿道] 主题配色更新失败:', e.message)
+  }
+}
+
+// GeoScene 绿道随主题切换更新配色
+watch(globalTheme, (t) => {
+  applyGeoSceneGreenwayTheme(t)
+})
+
 // 地图就绪
 const onMapReady = (map) => {
   console.log('[GreenwayOverview] 地图已就绪')
@@ -1748,7 +1778,7 @@ const queryGeoScenePois = async () => {
 
 const toggleFacilities = async (visible) => {
   showFacilities.value = visible
-  // 说明卡状态由 showFacilitiesCard（sessionRef 持久化）独立控制，不再每次开启图层/恢复时强制弹回
+  if (visible) showFacilitiesCard.value = true  // 打开图层时说明卡自动出现
 
   if (!mapManager.value) return
 
@@ -1874,7 +1904,7 @@ const toggleFunctionLayer = (visible) => {
   if (layer) layer.visible = visible
   if (visible) {
     applyFunctionGridSize()
-    // 说明卡状态由 showFunctionCard（sessionRef 持久化）独立控制，不再每次开启图层/恢复时强制弹回
+    showFunctionCard.value = true  // 打开图层时说明卡自动出现
   }
 }
 
@@ -2012,6 +2042,10 @@ const loadGeoSceneLayer = async (layerId) => {
     })
     mapViewer.value.addLayer(cfg.id, layer, { type: 'featureserver', url: cfg.url })
     console.log(`[GeoScene服务] 已加载图层: ${layerId}`)
+    // 加载后应用当前主题配色（夜间亮色/日间深色）
+    if (layerId === 'geoscene-greenways') {
+      applyGeoSceneGreenwayTheme(globalTheme.value)
+    }
   } catch (err) {
     console.error(`[GeoScene服务] 加载图层 ${layerId} 失败:`, err.message || err)
   }

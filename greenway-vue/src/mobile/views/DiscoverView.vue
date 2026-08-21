@@ -21,9 +21,15 @@
                 @error="e => e.target.src = '/images/greenways/placeholder.svg'" />
               <div class="banner-overlay"></div>
               <div class="banner-caption">
-                <span class="banner-badge">精选</span>
+                <span class="banner-badge">✨ 精选</span>
                 <h2 class="banner-name">{{ b.name }}</h2>
-                <p class="banner-meta">{{ b.length }}km · {{ b.area }}</p>
+                <div class="banner-meta-row">
+                  <span class="banner-meta-chip">
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    {{ b.area }}
+                  </span>
+                  <span class="banner-meta-chip">{{ b.length }}km</span>
+                </div>
               </div>
             </div>
           </div>
@@ -34,20 +40,35 @@
         </div>
       </section>
 
-      <!-- 数据总览小字 -->
-      <div class="stats-line">
-        <span>{{ totalStats.count }} 条绿道</span>
-        <span class="sl-sep">·</span>
-        <span>{{ totalStats.km }} km 总里程</span>
-        <span class="sl-sep">·</span>
-        <span>{{ totalStats.poi }} 个设施</span>
+      <!-- 数据总览（数字卡） -->
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-num font-number">{{ totalStats.count }}</span>
+          <span class="stat-label">条绿道</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num font-number">{{ totalStats.km }}</span>
+          <span class="stat-label">km 总里程</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num font-number">{{ totalStats.poi }}</span>
+          <span class="stat-label">个设施</span>
+        </div>
       </div>
 
       <!-- 精选绿道 横滑大卡（复用 TrailCard） -->
       <section class="section featured-section">
         <div class="section-header">
-          <span class="section-title">精选绿道</span>
-          <button class="section-action" @click="goToList">查看全部</button>
+          <span class="section-title section-title-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            精选绿道
+          </span>
+          <button class="section-action section-action-more" @click="goToList">
+            查看全部
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
         </div>
         <div class="card-rail">
           <TrailCard v-for="trail in hotTrails" :key="trail.id" :trail="trail" variant="card"
@@ -68,7 +89,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, onDeactivated } from 'vue'
 import { useRouter } from 'vue-router'
 import MobileBottomNav from '../components/MobileBottomNav.vue'
 import TrailCard from '../components/TrailCard.vue'
@@ -151,14 +172,15 @@ const viewTrailDetail = (trail) => router.push(`/mobile/detail/${trail.id}`)
 const goToList = () => router.push('/mobile/list')
 const showSearch = () => router.push('/mobile/poi-search')
 
-// Banner 自动轮播 + 触摸滑动
+// Banner 自动轮播 + 触摸滑动（keep-alive 下用 activated/deactivated 控制，切走暂停）
 let slideTimer = null
 const startAutoSlide = () => {
+  if (slideTimer) return
   slideTimer = setInterval(() => {
     if (bannerTrails.value.length > 1) currentSlide.value = (currentSlide.value + 1) % bannerTrails.value.length
   }, 4500)
 }
-const stopAutoSlide = () => { if (slideTimer) clearInterval(slideTimer) }
+const stopAutoSlide = () => { if (slideTimer) { clearInterval(slideTimer); slideTimer = null } }
 let touchStartX = 0
 const onTouchStart = (e) => {
   stopAutoSlide()
@@ -179,6 +201,10 @@ onMounted(() => {
   startAutoSlide()
 })
 
+// keep-alive：切走暂停轮播，切回恢复（省电 + 减少卡顿）
+onDeactivated(() => stopAutoSlide())
+onActivated(() => startAutoSlide())
+
 onUnmounted(() => stopAutoSlide())
 </script>
 
@@ -191,6 +217,19 @@ onUnmounted(() => stopAutoSlide())
   flex-direction: column;
   overflow: hidden;
   background: var(--color-bg);
+}
+/* 顶部氛围光斑 */
+.discover-page::before {
+  content: '';
+  position: fixed;
+  top: -80px;
+  left: -60px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.08), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .scroll-area {
@@ -313,18 +352,67 @@ onUnmounted(() => stopAutoSlide())
   background: #fff;
 }
 
-/* 数据总览小字 */
-.stats-line {
+/* 数据总览（数字卡） */
+.stats-grid {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 12px 16px 4px;
-  font-size: 12px;
+  gap: 8px;
+  padding: 14px 16px 2px;
+}
+.stat-item {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 10px 14px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-light);
+  box-shadow: var(--shadow-soft);
+}
+.stat-num {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--color-primary);
+  line-height: 1;
+}
+.stat-label {
+  font-size: 11px;
   color: var(--color-text-secondary);
   font-weight: 500;
 }
-.sl-sep { color: var(--color-text-tertiary); opacity: 0.6; }
+.stat-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--color-divider);
+}
+
+/* Banner 增强 */
+.banner-meta-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.banner-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.3);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 10px;
+  font-weight: 600;
+}
+.banner-badge {
+  padding: 3px 10px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.85), rgba(245, 158, 11, 0.65));
+  border: none;
+  letter-spacing: 0.5px;
+}
 
 /* 区块错位入场动画 */
 .banner-section { animation: fadeSlideUp 0.6s ease-out both; }

@@ -466,16 +466,12 @@ const goToPage = (p) => {
   z-index: 1;
 }
 .theme-light .stats-card {
-  background: rgba(255, 255, 255, 0.78);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  backdrop-filter: blur(16px) saturate(180%);
+  background: rgba(255, 255, 255, 0.97);
   border: 1px solid rgba(255, 255, 255, 0.3);
   box-shadow: var(--shadow-md);
 }
 .theme-dark .stats-card {
   background: var(--color-surface);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: var(--shadow-md);
 }

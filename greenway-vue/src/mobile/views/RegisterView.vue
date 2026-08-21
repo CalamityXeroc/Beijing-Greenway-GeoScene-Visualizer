@@ -259,6 +259,20 @@ const goLogin = () => router.push('/mobile/login')
   flex-direction: column;
   overflow-y: auto;
 }
+/* 氛围光斑 */
+.auth-page::before {
+  content: '';
+  position: fixed;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.14), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
 
 .auth-header {
   padding: max(14px, calc(var(--safe-top) + 8px)) 16px 8px;

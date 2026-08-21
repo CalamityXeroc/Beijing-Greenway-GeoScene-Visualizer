@@ -172,6 +172,20 @@ const goRegister = () => router.push('/mobile/register')
   overflow-y: auto;
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 32px);
 }
+/* 氛围光斑（顶部品牌区背景） */
+.auth-page::before {
+  content: '';
+  position: fixed;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.14), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
 
 /* 顶部栏 */
 .auth-header {

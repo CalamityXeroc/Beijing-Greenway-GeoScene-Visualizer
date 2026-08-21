@@ -1108,16 +1108,12 @@ onUnmounted(() => {
   -webkit-overflow-scrolling: touch;
 }
 .theme-light .route-sheet {
-  background: rgba(255, 255, 255, 0.92);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
+  background: rgba(255, 255, 255, 0.97);
   border-top: 1px solid rgba(255, 255, 255, 0.4);
   box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
 }
 .theme-dark .route-sheet {
   background: var(--color-surface);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 -4px 24px rgba(0,0,0,0.3);
 }
@@ -1225,16 +1221,12 @@ onUnmounted(() => {
 }
 
 .theme-light .trail-sheet {
-  background: rgba(255, 255, 255, 0.82);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
+  background: rgba(255, 255, 255, 0.97);
   border-top: 1px solid rgba(255, 255, 255, 0.4);
   box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
 }
 .theme-dark .trail-sheet {
   background: var(--color-surface);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 -4px 24px rgba(0,0,0,0.3);
 }

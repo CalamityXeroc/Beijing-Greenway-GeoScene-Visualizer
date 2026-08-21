@@ -274,17 +274,40 @@ async function askAI() {
   gap: 14px;
   padding: 18px 16px;
   border-radius: var(--radius-xl);
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.13), rgba(16, 185, 129, 0.06));
-  border: 1px solid rgba(34, 197, 94, 0.25);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.10), rgba(20, 184, 166, 0.05) 55%, var(--color-surface) 100%);
+  border: 1px solid rgba(34, 197, 94, 0.20);
+  box-shadow: var(--shadow-md);
   cursor: pointer;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  position: relative;
+  overflow: hidden;
 }
-.rc-entry:active { transform: scale(0.98); }
+/* 左侧品牌竖色条 */
+.rc-entry::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #22c55e, #0d9488);
+}
+/* 右上角氛围光斑 */
+.rc-entry::after {
+  content: '';
+  position: absolute;
+  top: -30px;
+  right: -20px;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.14), transparent 70%);
+  pointer-events: none;
+}
+.rc-entry:active { transform: scale(0.98); box-shadow: var(--shadow-lg); }
 .rc-entry-icon {
-  flex: 0 0 46px;
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
   background: linear-gradient(135deg, #22c55e, #0d9488);
   display: flex;
   align-items: center;
@@ -303,7 +326,19 @@ async function askAI() {
   font-size: 12px;
   color: var(--color-text-secondary);
 }
-.rc-entry-arrow { color: var(--color-primary); flex: 0 0 auto; }
+.rc-entry-arrow {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--fill-primary);
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-fast);
+}
+.rc-entry:active .rc-entry-arrow { transform: translateX(3px); }
 
 /* ── 展开体 ── */
 .rc-body {

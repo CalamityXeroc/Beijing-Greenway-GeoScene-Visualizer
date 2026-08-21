@@ -879,8 +879,6 @@ onUnmounted(() => {
 /* 信息表格 */
 .info-table {
   background: var(--color-surface);
-  -webkit-backdrop-filter: blur(12px) saturate(150%);
-  backdrop-filter: blur(12px) saturate(150%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   overflow: hidden;

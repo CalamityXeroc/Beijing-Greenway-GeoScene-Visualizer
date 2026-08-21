@@ -1,46 +1,33 @@
 <template>
   <button class="trail-card" :class="variant === 'card' ? 'trail-card--large' : ''" @click="handleClick" type="button">
     <div class="card-thumb" :class="{ 'thumb--full': variant === 'card' }">
-      <img v-if="imgSrc" :src="imgSrc" :alt="trail.name" class="thumb-img" @error="onImgError" />
+      <img v-if="imgSrc" :src="imgSrc" :alt="trail.name" class="thumb-img" @error="onImgError" loading="lazy" />
       <div v-else class="thumb-fallback" :style="{ background: fallbackBg }">
         <span class="thumb-letter">{{ fallbackLetter }}</span>
       </div>
+      <div v-if="variant === 'card'" class="thumb-shade"></div>
       <span v-if="trail.difficulty" class="diff-badge" :class="'diff-' + trail.difficulty">{{ diffText }}</span>
-    </div>
-    <div class="card-body">
-      <h3 class="trail-name">{{ trail.name }}</h3>
-      <p v-if="cleanDesc && variant !== 'card'" class="trail-desc line-clamp-2">{{ cleanDesc }}</p>
-
-      <!-- 大卡数据行：里程 / 耗时 / 距离 -->
-      <div v-if="variant === 'card'" class="metric-row">
-        <div class="metric">
-          <span class="metric-value">{{ trail.length ?? '—' }}</span>
-          <span class="metric-unit">km</span>
-          <span class="metric-label">里程</span>
-        </div>
-        <div class="metric-divider"></div>
-        <div class="metric">
-          <span class="metric-value">{{ durationNum }}</span>
-          <span class="metric-unit">h</span>
-          <span class="metric-label">预计耗时</span>
-        </div>
-        <div v-if="distanceText" class="metric-divider"></div>
-        <div v-if="distanceText" class="metric metric--dist">
-          <span class="metric-value">{{ distanceNum }}</span>
-          <span class="metric-unit">{{ distanceUnit }}</span>
-          <span class="metric-label">距您</span>
+      <div v-if="variant === 'card'" class="thumb-top-row">
+        <span class="thumb-area">
+          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          {{ trail.area || trail.district || '北京' }}
+        </span>
+      </div>
+      <div v-if="variant === 'card'" class="thumb-caption">
+        <h3 class="thumb-name">{{ trail.name }}</h3>
+        <div class="thumb-metrics">
+          <span class="thumb-metric"><b class="font-number">{{ trail.length ?? '—' }}</b>km 里程</span>
+          <span class="thumb-metric-dot"></span>
+          <span class="thumb-metric"><b class="font-number">{{ durationNum }}</b>h 耗时</span>
         </div>
       </div>
-
+    </div>
+    <div v-if="variant !== 'card'" class="card-body">
+      <h3 class="trail-name">{{ trail.name }}</h3>
+      <p v-if="cleanDesc" class="trail-desc line-clamp-2">{{ cleanDesc }}</p>
       <div class="card-meta">
-        <span v-if="distanceText && variant !== 'card'" class="meta-dist">
-          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-          </svg>
-          {{ distanceText }}
-        </span>
-        <span v-if="trail.length && variant !== 'card'" class="meta-chip">· {{ trail.length }}km</span>
-        <span v-if="trail.duration && variant !== 'card'" class="meta-chip">{{ trail.duration }}</span>
+        <span v-if="trail.length" class="meta-chip">· {{ trail.length }}km</span>
+        <span v-if="trail.duration" class="meta-chip">{{ trail.duration }}</span>
         <span v-if="trail.tags && trail.tags[0]" class="meta-tag">{{ trail.tags[0] }}</span>
       </div>
     </div>
@@ -144,13 +131,11 @@ const onImgError = (e) => {
   flex-direction: column;
   gap: 0;
   padding: 0;
-  width: 260px;
-  flex: 0 0 260px;
+  width: 268px;
+  flex: 0 0 268px;
   border-radius: var(--radius-xl);
   overflow: hidden;
 }
-.trail-card--large .card-thumb { width: 100%; height: 132px; border-radius: 0; }
-.trail-card--large .card-body { padding: 14px; }
 
 .card-thumb {
   position: relative; flex: 0 0 96px; height: 96px;
@@ -168,10 +153,110 @@ const onImgError = (e) => {
 }
 .trail-card--large .thumb-letter { font-size: 44px; }
 
+/* 大卡：全图卡片（图片撑满 + 渐变遮罩 + 文字叠图） */
+.trail-card--large .card-thumb {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  border-radius: 0;
+  flex-basis: 150px;
+}
+.trail-card--large .thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+.trail-card--large:active .thumb-img { transform: scale(1.04); }
+.thumb-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.10) 0%, transparent 40%, rgba(0,0,0,0.68) 100%);
+}
+/* 大卡顶部：区域徽章 */
+.thumb-top-row {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 2;
+}
+.thumb-area {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+/* 大卡底部：名称 + 数据（水印式） */
+.thumb-caption {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 12px;
+  color: #fff;
+  z-index: 2;
+}
+.thumb-name {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.thumb-metrics {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.thumb-metric {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.thumb-metric b {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  margin-right: 2px;
+}
+.thumb-metric-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* 难度徽章（大卡置于右上） */
+.trail-card--large .diff-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  left: auto;
+  bottom: auto;
+  z-index: 2;
+}
+
 .diff-badge {
-  position: absolute; bottom: 6px; left: 6px;
-  padding: 3px 9px; border-radius: 6px;
-  font-size: 10px; font-weight: 700; color: #fff;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
 }
@@ -211,44 +296,5 @@ const onImgError = (e) => {
   color: var(--color-primary);
   border-radius: var(--radius-full);
   font-size: 11px; font-weight: var(--font-weight-semibold);
-}
-
-/* 大卡数据行 */
-.metric-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 0.5px solid var(--color-divider);
-}
-.metric {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-}
-.metric-value {
-  font-family: var(--font-number);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  line-height: 1.1;
-}
-.metric-unit {
-  font-size: 10px;
-  color: var(--color-text-tertiary);
-  margin-left: 1px;
-}
-.metric-label {
-  font-size: 10px;
-  color: var(--color-text-tertiary);
-}
-.metric--dist .metric-value { color: var(--color-ocean, var(--color-primary)); }
-.metric-divider {
-  width: 1px;
-  height: 28px;
-  background: var(--color-divider);
 }
 </style>

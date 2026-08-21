@@ -110,6 +110,23 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 
 ---
 
+##  GeoScene Server Integration (Domestic GIS Platform)
+
+The map data sources are now backed by **GeoScene Server** (EasyIRIS's domestically-developed GIS platform) published map services, called directly from the frontend over the public internet:
+
+| Service Layer | Content | Count |
+|---------|------|------|
+| Greenways (`地图/MapServer/2`) | 17 major Beijing greenway routes | 17 |
+| Facilities (`地图/MapServer/1`) | Nearby amenities (metro / bus / parking / restroom / store / cinema / scenic) | 847 |
+| Function Grid (`greenwayfunction/MapServer/1`) | Hexagonal zoning from deep-learning classification (eco / scenic / historical / urban), zoom-linked 0.04°–0.01° grids | 2827 |
+| Function Nodes (`greenwayfunction/MapServer/0`) | Deep-learning evaluation nodes | 29993 |
+
+- Frontend rendering & interaction stay **pixel-consistent with the original implementation**: 17-color day/night greenway palettes, gold hover highlight, orange click highlight & cards, compare-mode linkage; SVG facility icons, clustering, type filters, detail jumps; 4-color translucent zoning grids with zoom linkage.
+- Service fields are truncated by the SHP export (e.g. `descriptio`→`description`); the frontend maps & backfills fields (e.g. `greenway_i`→greenway name, `poi_type`→type name).
+- Services are publicly accessible (anonymous query allowed) behind an nginx `/rest/` reverse-proxy entry.
+
+---
+
 ##  Quick Start
 
 ### One-Command (Windows)
