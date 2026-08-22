@@ -283,23 +283,12 @@
                 <span>拖动地图浏览不同区域</span>
               </li>
             </ul>
-          </div>
-        </div>
-
-        <!-- 问题反馈入口 -->
-        <div class="info-card info-card--feedback" @click="router.push('/feedback')" role="link" title="问题反馈">
-          <div class="info-card-header">
-            <div class="info-card-icon" style="background: linear-gradient(135deg, #2E7D32, #66BB6A);">
+            <!-- 问题反馈小入口 -->
+            <div class="feedback-entry" @click="router.push('/feedback')" role="link" title="问题反馈">
               <i class="fas fa-comment-dots"></i>
+              <span>问题反馈</span>
+              <i class="fas fa-chevron-right entry-arrow"></i>
             </div>
-            <h2 class="info-card-title">问题反馈</h2>
-          </div>
-          <div class="info-card-content">
-            <p>遇到问题或想提建议？告诉我们，我们会认真对待每一条反馈。</p>
-            <span class="feedback-entry-btn">
-              前往反馈
-              <i class="fas fa-arrow-right"></i>
-            </span>
           </div>
         </div>
       </div>
@@ -3044,7 +3033,7 @@ onBeforeUnmount(() => {
 
 .info-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
   max-width: 1400px;
   margin: 0 auto;
@@ -3102,32 +3091,32 @@ onBeforeUnmount(() => {
   margin: 0 0 0.75rem 0;
 }
 
-/* 问题反馈入口卡片 */
-.info-card--feedback {
-  cursor: pointer;
-}
-.info-card--feedback .info-card-content p {
-  font-size: 0.85rem;
-  min-height: 3.4em;
-}
-.feedback-entry-btn {
+/* 问题反馈小入口（使用指南右侧） */
+.feedback-entry {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 16px;
-  border-radius: 18px;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
   background: linear-gradient(135deg, #2E7D32, #43A047);
   color: #fff;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity .2s, transform .1s;
+  transition: opacity .2s, transform .1s, box-shadow .2s;
+  box-shadow: 0 2px 8px rgba(46,125,50,0.25);
+  margin-top: 10px;
 }
-.info-card--feedback:hover .feedback-entry-btn {
-  opacity: 0.9;
+.feedback-entry:hover {
+  opacity: 0.92;
+  box-shadow: 0 4px 14px rgba(46,125,50,0.35);
 }
-.info-card--feedback:active .feedback-entry-btn {
-  transform: scale(0.96);
+.feedback-entry:active {
+  transform: scale(0.97);
+}
+.feedback-entry .entry-arrow {
+  font-size: 0.7rem;
+  opacity: 0.85;
 }
 
 .stats-list {

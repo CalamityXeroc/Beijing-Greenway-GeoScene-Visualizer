@@ -57,6 +57,7 @@ const showChatbot = computed(() => {
     && p !== '/'
     && p !== '/login'
     && p !== '/register'
+    && p !== '/feedback'
     && !p.startsWith('/admin')
 })
 
