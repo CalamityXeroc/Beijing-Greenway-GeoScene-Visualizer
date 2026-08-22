@@ -651,6 +651,8 @@ const loadAllGreenways = async () => {
       const feature = map.forEachFeatureAtPixel(event.pixel, f => f)
       if (!feature) { selectedTrail.value = null; return }
       const p = feature.getProperties()
+      // 空间分析多边形填充区域：不触发绿道信息卡（避免显示“未知绿道”）
+      if (p.type === 'polygon' || (!p.name && !p.id && !p.gid)) return
       selectedTrail.value = {
         id: p.id || p.gid || null,
         name: p.name || '未知绿道',
