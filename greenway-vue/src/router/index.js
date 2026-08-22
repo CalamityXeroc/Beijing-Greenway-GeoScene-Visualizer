@@ -347,7 +347,12 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  // 路由切换后定格到页面顶部（避免从地图底部跳转后新页面顶部被滚出视口）
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    return { top: 0 }
+  }
 })
 
 // 路由守卫 - 更新页面标题 + 原生App自动跳转移动端 + 管理端鉴权

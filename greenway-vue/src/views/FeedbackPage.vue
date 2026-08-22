@@ -82,12 +82,15 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserAuth } from '@/stores/userAuth'
 
 const router = useRouter()
 const goBack = () => router.back()
+
+// 进入页面定格顶部（防止从地图底部跳转后保留滚动位置）
+onMounted(() => window.scrollTo(0, 0))
 
 const { isLoggedIn, token, nickname } = useUserAuth()
 
