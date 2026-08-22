@@ -309,6 +309,12 @@ const routes = [
         name: 'AdminPoiStats',
         component: () => import('@/views/admin/PoiStats.vue'),
         meta: { title: 'POI热度统计', requiresAdmin: true }
+      },
+      {
+        path: 'feedback',
+        name: 'AdminFeedback',
+        component: () => import('@/views/admin/feedback/AdminFeedback.vue'),
+        meta: { title: '反馈管理', requiresAdmin: true }
       }
     ]
   },
@@ -330,6 +336,12 @@ const routes = [
     name: 'FavoritesPage',
     component: () => import('@/views/FavoritesPage.vue'),
     meta: { title: '我的收藏' }
+  },
+  {
+    path: '/feedback',
+    name: 'FeedbackPage',
+    component: () => import('@/views/FeedbackPage.vue'),
+    meta: { title: '问题反馈' }
   }
 ]
 
@@ -342,8 +354,15 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   document.title = to.meta.title || '绿脉伴侣'
 
-  // 管理端鉴权检查
+  // 管理端鉴权检查（优先复用前台用户身份：若已是 admin 角色则免二次登录）
   if (to.meta.requiresAdmin) {
+    const { isLoggedIn: userLoggedIn, currentUser: userInfo } = useUserAuth()
+    // 前台用户已登录且是 admin → 直接放行（避免重复登录）
+    if (userLoggedIn.value && userInfo.value?.role === 'admin') {
+      next()
+      return
+    }
+    // 否则检查管理后台独立会话
     const { isLoggedIn } = useAdminAuth()
     if (!isLoggedIn.value) {
       next({ path: '/admin/login', query: { redirect: to.fullPath } })

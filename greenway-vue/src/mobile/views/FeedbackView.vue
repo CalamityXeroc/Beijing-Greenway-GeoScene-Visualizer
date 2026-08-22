@@ -13,41 +13,15 @@
     <div class="content">
       <div class="form-card">
         <div class="field-group">
-          <label class="field-label">反馈类型</label>
-          <div class="type-selector">
-            <button
-              v-for="t in types"
-              :key="t.value"
-              class="type-chip"
-              :class="{ active: feedbackType === t.value }"
-              @click="feedbackType = t.value"
-            >{{ t.label }}</button>
-          </div>
-        </div>
-
-        <div class="field-group">
           <label class="field-label">反馈内容</label>
           <textarea
             v-model="content"
             class="field-input textarea"
-            placeholder="请详细描述您的建议或遇到的问题..."
-            rows="5"
-            maxlength="500"
+            placeholder="请详细描述您遇到的问题或建议..."
+            rows="6"
+            maxlength="2000"
           ></textarea>
-          <div class="char-count">{{ content.length }}/500</div>
-        </div>
-
-        <div class="field-group" v-if="feedbackType === 'bug'">
-          <label class="field-label">截图（可选）</label>
-          <button class="screenshot-btn" @click="simulateScreenshot">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
-            </svg>
-            添加截图
-          </button>
-          <span v-if="screenshotName" class="screenshot-name">{{ screenshotName }}</span>
+          <div class="char-count">{{ content.length }}/2000</div>
         </div>
 
         <div class="field-group">
@@ -58,14 +32,17 @@
             placeholder="邮箱或手机号，方便我们回复您"
           />
         </div>
+
+        <p v-if="!isLoggedIn" class="login-tip">未登录也可提交反馈，登录后可让我们跟进您的反馈进度</p>
       </div>
 
       <div class="submit-area">
         <button
           class="submit-btn"
-          :disabled="!content.trim()"
+          :disabled="!content.trim() || submitting"
           @click="submitFeedback"
-        >提交反馈</button>
+        >{{ submitting ? '提交中…' : '提交反馈' }}</button>
+        <p v-if="errorMsg" class="error-tip">{{ errorMsg }}</p>
       </div>
 
       <!-- 成功弹窗 -->
@@ -79,8 +56,8 @@
               </svg>
             </div>
             <h3>感谢您的反馈！</h3>
-            <p>您的反馈已记录，我们会认真对待每一条建议。</p>
-            <button class="done-btn" @click="showSuccess = false">知道了</button>
+            <p>您的反馈已提交，我们会认真对待每一条建议。</p>
+            <button class="done-btn" @click="closeSuccess">知道了</button>
           </div>
         </div>
       </Teleport>
@@ -91,50 +68,54 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserAuth } from '@/stores/userAuth'
 
 const router = useRouter()
 const goBack = () => router.back()
 
-const types = [
-  { label: '功能建议', value: 'suggestion' },
-  { label: '问题反馈', value: 'bug' },
-  { label: '内容纠错', value: 'content' },
-  { label: '其他', value: 'other' }
-]
+const { isLoggedIn, token } = useUserAuth()
 
-const feedbackType = ref('suggestion')
 const content = ref('')
 const contact = ref('')
-const screenshotName = ref('')
+const submitting = ref(false)
 const showSuccess = ref(false)
+const errorMsg = ref('')
 
-function simulateScreenshot() {
-  screenshotName.value = 'screenshot_' + Date.now().toString(36) + '.png'
+function closeSuccess() {
+  showSuccess.value = false
+  goBack()
 }
 
-function submitFeedback() {
-  if (!content.value.trim()) return
+async function submitFeedback() {
+  if (!content.value.trim() || submitting.value) return
 
-  const feedback = {
-    type: feedbackType.value,
-    content: content.value.trim(),
-    contact: contact.value.trim(),
-    screenshot: screenshotName.value || null,
-    time: new Date().toISOString()
+  submitting.value = true
+  errorMsg.value = ''
+
+  try {
+    const headers = { 'Content-Type': 'application/json' }
+    if (token.value) headers['Authorization'] = `Bearer ${token.value}`
+
+    const res = await fetch('/api/feedback', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        source: 'app',
+        content: content.value.trim(),
+        contact: contact.value.trim()
+      })
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`)
+
+    content.value = ''
+    contact.value = ''
+    showSuccess.value = true
+  } catch (e) {
+    errorMsg.value = e.message || '提交失败，请稍后重试'
+  } finally {
+    submitting.value = false
   }
-
-  // 存到 localStorage
-  const existing = JSON.parse(localStorage.getItem('greenway_feedback') || '[]')
-  existing.push(feedback)
-  localStorage.setItem('greenway_feedback', JSON.stringify(existing))
-
-  // 重置表单
-  content.value = ''
-  contact.value = ''
-  screenshotName.value = ''
-  feedbackType.value = 'suggestion'
-
-  showSuccess.value = true
 }
 </script>
 
@@ -175,9 +156,7 @@ function submitFeedback() {
 }
 .placeholder { width: 36px; }
 
-.content {
-  padding: 16px;
-}
+.content { padding: 16px; }
 
 .form-card {
   background: var(--color-surface);
@@ -186,9 +165,7 @@ function submitFeedback() {
   box-shadow: var(--shadow-sm);
 }
 
-.field-group {
-  margin-bottom: 20px;
-}
+.field-group { margin-bottom: 20px; }
 .field-group:last-child { margin-bottom: 0; }
 
 .field-label {
@@ -197,30 +174,6 @@ function submitFeedback() {
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
   margin-bottom: 8px;
-}
-
-.type-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.type-chip {
-  padding: 8px 16px;
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-.type-chip.active {
-  background: var(--color-primary);
-  color: #fff;
-  border-color: var(--color-primary);
-}
-.type-chip:active {
-  transform: scale(0.96);
 }
 
 .field-input {
@@ -241,7 +194,7 @@ function submitFeedback() {
 }
 .textarea {
   resize: vertical;
-  min-height: 120px;
+  min-height: 140px;
   line-height: 1.6;
 }
 
@@ -252,31 +205,21 @@ function submitFeedback() {
   margin-top: 4px;
 }
 
-.screenshot-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
-  border: 1.5px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg);
-  color: var(--color-text-tertiary);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-.screenshot-btn:active {
-  background: var(--color-surface-2);
-}
-.screenshot-name {
-  margin-left: 8px;
+.login-tip {
   font-size: var(--text-xs);
-  color: var(--color-primary);
+  color: var(--color-text-tertiary);
+  margin: 0;
 }
 
-.submit-area {
-  margin-top: 24px;
+.error-tip {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-danger);
 }
+
+.submit-area { margin-top: 24px; }
+
 .submit-btn {
   width: 100%;
   padding: 16px;
@@ -293,9 +236,7 @@ function submitFeedback() {
   opacity: 0.4;
   cursor: not-allowed;
 }
-.submit-btn:active:not(:disabled) {
-  opacity: 0.8;
-}
+.submit-btn:active:not(:disabled) { opacity: 0.8; }
 
 /* 成功弹窗 */
 .modal-overlay {

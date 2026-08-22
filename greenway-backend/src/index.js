@@ -82,6 +82,10 @@ app.use('/api/admin/heatmap', heatmapRouter);
 // 挂载收藏与个人中心统计路由
 app.use('/api', favoritesRouter);
 
+// 挂载用户反馈路由（公开提交 + 管理员查看）
+import feedbackRouter from './routes/feedback.js';
+app.use('/api', feedbackRouter);
+
 // 挂载空间分析路由
 app.use('/api/spatial', spatialRouter);
 app.use('/api/greenways', recommendRouter);
