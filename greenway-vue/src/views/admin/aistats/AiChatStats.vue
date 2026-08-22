@@ -119,10 +119,14 @@ let wordCloudChart = null
 let lineChartInst = null
 
 function initCharts() {
-  if (wordCloudRef.value && !wordCloudChart) {
+  // 重要：切 days 时 loading 切换会导致 <template v-else> 重建，chart div 被替换为新的 DOM 元素，
+  // 必须 dispose 旧实例并重新 init（否则 echarts 实例挂在已移除的旧 div 上，新 div 为空）
+  if (wordCloudRef.value) {
+    if (wordCloudChart) { wordCloudChart.dispose(); wordCloudChart = null }
     wordCloudChart = echarts.init(wordCloudRef.value)
   }
-  if (lineChartRef.value && !lineChartInst) {
+  if (lineChartRef.value) {
+    if (lineChartInst) { lineChartInst.dispose(); lineChartInst = null }
     lineChartInst = echarts.init(lineChartRef.value)
   }
 }
@@ -135,6 +139,15 @@ function updateCharts() {
     lineChartInst.setOption(lineOption.value, true)
   }
 }
+
+// loading 从 true → false 时，<template v-else> 内的 chart div 是新建的，需重新 init + 渲染
+watch(loading, async (v) => {
+  if (!v) {
+    await nextTick()
+    initCharts()
+    updateCharts()
+  }
+})
 
 watch(days, loadStats)
 onMounted(async () => {
