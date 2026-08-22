@@ -1045,8 +1045,11 @@ const showFacilitiesCard = sessionRef('gw_showFacilitiesCard', true)
 // POI 搜索选中处理
 async function onPoiSearchSelect(poi) {
   if (!mapManager.value) return
-  // 确保设施图层已开启（自动开启不弹说明卡）
-  if (!showFacilities.value) toggleFacilities(true, { showCard: false })
+  // 确保设施图层已开启（自动开启不弹说明卡，且强制卡片保持关闭——避免图层开关残留的 card=true 导致搜索后卡片弹出）
+  if (!showFacilities.value) {
+    toggleFacilities(true, { showCard: false })
+    showFacilitiesCard.value = false
+  }
   const view = mapManager.value.getView()
   if (!view) return
   // 先完成地图移动（await），再打开 popup——否则 openPopup 会打断 goTo 动画导致缩放停在低级别
@@ -1205,6 +1208,7 @@ const onMapReady = (map) => {
     if (showFacilities.value) {
       console.log('[GreenwayOverview] 恢复 POI 设施图层')
       toggleFacilities(true, { showCard: false })  // 会话恢复不弹说明卡
+      showFacilitiesCard.value = false
     }
     if (showHeatmap.value) {
       console.log('[GreenwayOverview] 恢复热度图层')
@@ -1212,6 +1216,7 @@ const onMapReady = (map) => {
     }
     if (showFunctionLayer.value) {
       toggleFunctionLayer(true, { showCard: false })  // 会话恢复不弹说明卡
+      showFunctionCard.value = false
     }
     if (showGreenways.value) {
       toggleGreenways(true)
