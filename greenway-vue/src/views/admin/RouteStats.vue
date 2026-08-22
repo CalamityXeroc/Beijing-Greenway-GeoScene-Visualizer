@@ -59,7 +59,7 @@
 
     <div class="charts-row">
       <div class="chart-card chart-card--full">
-        <div class="chart-title">绿道热度排行榜（近30天）</div>
+        <div class="chart-title">路径规划到绿道次数排行（近30天）</div>
         <div ref="rankChart" class="chart-box chart-box--bar"></div>
       </div>
     </div>
@@ -188,6 +188,7 @@ function makeRankChart(data) {
     yAxis: { type: 'category', data: names,
       axisLabel: { color: dark ? '#aaa' : '#666', width: 100, overflow: 'truncate' } },
     series: [{
+      name: '规划次数',
       type: 'bar', data: counts,
       itemStyle: {
         color: new echarts.graphic.LinearGradient(0,0,1,0,[
