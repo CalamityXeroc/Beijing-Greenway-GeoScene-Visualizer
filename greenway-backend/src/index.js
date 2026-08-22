@@ -676,26 +676,41 @@ const proxyGaodeTile = async (req, res, params) => {
   const { x, y, z, style = 8 } = params;
   if (!x || !y || !z) return res.status(400).json({ error: 'Missing x/y/z' });
 
-  const server = (parseInt(x) + parseInt(y)) % 4 + 1;
   const subdomain = parseInt(style) === 6 ? 'webst' : 'webrd'
-  const tileUrl = `https://${subdomain}0${server}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=${style}&x=${x}&y=${y}&z=${z}`;
+  const baseServer = (parseInt(x) + parseInt(y)) % 4;
 
-  try {
-    const response = await fetch(tileUrl, {
-      headers: { 'Referer': 'https://www.amap.com/', 'User-Agent': 'Mozilla/5.0' }
-    });
-    if (!response.ok) return res.status(response.status).send();
-
-    const buffer = await response.arrayBuffer();
-    const ct = response.headers.get('content-type') || 'image/jpeg';
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Content-Type', ct);
-    res.set('Cache-Control', 'public, max-age=86400');
-    res.send(Buffer.from(buffer));
-  } catch (e) {
-    console.error('[瓦片代理] 错误:', e.message);
-    res.status(502).send();
+  // 带重试的瓦片获取：偶发网络失败自动换子域名重试（最多 3 次尝试）
+  const MAX_RETRY = 2;
+  let lastError = null;
+  for (let attempt = 0; attempt <= MAX_RETRY; attempt++) {
+    const server = ((baseServer + attempt) % 4) + 1;
+    const tileUrl = `https://${subdomain}0${server}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=${style}&x=${x}&y=${y}&z=${z}`;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(tileUrl, {
+        headers: { 'Referer': 'https://www.amap.com/', 'User-Agent': 'Mozilla/5.0' },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (response.ok) {
+        const buffer = await response.arrayBuffer();
+        const ct = response.headers.get('content-type') || 'image/jpeg';
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Content-Type', ct);
+        res.set('Cache-Control', 'public, max-age=86400');
+        res.send(Buffer.from(buffer));
+        return;
+      }
+      lastError = new Error(`高德瓦片 HTTP ${response.status}`);
+    } catch (e) {
+      lastError = e;
+    }
+    // 重试前短暂等待（150ms / 300ms 退避），并换下一个子域名
+    if (attempt < MAX_RETRY) await new Promise(r => setTimeout(r, 150 * (attempt + 1)));
   }
+  console.error('[瓦片代理] 重试后仍失败:', lastError?.message);
+  res.status(502).send();
 };
 
 // 新版路由（GeoScene WebTileLayer）：/api/tiles/gaode/:style/:level/:col/:row
