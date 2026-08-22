@@ -1045,8 +1045,8 @@ const showFacilitiesCard = sessionRef('gw_showFacilitiesCard', true)
 // POI 搜索选中处理
 async function onPoiSearchSelect(poi) {
   if (!mapManager.value) return
-  // 确保设施图层已开启
-  if (!showFacilities.value) toggleFacilities(true)
+  // 确保设施图层已开启（自动开启不弹说明卡）
+  if (!showFacilities.value) toggleFacilities(true, { showCard: false })
   const view = mapManager.value.getView()
   if (!view) return
   // 先完成地图移动（await），再打开 popup——否则 openPopup 会打断 goTo 动画导致缩放停在低级别
@@ -1204,14 +1204,14 @@ const onMapReady = (map) => {
   setTimeout(() => {
     if (showFacilities.value) {
       console.log('[GreenwayOverview] 恢复 POI 设施图层')
-      toggleFacilities(true)
+      toggleFacilities(true, { showCard: false })  // 会话恢复不弹说明卡
     }
     if (showHeatmap.value) {
       console.log('[GreenwayOverview] 恢复热度图层')
       toggleHeatmap(true)
     }
     if (showFunctionLayer.value) {
-      toggleFunctionLayer(true)
+      toggleFunctionLayer(true, { showCard: false })  // 会话恢复不弹说明卡
     }
     if (showGreenways.value) {
       toggleGreenways(true)
@@ -1791,9 +1791,11 @@ const queryGeoScenePois = async () => {
   return { type: 'FeatureCollection', features: feats }
 }
 
-const toggleFacilities = async (visible) => {
+const toggleFacilities = async (visible, opts = {}) => {
+  const { showCard = true } = opts
   showFacilities.value = visible
-  if (visible) showFacilitiesCard.value = true  // 打开图层时说明卡自动出现
+  // 仅用户主动打开图层时弹说明卡（搜索选中/会话恢复等自动开启不弹）
+  if (visible && showCard) showFacilitiesCard.value = true
 
   if (!mapManager.value) return
 
@@ -1913,13 +1915,15 @@ const toggleGreenways = (visible) => {
 }
 
 // 功能分区图层开关（深度学习评价节点，按功能类型着色）
-const toggleFunctionLayer = (visible) => {
+const toggleFunctionLayer = (visible, opts = {}) => {
+  const { showCard = true } = opts
   showFunctionLayer.value = visible
   const layer = layerConfig.value.find(l => l.id === 'function-grid')
   if (layer) layer.visible = visible
   if (visible) {
     applyFunctionGridSize()
-    showFunctionCard.value = true  // 打开图层时说明卡自动出现
+    // 仅用户主动打开时弹说明卡（会话恢复自动开启不弹）
+    if (showCard) showFunctionCard.value = true
   }
 }
 
