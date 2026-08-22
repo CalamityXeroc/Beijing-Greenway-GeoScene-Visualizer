@@ -62,6 +62,13 @@
         <div class="loading-spinner"></div>
         <span>加载飞行路径...</span>
       </div>
+
+      <!-- 加载失败提示（不静默落到默认中心） -->
+      <div class="flyover-error" v-if="!loading && flyoverError">
+        <div class="error-icon">⚠️</div>
+        <div class="error-msg">{{ flyoverError }}</div>
+        <button class="error-close" @click="emit('close')">关闭</button>
+      </div>
     </div>
   </div>
 </template>
@@ -99,6 +106,7 @@ const emit = defineEmits(['close'])
 const sceneContainer = ref(null)
 const loading = ref(true)
 const playing = ref(false)
+const flyoverError = ref('')
 const waypoints = ref([])
 const currentIdx = ref(0)
 const speed = ref(1)
@@ -160,8 +168,20 @@ async function loadFlyover() {
         greenwayGeometry = detail.data?.geometry || null
       } catch { /* noop */ }
     }
+
+    // 空航点：提示错误而不是静默跳到默认中心（北京市中心）
+    if (waypoints.value.length === 0) {
+      flyoverError.value = '未找到该绿道的飞行路径，请稍后重试'
+      loading.value = false
+      return false
+    }
+    flyoverError.value = ''
+    return true
   } catch (e) {
     console.error('[Flyover] 加载失败:', e)
+    flyoverError.value = '飞行路径加载失败，请稍后重试'
+    loading.value = false
+    return false
   }
 }
 
@@ -808,10 +828,10 @@ function prevWaypoint() {
 watch(() => props.visible, async (v) => {
   if (v) {
     document.body.style.overflow = 'hidden'
-    await loadFlyover()
+    const ok = await loadFlyover()
     // 设置天空时间
     getTimeBasedSky()
-    await initScene()
+    if (ok) await initScene()
   } else {
     document.body.style.overflow = ''
     playing.value = false
@@ -917,4 +937,16 @@ onBeforeUnmount(() => {
   border-top-color: #4CAF50; border-radius: 50%; animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+.flyover-error {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.92); z-index: 20; color: #fff; gap: 14px; padding: 20px; text-align: center;
+}
+.flyover-error .error-icon { font-size: 40px; }
+.flyover-error .error-msg { font-size: 15px; color: #eee; max-width: 320px; line-height: 1.6; }
+.flyover-error .error-close {
+  margin-top: 6px; padding: 8px 26px; border: none; border-radius: 20px;
+  background: #43A047; color: #fff; font-size: 14px; cursor: pointer;
+}
+.flyover-error .error-close:hover { background: #2E7D32; }
 </style>

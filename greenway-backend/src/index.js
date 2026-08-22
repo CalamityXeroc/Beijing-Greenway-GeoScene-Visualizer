@@ -523,7 +523,10 @@ app.get('/api/greenways/name/:name/flyover', async (req, res) => {
     const { name } = req.params
     const maxPoints = parseInt(req.query.maxPoints) || 45
 
-    const idRow = await pool.query('SELECT id FROM greenways WHERE name = $1', [name])
+    const idRow = await pool.query(
+      `SELECT id FROM greenways WHERE name = $1 OR REPLACE(name, '绿道', '') = REPLACE($1, '绿道', '')`,
+      [name]
+    )
     if (idRow.rows.length === 0) return res.status(404).json({ error: '绿道不存在' })
     const id = idRow.rows[0].id
 
