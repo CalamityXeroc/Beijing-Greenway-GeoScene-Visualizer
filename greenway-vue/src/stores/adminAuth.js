@@ -1,14 +1,38 @@
 // src/stores/adminAuth.js
 // 管理员会话状态管理（无 Pinia 依赖，使用 Vue 3 单例 reactive）
+// 会话统一：若前台用户已登录且为 admin，则自动复用其 token（避免二次登录）
 import { reactive, computed } from 'vue'
 import { getApiBaseUrl } from '../mobile/services/api'
 
 const KEY_TOKEN = 'greenway_admin_token'
 const KEY_USER  = 'greenway_admin_user'
+const USER_TOKEN_KEY = 'greenway_user_token'
+const USER_KEY = 'greenway_user'
 
+// 初始化：优先用管理员独立会话；否则若前台用户是 admin 则同步复用
+function initState() {
+  let token = localStorage.getItem(KEY_TOKEN)
+  let user  = JSON.parse(localStorage.getItem(KEY_USER) || 'null')
+
+  // 前台用户会话是 admin 但管理会话为空 → 同步复用（免二次登录）
+  if (!token || !user || user.role !== 'admin') {
+    const userToken = localStorage.getItem(USER_TOKEN_KEY)
+    let userObj = null
+    try { userObj = JSON.parse(localStorage.getItem(USER_KEY)) } catch { userObj = null }
+    if (userToken && userObj?.role === 'admin') {
+      token = userToken
+      user = userObj
+      localStorage.setItem(KEY_TOKEN, token)
+      localStorage.setItem(KEY_USER, JSON.stringify(user))
+    }
+  }
+  return { token, user }
+}
+
+const init = initState()
 const state = reactive({
-  token: localStorage.getItem(KEY_TOKEN) || null,
-  user:  JSON.parse(localStorage.getItem(KEY_USER) || 'null'),
+  token: init.token,
+  user:  init.user,
 })
 
 export function useAdminAuth() {

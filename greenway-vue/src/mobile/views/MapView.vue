@@ -397,7 +397,16 @@ const spatialStyle = (feature) => {
     return new Style({ stroke: new Stroke({ color: '#7C3AED', width: 5, cap: 'round' }) })
   }
   if (type === 'poi') {
-    return new Style({ image: new CircleStyle({ radius: 6, fill: new Fill({ color: '#E65100' }), stroke: new Stroke({ color: '#fff', width: 1.5 }) }) })
+    // 按设施类型着色（地铁蓝/停车场绿/卫生间棕等），不再统一橙色
+    const ptype = feature.get('poi_type')
+    const color = poiTypeColor(ptype)
+    return new Style({
+      image: new CircleStyle({
+        radius: 7,
+        fill: new Fill({ color }),
+        stroke: new Stroke({ color: '#fff', width: 2 })
+      })
+    })
   }
   return null
 }
@@ -415,18 +424,40 @@ const drawSpatialResult = (polygon, result) => {
   const polyRing = polygon.coordinates[0].map(([lng, lat]) => fromLonLat([lng, lat]))
   source.addFeature(new Feature({ type: 'polygon', geometry: new Polygon([polyRing]) }))
 
-  // 2. 命中绿道（紫色粗线）
+  // 2. 命中绿道（紫色粗线 + 存储属性供点击显示）
   const hitIds = new Set((result.greenways || []).map(g => String(g.id)))
   greenwayFeatures.forEach(f => {
     const id = String(f.get('id') ?? f.get('gid') ?? '')
     if (hitIds.has(id)) {
-      source.addFeature(new Feature({ type: 'greenway', geometry: f.getGeometry() }))
+      source.addFeature(new Feature({
+        type: 'greenway',
+        geometry: f.getGeometry(),
+        // 保存绿道属性（点击空间分析绿道时显示信息，不再“未知绿道”）
+        id,
+        name: f.get('name') || '绿道',
+        length: f.get('length'),
+        area: f.get('area') || f.get('district') || '',
+        color: f.get('color') || '#16a34a',
+        description: f.get('description') || f.get('introduction') || '',
+        features: f.get('features') || ''
+      }))
     }
   })
 
-  // 3. 命中 POI（橙色圆点）
+  // 3. 命中 POI（按类型着色圆点 + 存储属性供点击显示信息）
   ;(result.pois || []).forEach(poi => {
-    source.addFeature(new Feature({ type: 'poi', geometry: new Point(fromLonLat([poi.lng, poi.lat])) }))
+    source.addFeature(new Feature({
+      type: 'poi',
+      geometry: new Point(fromLonLat([poi.lng, poi.lat])),
+      // 保存 POI 属性（点击地图上的点时用于显示信息卡）
+      id: poi.id,
+      name: poi.name || '未知设施',
+      poi_type: poi.poi_type || '',
+      type_name: poi.type_name || poiTypeName(poi.poi_type),
+      address: poi.address || '',
+      greenway_id: poi.greenway_id || null,
+      greenway_name: poi.greenway_name || ''
+    }))
   })
 }
 
@@ -456,6 +487,18 @@ const locateGreenway = (gw) => {
 
 const locateSpatialPoi = (poi) => {
   map.getView().animate({ center: fromLonLat([poi.lng, poi.lat]), zoom: 16, duration: 500 })
+  // 显示该设施信息卡（与点击地图上的点一致）
+  selectedTrail.value = null
+  selectedPoi.value = {
+    id: poi.id || null,
+    name: poi.name || '未知设施',
+    poi_type: poi.poi_type || '',
+    type_name: poi.type_name || poiTypeName(poi.poi_type),
+    color: poiTypeColor(poi.poi_type),
+    address: poi.address || '',
+    greenway_id: poi.greenway_id || null,
+    greenway_name: poi.greenway_name || ''
+  }
 }
 
 const allPoiTypesOn = computed(() => poiTypeList.value.length > 0 && poiTypeList.value.every(t => poiTypeFilter.value[t.code]))
@@ -547,7 +590,7 @@ const loadAllGreenways = async () => {
       map.getView().fit(extent, { padding: [80, 20, 140, 20], duration: 800 })
     }
 
-    // 点击：优先识别 POI 设施，其次绿道
+    // 点击：优先识别 POI 设施，其次绿道；空间分析结果图层单独处理
     map.on('click', (event) => {
       // 路径规划点选模式：优先处理
       if (routePanelRef.value?.isPicking()) {
@@ -555,6 +598,39 @@ const loadAllGreenways = async () => {
         routePanelRef.value.handleMapPick(coord[0], coord[1])
         return
       }
+      // 1. 空间分析结果图层（spatialLayer）：POI 显示信息卡，绿道显示绿道信息，多边形不拦截
+      const spatialHit = spatialLayer && map.forEachFeatureAtPixel(event.pixel, f =>
+        (f.get('type') === 'poi' || f.get('type') === 'greenway') ? f : null
+      )
+      if (spatialHit) {
+        const p = spatialHit.getProperties()
+        if (p.type === 'poi') {
+          selectedTrail.value = null
+          selectedPoi.value = {
+            id: p.id || null,
+            name: p.name || '未知设施',
+            poi_type: p.poi_type || '',
+            type_name: p.type_name || poiTypeName(p.poi_type),
+            color: poiTypeColor(p.poi_type),
+            address: p.address || '',
+            greenway_id: p.greenway_id || null,
+            greenway_name: p.greenway_name || ''
+          }
+        } else if (p.type === 'greenway') {
+          selectedPoi.value = null
+          selectedTrail.value = {
+            id: p.id || null,
+            name: p.name || '绿道',
+            length: p.length,
+            area: p.area || '',
+            color: p.color || '#16a34a',
+            description: p.description || '',
+            features: p.features || ''
+          }
+        }
+        return
+      }
+      // 2. 普通 POI 设施图层
       const hitPoi = poiLayer.value?.getVisible() && map.forEachFeatureAtPixel(event.pixel, f => f)
       if (hitPoi) {
         const p = hitPoi.getProperties()

@@ -124,20 +124,6 @@
           </span>
           <svg class="chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
-        <button class="menu-row" style="justify-content: space-between;">
-          <span style="display:flex;align-items:center;gap:14px;">
-            <span class="menu-icon" style="background: linear-gradient(135deg, #1c1c1e, #3a3a3c);">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-              </svg>
-            </span>
-            <span class="menu-label">深色模式</span>
-          </span>
-          <label class="toggle" @click.stop>
-            <input type="checkbox" :checked="isDark" @change="toggleTheme" />
-            <span class="track"></span>
-          </label>
-        </button>
       </div>
 
       <!-- 其他 -->
@@ -199,14 +185,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import MobileBottomNav from '../components/MobileBottomNav.vue'
-import { useAppTheme } from '../composables/useAppTheme'
 import { useUserAuth } from '@/stores/userAuth'
 import { fetchUserStats } from '@/services/favoritesApi'
 
 const router = useRouter()
 const activeTab = ref('profile')
 const showAboutModal = ref(false)
-const { isDark, toggleTheme } = useAppTheme()
 const { isLoggedIn, currentUser, nickname, username, clearSession } = useUserAuth()
 
 // 个人统计（真实数据）

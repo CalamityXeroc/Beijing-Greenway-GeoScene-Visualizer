@@ -88,7 +88,6 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21L23 12 2 3v7l15 2-15 2v7z"/></svg>
             </button>
           </div>
-          <p class="ai-input-hint">Enter 发送 · Shift+Enter 换行</p>
         </div>
       </div>
     </div>
@@ -353,7 +352,7 @@ watch(() => props.visible, (v) => {
 }
 .ai-send-btn:active:not(:disabled) { transform: scale(0.9); }
 .ai-send-btn:disabled { opacity: var(--opacity-disabled); box-shadow: none; }
-.ai-input-hint { text-align: center; font-size: 10px; color: var(--color-text-tertiary); margin-top: 6px; }
+
 
 /* ======================== 过渡 ======================== */
 .ai-panel-enter-active, .ai-panel-leave-active { transition: opacity 0.25s ease; }
