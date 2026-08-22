@@ -1049,20 +1049,35 @@ async function onPoiSearchSelect(poi) {
   if (!showFacilities.value) toggleFacilities(true)
   const view = mapManager.value.getView()
   if (!view) return
-  view.goTo({ center: [poi.lng, poi.lat], zoom: 15 }, { duration: 800 }).catch(() => {})
+  // 先完成地图移动（await），再打开 popup——否则 openPopup 会打断 goTo 动画导致缩放停在低级别
+  await view.goTo({ center: [poi.lng, poi.lat], zoom: 15 }, { duration: 800 }).catch(() => {})
   tooltip.visible = false
 
   // 优先走 GeoScene 原生 popup：从设施图层查到对应要素，与直接点击 POI 点保持一致
+  // 注意：本地 GeoJSON 的 id 为服务 FID，与搜索 API 的数据库 id 不一致，必须用 name 精确匹配
   const layer = mapManager.value.getLayer(facilitiesLayerId)
   try {
     if (layer?.queryFeatures) {
+      const safeName = String(poi.name || '').replace(/'/g, "''")
       const res = await layer.queryFeatures({
-        where: `id = ${Number(poi.id)}`,
+        where: `name = '${safeName}'`,
         outFields: ['id', 'name', 'poi_type', 'type_name', 'address', 'greenway_name'],
         returnGeometry: true
       })
-      const feat = res?.features?.[0]
-      if (feat) {
+      const feats = res?.features || []
+      if (feats.length > 0) {
+        // 重名 POI（如“公共厕所”）可能返回多个，选离搜索坐标最近的要素
+        let feat = feats[0]
+        if (feats.length > 1) {
+          let bestDist = Infinity
+          for (const f of feats) {
+            const g = f.geometry
+            if (g && g.longitude != null) {
+              const d = (g.longitude - poi.lng) ** 2 + (g.latitude - poi.lat) ** 2
+              if (d < bestDist) { bestDist = d; feat = f }
+            }
+          }
+        }
         // 用 openPopup 初始化并打开原生 popup（view.popup 为懒初始化，首次 narrows 前无 .open）
         view.openPopup({ location: feat.geometry, features: [feat], updateLocationEnabled: true }).catch?.(() => {})
         return
