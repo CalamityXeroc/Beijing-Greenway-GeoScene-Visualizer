@@ -125,7 +125,8 @@ async function submitFeedback() {
       })
     })
     const data = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`)
+    // 校验业务 code（防止 SPA fallback 返回 index.html 200 时误判成功）
+    if (!res.ok || data.code !== 200) throw new Error(data.message || `HTTP ${res.status}`)
 
     content.value = ''
     contact.value = ''

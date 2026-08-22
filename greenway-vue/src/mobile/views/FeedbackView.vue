@@ -69,6 +69,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserAuth } from '@/stores/userAuth'
+import { getApiBaseUrl } from '@/mobile/services/api'
 
 const router = useRouter()
 const goBack = () => router.back()
@@ -96,7 +97,7 @@ async function submitFeedback() {
     const headers = { 'Content-Type': 'application/json' }
     if (token.value) headers['Authorization'] = `Bearer ${token.value}`
 
-    const res = await fetch('/api/feedback', {
+    const res = await fetch(`${getApiBaseUrl()}/api/feedback`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -106,7 +107,8 @@ async function submitFeedback() {
       })
     })
     const data = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`)
+    // 注意：Capacitor 本地服务器对未知路径会返回 index.html(200)，必须校验业务 code
+    if (!res.ok || data.code !== 200) throw new Error(data.message || `HTTP ${res.status}`)
 
     content.value = ''
     contact.value = ''
