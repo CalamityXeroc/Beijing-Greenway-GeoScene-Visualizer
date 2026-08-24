@@ -291,64 +291,39 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
-    name: '奥森南园主入口',
-
-    description: '奥林匹克森林公园南门，标志性景观',
-
-    lng: 116.550,
-
-    lat: 40.0050
-
+    name: '通州运河段',
+    description: '通州大运河沿岸道路',
+    lng: 116.656,
+    lat: 39.909
   },
 
   {
-
-    name: '奥海湖景区',
-
-    description: '公园内最大湖泊，波光粼粼',
-
-    lng: 116.3980,
-
-    lat: 40.0120
-
+    name: '通州城区',
+    description: '通州城区主要道路',
+    lng: 116.658,
+    lat: 39.902
   },
 
   {
-
-    name: '北园湿地',
-
-    description: '生态湿地，鸟类栖息天堂',
-
-    lng: 116.3965,
-
-    lat: 40.0250
-
+    name: '大兴新城',
+    description: '大兴新城主要道路',
+    lng: 116.341,
+    lat: 39.728
   },
 
   {
-
-    name: '观景山顶',
-
-    description: '制高点，俯瞰公园全景',
-
-    lng: 116.3955,
-
-    lat: 40.050
-
+    name: '潮白河沿线',
+    description: '潮白河沿岸道路',
+    lng: 116.83,
+    lat: 39.95
   },
 
   {
-
-    name: '森林步道',
-
-    description: '林荫小道，空气清新',
-
-    lng: 116.4000,
-
-    lat: 40.0150
-
-  }
+    name: '副中心绿心',
+    description: '城市绿心森林公园周边',
+    lng: 116.69,
+    lat: 39.87
+  },
 
 ])
 

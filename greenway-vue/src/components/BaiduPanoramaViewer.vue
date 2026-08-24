@@ -28,6 +28,23 @@
       <!-- 百度全景容器 -->
       <div ref="baiduPanorama" class="panorama-content"></div>
 
+      <!-- 暂无街景提示层 -->
+      <div class="pano-error-overlay" v-if="loadError">
+        <div class="pano-error-box">
+          <div class="pano-error-icon">
+            <i class="fas fa-street-view"></i>
+          </div>
+          <div class="pano-error-title">该位置暂无街景数据</div>
+          <div class="pano-error-desc">
+            百度街景由移动采集车拍摄，主要覆盖城市道路；
+            绿道内部通常不允许车辆通行，因此部分观景点可能暂无街景影像。
+          </div>
+          <div class="pano-error-actions">
+            <button class="pano-btn" @click="closeViewer">关闭</button>
+          </div>
+        </div>
+      </div>
+
       <!-- 底部导航 -->
       <div class="panorama-footer">
         <div class="panorama-info">
@@ -80,6 +97,7 @@ const emit = defineEmits(['close', 'point-change'])
 
 const baiduPanorama = ref(null)
 const currentPointIndex = ref(props.initialPoint)
+const loadError = ref(false)
 let panoramaService = null
 let panoramaInstance = null
 let baiduMapLoaded = false
@@ -114,11 +132,17 @@ const initBaiduPanorama = async () => {
   if (!baiduPanorama.value) return
 
   try {
+    loadError.value = false
     await loadBaiduMapAPI()
 
     // 创建全景服务
     panoramaService = new window.BMapGL.Panorama(baiduPanorama.value)
     
+    // 监听全景加载失败（无街景数据时触发）
+    panoramaService.addEventListener('position_changed', () => {
+      loadError.value = false
+    })
+
     // 设置全景位置
     const point = new window.BMapGL.Point(currentPoint.value.lng, currentPoint.value.lat)
     
@@ -135,20 +159,32 @@ const initBaiduPanorama = async () => {
       pitch: 0
     })
 
+    // 延迟检测是否成功加载（无街景时 setPosition 不会报错，但容器为隐藏状态）
+    setTimeout(() => {
+      checkPanoramaLoaded()
+    }, 4500)
+
     console.log('[百度全景] 初始化成功:', currentPoint.value.name)
     
   } catch (error) {
     console.error('[百度全景] 初始化失败:', error)
-    alert('全景加载失败，可能是网络问题或该位置没有街景数据')
+    loadError.value = true
   }
 }
 
 // 切换观景点
 const switchPoint = async (index) => {
-  if (index === currentPointIndex.value || !panoramaService) return
+  if (index === currentPointIndex.value) return
   
   currentPointIndex.value = index
+  loadError.value = false
   const point = props.panoramaPoints[index]
+  
+  // 若全景服务未初始化，先初始化
+  if (!panoramaService) {
+    await initBaiduPanorama()
+    return
+  }
   
   const baiduPoint = new window.BMapGL.Point(point.lng, point.lat)
   
@@ -158,7 +194,24 @@ const switchPoint = async (index) => {
     panoramaService.setPosition(baiduPoint)
   }
   
+  // 切换后重新检测
+  setTimeout(() => {
+    checkPanoramaLoaded()
+  }, 4500)
+  
   emit('point-change', index)
+}
+
+// 检测全景是否实际加载（百度无街景时不会创建可交互渲染层）
+const checkPanoramaLoaded = () => {
+  const container = baiduPanorama.value
+  if (!container) return
+  // 全景成功加载的标志：容器内存在非隐藏的 canvas（全景渲染层）
+  const hasCanvas = container.querySelector('canvas') &&
+    window.getComputedStyle(container.querySelector('canvas')).display !== 'none'
+  if (!hasCanvas) {
+    loadError.value = true
+  }
 }
 
 // 关闭查看器
@@ -339,6 +392,42 @@ onBeforeUnmount(() => {
   width: 100%;
   position: relative;
   background: #000;
+}
+
+/* 暂无街景提示层 */
+.pano-error-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(160deg, #1a2a4a, #0f1e3d);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 5;
+}
+.pano-error-box {
+  text-align: center; padding: 40px 60px; max-width: 460px;
+}
+.pano-error-icon {
+  width: 72px; height: 72px; margin: 0 auto 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 32px;
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.4);
+}
+.pano-error-title {
+  font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 12px;
+}
+.pano-error-desc {
+  font-size: 14px; color: #94a3b8; line-height: 1.8; margin-bottom: 24px;
+}
+.pano-btn {
+  padding: 10px 32px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: none; border-radius: 22px; color: #fff;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all 0.3s ease;
+}
+.pano-btn:hover {
+  transform: translateY(-2px); box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
 }
 
 /* 修复百度地图黑色方块问题 - 只隐藏特定的控件 */

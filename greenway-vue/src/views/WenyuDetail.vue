@@ -291,63 +291,38 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
-    name: '温榆河南园主入口',
-
-    description: '奥林匹克森林公园南门，标志性景观',
-
-    lng: 116.420,
-
-    lat: 40.0050
-
+    name: '温榆河湿地公园',
+    description: '生态湿地景观，鸟类栖息地',
+    lng: 116.520345,
+    lat: 40.065432
   },
 
   {
-
-    name: '奥海湖景区',
-
-    description: '公园内最大湖泊，波光粼粼',
-
-    lng: 116.3980,
-
-    lat: 40.0120
-
+    name: '温榆河观景台',
+    description: '最佳观景位置，可俯瞰河道',
+    lng: 116.487654,
+    lat: 40.035789
   },
 
   {
-
-    name: '北园湿地',
-
-    description: '生态湿地，鸟类栖息天堂',
-
-    lng: 116.3965,
-
-    lat: 40.0250
-
+    name: '温榆河公园东园入口',
+    description: '温榆河公园主入口，设施完善',
+    lng: 116.531289,
+    lat: 40.076156
   },
 
   {
-
-    name: '观景山顶',
-
-    description: '制高点，俯瞰公园全景',
-
-    lng: 116.3955,
-
-    lat: 40.0180
-
+    name: '温榆河滨水步道',
+    description: '沿河步道，视野开阔',
+    lng: 116.513234,
+    lat: 40.057678
   },
 
   {
-
-    name: '森林步道',
-
-    description: '林荫小道，空气清新',
-
-    lng: 116.4000,
-
-    lat: 40.0150
-
+    name: '温榆河文化广场',
+    description: '文化活动中心，休憩好去处',
+    lng: 116.500765,
+    lat: 40.045123
   }
 
 ])

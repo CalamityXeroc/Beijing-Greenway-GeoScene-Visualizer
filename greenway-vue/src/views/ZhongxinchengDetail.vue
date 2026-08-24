@@ -291,64 +291,39 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
-    name: '奥森南园主入口',
-
-    description: '奥林匹克森林公园南门，标志性景观',
-
-    lng: 116.410,
-
-    lat: 40.0050
-
+    name: '亮马河段',
+    description: '亮马河沿岸道路',
+    lng: 116.46,
+    lat: 39.94
   },
 
   {
-
-    name: '奥海湖景区',
-
-    description: '公园内最大湖泊，波光粼粼',
-
-    lng: 116.3980,
-
-    lat: 40.0120
-
+    name: '玉渊潭段',
+    description: '玉渊潭公园周边道路',
+    lng: 116.31,
+    lat: 39.92
   },
 
   {
-
-    name: '北园湿地',
-
-    description: '生态湿地，鸟类栖息天堂',
-
-    lng: 116.3965,
-
-    lat: 40.0250
-
+    name: '龙潭湖段',
+    description: '龙潭湖公园周边道路',
+    lng: 116.44,
+    lat: 39.87
   },
 
   {
-
-    name: '观景山顶',
-
-    description: '制高点，俯瞰公园全景',
-
-    lng: 116.3955,
-
-    lat: 39.950
-
+    name: '什刹海段',
+    description: '什刹海周边道路',
+    lng: 116.39,
+    lat: 39.94
   },
 
   {
-
-    name: '森林步道',
-
-    description: '林荫小道，空气清新',
-
-    lng: 116.4000,
-
-    lat: 40.0150
-
-  }
+    name: '紫竹院段',
+    description: '紫竹院公园周边道路',
+    lng: 116.31,
+    lat: 39.94
+  },
 
 ])
 

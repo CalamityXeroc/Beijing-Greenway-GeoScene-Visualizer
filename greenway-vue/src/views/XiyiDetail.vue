@@ -291,64 +291,39 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
-    name: '奥森南园主入口',
-
-    description: '奥林匹克森林公园南门，标志性景观',
-
-    lng: 116.20,
-
-    lat: 40.0050
-
+    name: '门头沟城区',
+    description: '门头沟城区主要道路',
+    lng: 116.1,
+    lat: 39.94
   },
 
   {
-
-    name: '奥海湖景区',
-
-    description: '公园内最大湖泊，波光粼粼',
-
-    lng: 116.3980,
-
-    lat: 40.0120
-
+    name: '永定河门头沟段',
+    description: '永定河沿岸道路',
+    lng: 116.11,
+    lat: 39.91
   },
 
   {
-
-    name: '北园湿地',
-
-    description: '生态湿地，鸟类栖息天堂',
-
-    lng: 116.3965,
-
-    lat: 40.0250
-
+    name: '潭柘寺方向',
+    description: '潭柘寺景区道路',
+    lng: 116.03,
+    lat: 39.88
   },
 
   {
-
-    name: '观景山顶',
-
-    description: '制高点，俯瞰公园全景',
-
-    lng: 116.3955,
-
-    lat: 40.020
-
+    name: '房山城区',
+    description: '房山城区主要道路',
+    lng: 116.14,
+    lat: 39.75
   },
 
   {
-
-    name: '森林步道',
-
-    description: '林荫小道，空气清新',
-
-    lng: 116.4000,
-
-    lat: 40.0150
-
-  }
+    name: '十渡风景区',
+    description: '十渡景区道路',
+    lng: 115.6,
+    lat: 39.63
+  },
 
 ])
 

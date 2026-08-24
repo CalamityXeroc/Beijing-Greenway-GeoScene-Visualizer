@@ -5,9 +5,9 @@ export const baiduPanoramaPoints = [
   {
     name: '温榆河公园-东园入口',
     description: '温榆河公园主入口，设施完善',
-    // 百度地图坐标 (BD-09)
+    // 百度地图坐标 (BD-09)，已校正至最近街景点位
     lng: 116.531289,
-    lat: 40.074156,
+    lat: 40.076156,
     panoId: null // 百度会自动查找最近的全景点
   },
   {
@@ -20,14 +20,14 @@ export const baiduPanoramaPoints = [
   {
     name: '温榆河滨水步道',
     description: '沿河步道，视野开阔',
-    lng: 116.510234,
-    lat: 40.055678,
+    lng: 116.513234,
+    lat: 40.057678,
     panoId: null
   },
   {
     name: '温榆河文化广场',
     description: '文化活动中心，休憩好去处',
-    lng: 116.498765,
+    lng: 116.500765,
     lat: 40.045123,
     panoId: null
   },
