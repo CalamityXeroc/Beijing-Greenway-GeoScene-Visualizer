@@ -1,6 +1,6 @@
 {
   "appId": "com.greenway.mobile",
-  "appName": "北京绿道系统",
+  "appName": "绿脉伴侣",
   "webDir": "dist",
   "server": {
     "androidScheme": "http",
