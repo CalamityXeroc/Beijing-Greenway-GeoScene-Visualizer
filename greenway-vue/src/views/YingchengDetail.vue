@@ -291,64 +291,39 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
     name: '天安门广场',
-
-    description: '祖国心脏，中华象征',
-
+    description: '天安门广场周边道路',
     lng: 116.3974,
-
     lat: 39.9076
-
   },
 
   {
-
-    name: '故宫博物院',
-
-    description: '皇家宫殿，世界遗产',
-
+    name: '故宫北门',
+    description: '故宫北门（景山前街）',
     lng: 116.3972,
-
-    lat: 39.9163
-
+    lat: 39.921
   },
 
   {
-
     name: '景山公园',
-
-    description: '京城中轴，俯瞰紫禁城',
-
-    lng: 116.3950,
-
+    description: '景山公园南门（景山前街）',
+    lng: 116.395,
     lat: 39.9274
-
   },
 
   {
-
     name: '天坛公园',
-
-    description: '祈年殿，皇家祭坛',
-
+    description: '天坛公园北门（祈年大街）',
     lng: 116.4074,
-
     lat: 39.8826
-
   },
 
   {
-
     name: '前门大街',
-
-    description: '古都商业街，百年老字号',
-
-    lng: 116.3950,
-
+    description: '前门大街沿线',
+    lng: 116.395,
     lat: 39.8993
-
-  }
+  },
 
 ])
 

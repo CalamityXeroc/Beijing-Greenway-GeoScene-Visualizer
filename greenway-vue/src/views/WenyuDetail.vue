@@ -323,7 +323,7 @@ const panoramaPoints = ref([
     description: '文化活动中心，休憩好去处',
     lng: 116.500765,
     lat: 40.045123
-  }
+  },
 
 ])
 

@@ -299,21 +299,21 @@ const panoramaPoints = ref([
 
   {
     name: '通州城区',
-    description: '通州城区主要道路',
+    description: '通州城区新华大街',
     lng: 116.658,
     lat: 39.902
   },
 
   {
     name: '大兴新城',
-    description: '大兴新城主要道路',
+    description: '大兴新城兴华大街',
     lng: 116.341,
     lat: 39.728
   },
 
   {
-    name: '潮白河沿线',
-    description: '潮白河沿岸道路',
+    name: '潮白河大桥',
+    description: '潮白河沿线道路',
     lng: 116.83,
     lat: 39.95
   },

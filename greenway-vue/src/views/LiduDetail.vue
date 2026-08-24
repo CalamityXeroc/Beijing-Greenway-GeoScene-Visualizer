@@ -275,64 +275,39 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
     name: '丽都商圈入口',
-
-    description: '商圈主入口，现代化设施',
-
+    description: '丽都商圈将台路',
     lng: 116.4856,
-
     lat: 39.9723
-
   },
 
   {
-
-    name: '绿道休闲段',
-
-    description: '都市绿地，休憩空间',
-
+    name: '丽都公园',
+    description: '丽都公园周边道路',
     lng: 116.4889,
-
     lat: 39.9756
-
   },
 
   {
-
-    name: '景观广场',
-
-    description: '中心广场，活动场地',
-
+    name: '将台西路',
+    description: '将台西路沿线',
     lng: 116.4823,
-
     lat: 39.9689
-
   },
 
   {
-
-    name: '滨水步道',
-
-    description: '沿水绿道，景色宜人',
-
+    name: '酒仙桥路',
+    description: '酒仙桥路沿线',
     lng: 116.4912,
-
     lat: 39.9778
-
   },
 
   {
-
-    name: '终点观景台',
-
-    description: '绿道终点，观景平台',
-
+    name: '丽都水岸',
+    description: '丽都水岸周边道路',
     lng: 116.4934,
-
     lat: 39.9801
-
-  }
+  },
 
 ])
 

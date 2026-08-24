@@ -291,64 +291,39 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
     name: '常营半马起点',
-
-    description: '半马绿道起点，设施完善',
-
+    description: '常营马拉松起点（常营中路）',
     lng: 116.5845,
-
     lat: 39.9234
-
   },
 
   {
-
-    name: '常营公园段',
-
-    description: '公园景观带，绿树成荫',
-
+    name: '常营公园南门',
+    description: '常营公园南门',
     lng: 116.5912,
-
     lat: 39.9189
-
   },
 
   {
-
     name: '常营体育公园',
-
-    description: '专业运动设施区域',
-
+    description: '常营体育公园周边道路',
     lng: 116.5978,
-
     lat: 39.9145
-
   },
 
   {
-
-    name: '常营湿地段',
-
-    description: '生态湿地，环境优美',
-
-    lng: 116.6034,
-
-    lat: 39.9112
-
+    name: '常营东路',
+    description: '常营地区主要道路',
+    lng: 116.593,
+    lat: 39.935
   },
 
   {
-
     name: '常营半马终点',
-
-    description: '半马终点，完善的服务设施',
-
+    description: '常营马拉松终点（管庄路）',
     lng: 116.6089,
-
     lat: 39.9078
-
-  }
+  },
 
 ])
 

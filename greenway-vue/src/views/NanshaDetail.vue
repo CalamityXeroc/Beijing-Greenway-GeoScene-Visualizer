@@ -190,8 +190,35 @@ const WHEEL_EDGE_EPSILON = 2
 
 // 全景点位配置（真实坐标）
 const panoramaPoints = ref([
-  { name: '入口', description: '绿道入口', lng: 116.42, lat: 39.88 },
-  { name: '河滨段', description: '开放河滨景观', lng: 116.44, lat: 39.90 }
+
+  {
+    name: '南沙河入口',
+    description: '南沙河绿道入口（南沙河南岸道路）',
+    lng: 116.1966,
+    lat: 40.1005
+  },
+
+  {
+    name: '南沙河中段',
+    description: '南沙河沿岸道路',
+    lng: 116.205,
+    lat: 40.095
+  },
+
+  {
+    name: '沙河水库',
+    description: '沙河水库周边道路',
+    lng: 116.19,
+    lat: 40.09
+  },
+
+  {
+    name: '回龙观段',
+    description: '回龙观周边道路',
+    lng: 116.34,
+    lat: 40.08
+  },
+
 ])
 
 

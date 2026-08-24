@@ -291,64 +291,39 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
     name: '昌平温泉公园',
-
-    description: '绿道起点，温泉文化主题公园',
-
+    description: '昌平温泉公园周边道路',
     lng: 116.2345,
-
     lat: 40.2234
-
   },
 
   {
-
-    name: '十三陵水库段',
-
-    description: '水库风光，山水相映',
-
-    lng: 116.2512,
-
-    lat: 40.2489
-
+    name: '十三陵神道',
+    description: '明十三陵神道入口道路',
+    lng: 116.219,
+    lat: 40.276
   },
 
   {
-
-    name: '蟒山森林公园',
-
-    description: '山地森林，自然氧吧',
-
-    lng: 116.2678,
-
-    lat: 40.2745
-
+    name: '昌平城区',
+    description: '昌平城区府学路',
+    lng: 116.23,
+    lat: 40.22
   },
 
   {
-
-    name: '昌平山地段',
-
-    description: '山地绿道，挑战性路段',
-
-    lng: 116.2834,
-
-    lat: 40.2912
-
+    name: '蟒山脚下',
+    description: '蟒山国家森林公园大门道路',
+    lng: 116.258,
+    lat: 40.265
   },
 
   {
-
-    name: '昌平生态谷',
-
-    description: '生态景观区，鸟语花香',
-
-    lng: 116.2989,
-
-    lat: 40.3078
-
-  }
+    name: '北山公园',
+    description: '昌平北山公园周边道路',
+    lng: 116.235,
+    lat: 40.24
+  },
 
 ])
 

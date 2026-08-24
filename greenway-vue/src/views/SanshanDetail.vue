@@ -289,64 +289,39 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
-    name: '颐和园南门',
-
-    description: '世界文化遗产，皇家园林典范',
-
-    lng: 116.2732,
-
-    lat: 39.9987
-
+    name: '颐和园东门',
+    description: '颐和园东宫门（同庆街）',
+    lng: 116.275,
+    lat: 39.999
   },
 
   {
-
-    name: '圆明园遗址',
-
-    description: '爱国主义教育基地，历史见证',
-
-    lng: 116.3063,
-
-    lat: 40.0106
-
+    name: '圆明园南门',
+    description: '圆明园南门（清华西路）',
+    lng: 116.3,
+    lat: 40.01
   },
 
   {
-
-    name: '北京大学燕京学堂',
-
-    description: '文化名校，学术殿堂',
-
-    lng: 116.3083,
-
-    lat: 39.9954
-
+    name: '北京大学东门',
+    description: '北京大学东门（中关村北大街）',
+    lng: 116.311,
+    lat: 39.992
   },
 
   {
-
-    name: '清华大学校园',
-
-    description: '世界顶级学府，人文荟萃',
-
-    lng: 116.3283,
-
-    lat: 40.0031
-
+    name: '清华大学西门',
+    description: '清华大学西门（中关村北大街）',
+    lng: 116.32,
+    lat: 40.003
   },
 
   {
-
-    name: '中关村科技园',
-
-    description: '中国硅谷，创新发展见证',
-
-    lng: 116.3266,
-
-    lat: 39.9759
-
-  }
+    name: '中关村大街',
+    description: '中关村大街沿线',
+    lng: 116.316,
+    lat: 39.98
+  },
 
 ])
 

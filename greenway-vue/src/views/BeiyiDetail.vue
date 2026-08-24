@@ -292,27 +292,27 @@ const panoramaPoints = ref([
 
   {
     name: '昌平城区',
-    description: '昌平城区主要道路沿线',
+    description: '昌平城区鼓楼南街',
     lng: 116.235,
     lat: 40.221
   },
 
   {
     name: '怀柔城区',
-    description: '怀柔城区主要道路沿线',
+    description: '怀柔城区青春路',
     lng: 116.632,
     lat: 40.316
   },
 
   {
     name: '十三陵景区',
-    description: '明十三陵景区周边道路',
+    description: '十三陵景区神道周边道路',
     lng: 116.219,
     lat: 40.276
   },
 
   {
-    name: '雁栖湖周边',
+    name: '雁栖湖路',
     description: '雁栖湖景区道路',
     lng: 116.686,
     lat: 40.383

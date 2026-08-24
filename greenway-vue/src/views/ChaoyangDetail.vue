@@ -289,64 +289,39 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
-    name: '朝阳公园南园入口',
-
-    description: '现代化城市公园，休闲娱乐胜地',
-
-    lng: 116.5265,
-
-    lat: 39.9487
-
+    name: '朝阳公园南门',
+    description: '朝阳公园南门（朝阳公园南路）',
+    lng: 116.477,
+    lat: 39.933
   },
 
   {
-
-    name: 'CBD绿道中心',
-
-    description: '商务区绿色廊道，城市窗口',
-
-    lng: 116.5345,
-
-    lat: 39.9245
-
+    name: '朝阳公园西门',
+    description: '朝阳公园西门',
+    lng: 116.463,
+    lat: 39.94
   },
 
   {
-
-    name: '朝阳滨河路',
-
-    description: '河畔休闲步道，风景秀丽',
-
-    lng: 116.5412,
-
-    lat: 39.9156
-
+    name: '红领巾公园',
+    description: '红领巾公园周边道路',
+    lng: 116.493,
+    lat: 39.932
   },
 
   {
-
-    name: '798艺术区周边',
-
-    description: '创意文化园区，艺术氛围浓厚',
-
-    lng: 116.4782,
-
-    lat: 39.9876
-
+    name: '朝阳北路',
+    description: '朝阳北路沿线',
+    lng: 116.5,
+    lat: 39.935
   },
 
   {
-
-    name: '红砖美术馆',
-
-    description: '文化艺术地标，展览空间',
-
-    lng: 116.4685,
-
-    lat: 40.0134
-
-  }
+    name: '四惠桥周边',
+    description: '四惠桥周边道路',
+    lng: 116.495,
+    lat: 39.905
+  },
 
 ])
 

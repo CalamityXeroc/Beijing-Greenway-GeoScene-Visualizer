@@ -299,14 +299,14 @@ const panoramaPoints = ref([
 
   {
     name: '玉渊潭段',
-    description: '玉渊潭公园周边道路',
+    description: '玉渊潭公园东门（三里河路）',
     lng: 116.31,
     lat: 39.92
   },
 
   {
     name: '龙潭湖段',
-    description: '龙潭湖公园周边道路',
+    description: '龙潭湖公园东门',
     lng: 116.44,
     lat: 39.87
   },
@@ -320,7 +320,7 @@ const panoramaPoints = ref([
 
   {
     name: '紫竹院段',
-    description: '紫竹院公园周边道路',
+    description: '紫竹院公园东门',
     lng: 116.31,
     lat: 39.94
   },

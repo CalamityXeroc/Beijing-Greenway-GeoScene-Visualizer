@@ -292,14 +292,14 @@ const panoramaPoints = ref([
 
   {
     name: '门头沟城区',
-    description: '门头沟城区主要道路',
+    description: '门头沟城区新桥大街',
     lng: 116.1,
     lat: 39.94
   },
 
   {
     name: '永定河门头沟段',
-    description: '永定河沿岸道路',
+    description: '永定河沿岸（门头沟）',
     lng: 116.11,
     lat: 39.91
   },
@@ -313,7 +313,7 @@ const panoramaPoints = ref([
 
   {
     name: '房山城区',
-    description: '房山城区主要道路',
+    description: '房山城区拱辰大街',
     lng: 116.14,
     lat: 39.75
   },

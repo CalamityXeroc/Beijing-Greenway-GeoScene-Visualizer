@@ -291,64 +291,39 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
-    name: '东直门桥绿道段',
-
-    description: '二环路东北角，现代化城市景观',
-
+    name: '东直门桥',
+    description: '东直门桥周边道路',
     lng: 116.4344,
-
     lat: 39.9396
-
   },
 
   {
-
-    name: '朝阳门桥绿道段',
-
-    description: '二环路东段，商务区与历史交融',
-
+    name: '朝阳门桥',
+    description: '朝阳门桥周边道路',
     lng: 116.4364,
-
     lat: 39.9285
-
   },
 
   {
-
-    name: '建国门桥绿道段',
-
-    description: '二环路东南段，使馆区周边绿道',
-
+    name: '建国门桥',
+    description: '建国门桥周边道路',
     lng: 116.4343,
-
     lat: 39.9056
-
   },
 
   {
-
-    name: '天坛公园周边绿道',
-
-    description: '世界文化遗产旁的绿色走廊',
-
+    name: '天坛公园',
+    description: '天坛公园北门（祈年大街）',
     lng: 116.4124,
-
     lat: 39.8829
-
   },
 
   {
-
-    name: '西便门桥绿道段',
-
-    description: '二环路西南段，滨水景观带',
-
+    name: '西便门桥',
+    description: '西便门桥周边道路',
     lng: 116.3543,
-
     lat: 39.8954
-
-  }
+  },
 
 ])
 

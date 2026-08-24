@@ -291,64 +291,39 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
-    name: '亮马河香河园段',
-
-    description: '绿道起点，现代化景观设计',
-
+    name: '香河园段',
+    description: '亮马河香河园路',
     lng: 116.4625,
-
     lat: 39.9534
-
   },
 
   {
-
-    name: '亮马河燕莎段',
-
-    description: '商业区滨水景观，夜景灯光璀璨',
-
+    name: '燕莎段',
+    description: '亮马河燕莎桥周边',
     lng: 116.4721,
-
     lat: 39.9568
-
   },
 
   {
-
-    name: '亮马河蓝色港湾段',
-
-    description: '时尚购物区旁的滨水休闲带',
-
+    name: '蓝色港湾段',
+    description: '蓝色港湾周边道路',
     lng: 116.4856,
-
     lat: 39.9612
-
   },
 
   {
-
-    name: '亮马河朝阳公园段',
-
-    description: '公园与河流交融的生态景观',
-
+    name: '朝阳公园段',
+    description: '亮马河朝阳公园北门',
     lng: 116.4923,
-
     lat: 39.9645
-
   },
 
   {
-
-    name: '亮马河下游观景平台',
-
-    description: '宽阔水面与现代建筑交相辉映',
-
+    name: '东坝下游',
+    description: '亮马河下游沿线道路',
     lng: 116.5012,
-
     lat: 39.9678
-
-  }
+  },
 
 ])
 

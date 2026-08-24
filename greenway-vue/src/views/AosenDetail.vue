@@ -298,64 +298,39 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
-    name: '奥森南园主入口',
-
-    description: '奥林匹克森林公园南门，标志性景观',
-
-    lng: 116.3970,
-
-    lat: 40.0050
-
+    name: '奥森南门',
+    description: '奥林匹克森林公园南门（北辰东路）',
+    lng: 116.3936,
+    lat: 40.0059
   },
 
   {
-
-    name: '奥海湖景区',
-
-    description: '公园内最大湖泊，波光粼粼',
-
-    lng: 116.3980,
-
-    lat: 40.0120
-
+    name: '奥森东门',
+    description: '奥林匹克森林公园东门（天辰东路）',
+    lng: 116.405,
+    lat: 40.018
   },
 
   {
-
-    name: '北园湿地',
-
-    description: '生态湿地，鸟类栖息天堂',
-
-    lng: 116.3965,
-
-    lat: 40.0250
-
+    name: '奥森北门',
+    description: '奥林匹克森林公园北门（五环路辅路）',
+    lng: 116.395,
+    lat: 40.03
   },
 
   {
-
-    name: '观景山顶',
-
-    description: '制高点，俯瞰公园全景',
-
-    lng: 116.3955,
-
-    lat: 40.0180
-
+    name: '奥林匹克塔',
+    description: '奥林匹克塔周边道路',
+    lng: 116.393,
+    lat: 40.005
   },
 
   {
-
-    name: '森林步道',
-
-    description: '林荫小道，空气清新',
-
-    lng: 116.4000,
-
-    lat: 40.0150
-
-  }
+    name: '鸟巢周边',
+    description: '鸟巢与奥体中心周边道路',
+    lng: 116.397,
+    lat: 40.002
+  },
 
 ])
 

@@ -275,64 +275,39 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-
-    name: '运河源头',
-
-    description: '北运河起点，历史标志',
-
-    lng: 116.6523,
-
-    lat: 39.9134
-
+    name: '运河文化广场',
+    description: '通州运河文化广场（滨河路）',
+    lng: 116.656,
+    lat: 39.909
   },
 
   {
-
-    name: '文化遗址区',
-
-    description: '运河文化展示区',
-
-    lng: 116.6589,
-
-    lat: 39.9178
-
+    name: '大运河森林公园',
+    description: '大运河森林公园北门（通怀路）',
+    lng: 116.68,
+    lat: 39.9
   },
 
   {
-
-    name: '生态湿地',
-
-    description: '运河湿地公园',
-
-    lng: 116.6645,
-
-    lat: 39.9223
-
+    name: '运河奥体公园',
+    description: '运河奥体公园周边道路',
+    lng: 116.69,
+    lat: 39.892
   },
 
   {
-
-    name: '滨河步道',
-
-    description: '沿河休闲步道',
-
-    lng: 116.6712,
-
-    lat: 39.9267
-
+    name: '滨河路中段',
+    description: '北运河滨河路',
+    lng: 116.705,
+    lat: 39.885
   },
 
   {
-
-    name: '观景平台',
-
-    description: '运河观景台',
-
-    lng: 116.6778,
-
-    lat: 39.9312
-
-  }
+    name: '通州北关闸',
+    description: '北关闸周边道路',
+    lng: 116.668,
+    lat: 39.918
+  },
 
 ])
 
