@@ -252,19 +252,23 @@ export const getAppInfo = async () => {
 /**
  * 处理返回按钮（Android）
  */
+let backButtonRegistered = false
 export const setupBackButton = (callback) => {
-  if (isNativePlatform()) {
+  if (isNativePlatform() && !backButtonRegistered) {
+    backButtonRegistered = true
     App.addListener('backButton', () => {
       callback()
     })
   }
 }
 
+let resumeRegistered = false
 /**
  * 处理应用恢复
  */
 export const setupAppResume = (callback) => {
-  if (isNativePlatform()) {
+  if (isNativePlatform() && !resumeRegistered) {
+    resumeRegistered = true
     App.addListener('appStateChange', ({ isActive }) => {
       if (isActive) {
         callback(true)

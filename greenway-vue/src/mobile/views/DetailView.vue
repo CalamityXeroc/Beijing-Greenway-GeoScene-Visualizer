@@ -406,44 +406,48 @@ async function loadTrail() {
 
 function initMiniMap() {
   if (!miniMapEl.value || !trail.value?._geojson) return
+  try {
+    const color = trailColor.value
 
-  const color = trailColor.value
-
-  const vectorSource = new VectorSource({
-    features: new GeoJSONFormat().readFeatures(trail.value._geojson, {
-      featureProjection: 'EPSG:3857'
+    const vectorSource = new VectorSource({
+      features: new GeoJSONFormat().readFeatures(trail.value._geojson, {
+        featureProjection: 'EPSG:3857'
+      })
     })
-  })
 
-  const vectorLayer = new VectorLayer({
-    source: vectorSource,
-    style: new Style({
-      stroke: new Stroke({ color, width: 4 }),
-      fill: new Fill({ color: color + '33' })
+    const vectorLayer = new VectorLayer({
+      source: vectorSource,
+      style: new Style({
+        stroke: new Stroke({ color, width: 4 }),
+        fill: new Fill({ color: color + '33' })
+      })
     })
-  })
 
-  const tileSource = new XYZ({
-    url: isDark.value
-      ? 'https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}'
-      : 'https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
-    maxZoom: 18
-  })
+    const tileSource = new XYZ({
+      url: isDark.value
+        ? 'https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}'
+        : 'https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+      maxZoom: 18
+    })
 
-  miniMap = new Map({
-    target: miniMapEl.value,
-    layers: [new TileLayer({ source: tileSource }), vectorLayer],
-    view: new View({ center: fromLonLat([116.4, 39.9]), zoom: 12 }),
-    controls: [],
-    interactions: []
-  })
+    miniMap = new Map({
+      target: miniMapEl.value,
+      layers: [new TileLayer({ source: tileSource }), vectorLayer],
+      view: new View({ center: fromLonLat([116.4, 39.9]), zoom: 12 }),
+      controls: [],
+      interactions: []
+    })
 
-  const extent = vectorSource.getExtent()
-  if (extent && extent[0] !== Infinity) {
-    miniMap.getView().fit(extent, { padding: [24, 24, 24, 24], maxZoom: 16 })
+    const extent = vectorSource.getExtent()
+    if (extent && extent[0] !== Infinity) {
+      miniMap.getView().fit(extent, { padding: [24, 24, 24, 24], maxZoom: 16 })
+    }
+
+    mapReady.value = true
+  } catch (e) {
+    // 迷你地图异常不影响评论区与收藏初始化（独立失败，静默降级）
+    console.warn('迷你地图初始化失败:', e)
   }
-
-  mapReady.value = true
 }
 
 function goBack() {

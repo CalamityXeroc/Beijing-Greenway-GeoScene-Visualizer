@@ -175,10 +175,13 @@ async function load() {
   loading.value = true
   try {
     const res = await fetch(`${getApiBaseUrl()}/api/greenways/assess`)
+    if (!res.ok) throw new Error(`请求失败（${res.status}）`)
     const data = await res.json()
     if (data.error) throw new Error(data.error)
-    result.value = data
-    if (data.items?.length) select(data.items[0])
+    // 归一化：兼容顶层 items 与 {code,data:{items}}
+    const items = Array.isArray(data.items) ? data.items : data?.data?.items
+    result.value = Array.isArray(items) ? { ...data, items } : data
+    if (result.value.items?.length) select(result.value.items[0])
   } catch (e) {
     alert('体检数据加载失败：' + e.message)
   } finally {

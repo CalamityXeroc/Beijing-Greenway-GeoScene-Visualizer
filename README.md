@@ -120,6 +120,21 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  **Admin No-Double-Login**: The web admin console reuses the frontend user session when the logged-in user is an `admin` (route guard checks `userAuth` first, `adminAuth` auto-syncs the token) — no more second username/password prompt after logging into the admin from the mobile profile page.
 -  **Minor UX fixes**: Removed the redundant dark-mode toggle from the profile page (it lives in Settings); removed the "Enter send · Shift+Enter newline" hint from the mobile AI chat input.
 
+### Bug-Fix Pass (2026-08, 全面扫描修复)
+
+A full audit & fix pass covering the mobile app and web frontend:
+
+-  **Map layer duplication fixed**: Retry / double-tap on the mobile map no longer stacks greenway/POI layers or duplicates click handlers (guards added for layer-add & event-binding; POI loading is promise-deduped).
+-  **Community "load more" dedup**: Paginating the community feed now de-duplicates already-loaded items by id and stops at the end instead of appending repeats (Vue key conflicts eliminated).
+-  **XSS hardening in AI chat**: Both the web AIChatbot and mobile AIChatPanel now HTML-escape all message content before rendering `**bold**` / line breaks — pasted `<img onerror>` etc. displays as plain text instead of executing.
+-  **Detail-page resilience**: The mini-map initialisation is wrapped in try/catch so a GeoJSON failure no longer blocks the comment section or favorites sync.
+-  **Duplicate greenway layer config removed**: The duplicated `nansha-greenway` layer entry (wrong URL/colour/data) was deleted; the dead duplicate route branch was cleaned up.
+-  **Map memory leak fixed**: The facilities-layer zoom watcher is now properly removed (`watcher.remove()`) when toggled off; the landing-page 3D globe cancels its RAF loop and removes window listeners on unmount.
+-  **Highlight renderer corruption fixed**: "Locate greenway" now restores the default renderer via `clearLayerHighlight` instead of applying a `null`-colour style that broke the layer permanently.
+-  **Favorite button robustness**: Wrapped in try/finally so a network error no longer leaves the button spinning forever.
+-  **AMap key moved server-side**: Weather now goes through a new backend proxy (`/api/gaode/weather`, `/api/gaode/regeocode`) — the WebService key is no longer bundled in the client JS. Mobile weather follows the same proxy.
+-  **Security & stability**: JWT_SECRET hardcoded fallback now warns in production (use `node --env-file=.env.local`); AI conversation store auto-cleans sessions idle >12h; login `redirect` params are validated against open-redirect; PoiSearch debounce race fixed with sequence guards; Recommend/Assess panels validate `res.ok` and normalize response shapes; WeatherCard drag no longer teleports and rain/snow icons match by keyword; route waypoint (0,0) placeholders are filtered before drawing; bottom-sheet mask click now closes via v-model; font-size persists across app restarts; splash-screen timers are cleaned on skip/unmount; ListView favorite button wired to the real API; TrailCard "distance to you" now rendered; mobile route origin converts WGS-84→GCJ-02 to match the basemap; admin stats endpoints verified with token.
+
 ---
 
 ##  GeoScene Server Integration (Domestic GIS Platform)

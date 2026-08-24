@@ -30,6 +30,23 @@ const router = useRouter()
 const showSplash = ref(true)
 const { init: initTheme, isDark } = useAppTheme()
 
+// 冷启动恢复保存的字体大小（SettingsView 未挂载时也生效）
+function applySavedFontSize() {
+  try {
+    const saved = parseInt(localStorage.getItem('fontSize') || '', 10)
+    if (!Number.isFinite(saved) || saved < 0 || saved > 2) return
+    const sizes = ['14px', '16px', '18px']
+    const size = sizes[saved]
+    const root = document.documentElement
+    root.style.setProperty('--text-base', size)
+    root.style.setProperty('--text-md', size)
+    root.style.setProperty('--text-sm', size === '14px' ? '13px' : (size === '16px' ? '14px' : '16px'))
+    root.style.setProperty('--text-lg', size === '14px' ? '16px' : (size === '16px' ? '17px' : '20px'))
+  } catch (e) {
+    console.warn('恢复字体设置失败:', e)
+  }
+}
+
 const handleSplashFinish = () => {
   showSplash.value = false
 }
@@ -37,6 +54,9 @@ const handleSplashFinish = () => {
 onMounted(async () => {
   // 初始化主题（读取本地存储或系统偏好）
   initTheme()
+
+  // 全局恢复字体大小设置（冷启动时 SettingsView 不会挂载，需在这里应用）
+  applySavedFontSize()
 
   // 初始化 Capacitor 插件
   await initializeCapacitor()

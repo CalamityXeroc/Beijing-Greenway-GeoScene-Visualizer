@@ -28,7 +28,7 @@
           @mouseenter="activeIdx = i"
           @click="select(r)"
         >
-          <img :src="'/images/poi/' + icons[r.poi_type]" alt="" class="poi-search-item-icon" />
+          <img :src="'/images/poi/' + (icons[r.poi_type] || 'scenic.svg')" alt="" class="poi-search-item-icon" />
           <span class="poi-search-item-name">{{ r.name }}</span>
           <span class="poi-search-item-type">{{ r.type_name }}</span>
         </li>
@@ -39,7 +39,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 const emit = defineEmits(['select'])
 
@@ -57,6 +57,7 @@ const activeIdx = ref(-1)
 const inputEl = ref(null)
 const rootEl = ref(null)
 let timer = null
+let seq = 0  // 请求序号：旧响应不得覆盖新结果（防抖竞态）
 
 function onInput() {
   activeIdx.value = -1
@@ -65,11 +66,18 @@ function onInput() {
   loading.value = true
   showDropdown.value = true
   clearTimeout(timer)
+  const mySeq = ++seq
   timer = setTimeout(() => {
     fetch(`/api/poi/search?q=${encodeURIComponent(v)}`)
       .then(r => r.json())
-      .then(d => { results.value = d.results || []; loading.value = false })
-      .catch(() => { results.value = []; loading.value = false })
+      .then(d => {
+        if (mySeq !== seq) return  // 已有更新的请求，丢弃本次结果
+        results.value = d.results || []; loading.value = false
+      })
+      .catch(() => {
+        if (mySeq !== seq) return
+        results.value = []; loading.value = false
+      })
   }, 200)
 }
 
@@ -102,6 +110,12 @@ function clear() {
   results.value = []
   showDropdown.value = false
 }
+
+// 组件卸载时清理防抖定时器，避免卸载后仍触发请求
+onBeforeUnmount(() => {
+  clearTimeout(timer)
+  seq++  // 使进行中的旧响应全部失效
+})
 </script>
 
 <style scoped>

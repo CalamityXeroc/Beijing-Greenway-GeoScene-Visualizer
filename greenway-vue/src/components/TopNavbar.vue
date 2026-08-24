@@ -242,7 +242,7 @@
               <span>{{ layer.name }}</span>
             </label>
           </div>
-          <div v-if="!filteredLayerConfig.length" class="dd-empty" style="display:none">暂无图层</div>
+          <div v-if="!filteredLayerConfig.length" class="dd-empty">暂无图层</div>
           <div class="dd-divider"/>
           <div class="dropdown-section">专题图层</div>
           <div class="dd-layer-item">
@@ -600,7 +600,8 @@ const facilityColors = {
 const { theme: globalTheme, isAuto } = useGlobalTheme()
 const isNight = computed(() => globalTheme.value === 'night')
 
-// 过滤掉所有绿道路线图层，只保留北京市界/面等底图图层
+// 底图图层列表：保留市界/市域与功能图层（这些由聚合开关控制，这里展示对应图层项供二次开关）
+// 绿道路线（17 条）由“绿道”聚合开关控制，不在此列出
 const GREENWAY_IDS = [
   'wenyu-greenway', 'huanerhuan-greenway', 'liangmahe-greenway',
   'changying-greenway', 'changping42-greenway', 'lidu-greenway',
@@ -609,11 +610,9 @@ const GREENWAY_IDS = [
   'beiyi-greenway', 'dongyi-greenway', 'jiaoye-greenway',
   'xiyi-greenway', 'zhongxincheng-greenway'
 ]
-// 市界/市域由“北京市”聚合开关控制，功能相关图层由专题开关控制，均不单独列出
-const BEIJING_IDS = ['beijing-boundary', 'beijing-area']
-const FEATURE_IDS = ['function-grid', 'function-points']
+// 只过滤 17 条绿道线（避免重复列 17 项）；市界/市域与功能图层保留展示
 const filteredLayerConfig = computed(() =>
-  props.layerConfig.filter(l => !GREENWAY_IDS.includes(l.id) && !BEIJING_IDS.includes(l.id) && !FEATURE_IDS.includes(l.id))
+  props.layerConfig.filter(l => !GREENWAY_IDS.includes(l.id))
 )
 
 const userAuth = useUserAuth()

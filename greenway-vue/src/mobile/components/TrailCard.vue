@@ -26,6 +26,7 @@
       <h3 class="trail-name">{{ trail.name }}</h3>
       <p v-if="cleanDesc" class="trail-desc line-clamp-2">{{ cleanDesc }}</p>
       <div class="card-meta">
+        <span v-if="distanceText" class="meta-chip distance-chip">📍 {{ distanceText }}</span>
         <span v-if="trail.length" class="meta-chip">· {{ trail.length }}km</span>
         <span v-if="trail.duration" class="meta-chip">{{ trail.duration }}</span>
         <span v-if="trail.tags && trail.tags[0]" class="meta-tag">{{ trail.tags[0] }}</span>

@@ -148,7 +148,9 @@ const handleLogin = async () => {
     const payload = json.data || json
     if (!payload.token) throw new Error('登录失败：服务器未返回令牌')
     setSession(payload.token, payload.user)
-    const redirect = router.currentRoute.value.query.redirect || '/mobile/profile'
+    const raw = router.currentRoute.value.query.redirect || '/mobile/profile'
+    // 校验 redirect 为站内路径（以 / 开头且非外部协议），防开放重定向
+    const redirect = typeof raw === 'string' && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/mobile/profile'
     router.replace(redirect)
   } catch (err) {
     errorMsg.value = err.message || '登录失败，请稍后重试'

@@ -134,6 +134,9 @@ import TrailCard from '../components/TrailCard.vue'
 import MobileBottomNav from '../components/MobileBottomNav.vue'
 import { fetchGreenways as fetchGreenwaysAPI } from '../services/api'
 import { useLocation } from '../composables/useLocation'
+import { useFavorites } from '../../stores/favorites'
+import { useUserAuth } from '../../stores/userAuth'
+import { toast } from '../composables/useToast'
 
 const router = useRouter()
 const route = useRoute()
@@ -257,7 +260,22 @@ const clearFilter = () => {
 }
 const handleSearch = (q) => { searchQuery.value = q }
 const viewDetail = (trail) => router.push(`/mobile/detail/${trail.id}`)
-const handleFav = ({ trail, isFavorite }) => console.log(`${isFavorite ? '收藏' : '取消'}:`, trail.name)
+const { isLoggedIn } = useUserAuth()
+const { toggle: toggleFavorite } = useFavorites()
+const handleFav = async ({ trail, isFavorite }) => {
+  if (!isLoggedIn.value) {
+    toast('请先登录后再收藏', 'warning')
+    router.push({ path: '/mobile/login', query: { redirect: '/mobile/list' } })
+    return
+  }
+  try {
+    await toggleFavorite(trail.id || trail.gid)
+    toast(isFavorite ? '已收藏' : '已取消收藏', 'success')
+  } catch (e) {
+    console.error('收藏失败:', e)
+    toast('收藏失败，请稍后重试', 'error')
+  }
+}
 
 onMounted(async () => {
   fetchGreenways()

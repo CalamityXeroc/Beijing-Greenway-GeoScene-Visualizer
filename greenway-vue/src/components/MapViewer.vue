@@ -195,6 +195,7 @@ const startTileProxyRecovery = (style) => {
   }, TILE_PROXY_RECOVERY_INTERVAL_MS)
 }
 
+let isUnmounted = false
 onMounted(async () => {
   await nextTick()
 
@@ -245,8 +246,11 @@ onMounted(async () => {
     console.error('[MapViewer] 地图初始化失败:', err.message || err)
     // 重试一次（Vite 动态导入可能因导航取消而失败）
     try {
+      if (isUnmounted) return  // 组件已卸载，放弃重试
       console.log('[MapViewer] 正在重试初始化...')
       await new Promise(r => setTimeout(r, 500))
+      if (isUnmounted) return  // 等待期间被卸载
+      if (!mapContainer.value) return
       const MapManagerClass = (await import('@/core/MapManager')).default
       const LayerManagerClass = (await import('@/core/LayerManager')).default
 
@@ -674,6 +678,7 @@ defineExpose({
 })
 
 onBeforeUnmount(() => {
+  isUnmounted = true
   stopTileProxyRecovery()
   if (mapManager) {
     if (clickHandler) {

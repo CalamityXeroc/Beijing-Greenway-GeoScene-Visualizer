@@ -140,8 +140,15 @@ export const checkBackendHealth = async () => {
   try {
     const baseUrl = getApiBaseUrl()
     const url = `${baseUrl}/health`
-    const res = await fetch(url, { method: 'GET', timeout: 5000 })
-    return res.ok
+    // fetch 不支持 timeout 选项，用 AbortController 实现 5 秒超时
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 5000)
+    try {
+      const res = await fetch(url, { method: 'GET', signal: controller.signal })
+      return res.ok
+    } finally {
+      clearTimeout(timer)
+    }
   } catch {
     return false
   }
@@ -531,11 +538,9 @@ export const spatialAnalyze = async (polygon) => {
  * @returns {Promise<Object>} { temperature, weather, winddirection, windpower, humidity, city, reporttime }
  */
 export const fetchWeather = async (lng, lat) => {
-  const apiKey = import.meta.env.VITE_AMAP_KEY
-  if (!apiKey) throw new Error('天气服务未配置（缺少 VITE_AMAP_KEY）')
-
+  // 经后端代理调用高德（key 只存服务器，不暴露到客户端）
   // 1. 逆地理编码取 adcode（行政区划代码）
-  const geoUrl = `https://restapi.amap.com/v3/geocode/regeo?key=${apiKey}&location=${lng},${lat}`
+  const geoUrl = buildUrl(`/api/gaode/regeocode?location=${lng},${lat}`)
   const geoRes = await fetch(geoUrl)
   const geoData = await geoRes.json()
   if (geoData.status !== '1' || !geoData.regeocode) {
@@ -547,7 +552,7 @@ export const fetchWeather = async (lng, lat) => {
   if (!city) city = '北京市'
 
   // 2. 查实时天气
-  const weatherUrl = `https://restapi.amap.com/v3/weather/weatherInfo?key=${apiKey}&city=${adcode}&extensions=base`
+  const weatherUrl = buildUrl(`/api/gaode/weather?city=${adcode}&extensions=base`)
   const wRes = await fetch(weatherUrl)
   const wData = await wRes.json()
   if (wData.status !== '1' || !wData.lives || wData.lives.length === 0) {

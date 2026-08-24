@@ -561,6 +561,8 @@ const initMap = () => {
 }
 
 /* ---- 加载绿道数据 ---- */
+let greenwayLayerAdded = false
+let greenwayEventsBound = false
 const loadAllGreenways = async () => {
   try {
     const geojson = await fetchGreenways()
@@ -583,7 +585,11 @@ const loadAllGreenways = async () => {
       zIndex: 10
     })
 
-    map.addLayer(vectorLayer)
+    // 防重入：重试/重复调用时不再叠加图层与事件
+    if (!greenwayLayerAdded) {
+      map.addLayer(vectorLayer)
+      greenwayLayerAdded = true
+    }
 
     const extent = vectorSource.getExtent()
     if (extent?.length === 4 && !extent.includes(Infinity)) {
@@ -591,7 +597,9 @@ const loadAllGreenways = async () => {
     }
 
     // 点击：优先识别 POI 设施，其次绿道；空间分析结果图层单独处理
-    map.on('click', (event) => {
+    if (!greenwayEventsBound) {
+      greenwayEventsBound = true
+      map.on('click', (event) => {
       // 路径规划点选模式：优先处理
       if (routePanelRef.value?.isPicking()) {
         const coord = toLonLat(event.coordinate)
@@ -662,11 +670,12 @@ const loadAllGreenways = async () => {
         description: p.description || p.introduction || '',
         features: p.features || ''
       }
-    })
+      })
 
-    map.on('pointermove', (event) => {
-      map.getTargetElement().style.cursor = map.hasFeatureAtPixel(event.pixel) ? 'pointer' : ''
-    })
+      map.on('pointermove', (event) => {
+        map.getTargetElement().style.cursor = map.hasFeatureAtPixel(event.pixel) ? 'pointer' : ''
+      })
+    } // end greenwayEventsBound
   } catch (e) {
     console.error('加载绿道失败:', e)
     if (!mapLoadError.value) mapLoadError.value = '绿道数据加载失败'
@@ -674,7 +683,13 @@ const loadAllGreenways = async () => {
 }
 
 /* ---- POI 设施 ---- */
+let poiLayerAdded = false
+let poiLoadPromise = null
 const loadPoiFacilities = async () => {
+  // 防重入：已加载或加载中直接复用（双击/重试不叠加图层）
+  if (poiLayerAdded) return poiLoadPromise
+  if (poiLoadPromise) return poiLoadPromise
+  poiLoadPromise = (async () => {
   try {
     const geojson = await fetchPoiFacilities()
     const features = new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' })
@@ -706,11 +721,19 @@ const loadPoiFacilities = async () => {
       zIndex: 5,
       visible: false
     })
-    map.addLayer(poiLayer.value)
+    if (!poiLayerAdded) {
+      map.addLayer(poiLayer.value)
+      poiLayerAdded = true
+    }
   } catch (e) {
     console.error('加载 POI 设施失败:', e)
     if (!mapLoadError.value) mapLoadError.value = '设施数据加载失败'
+    throw e  // 保留错误给调用方（重试时 mapLoadError 已被清空）
+  } finally {
+    poiLoadPromise = null  // 允许下次失败后重新加载
   }
+  })()
+  return poiLoadPromise
 }
 
 /* POI 分类图标样式；搜索定位的选中 POI 放大 + 绿色光晕圈高亮 */

@@ -189,20 +189,23 @@ const stopDrag = () => {
   document.removeEventListener('mouseup', stopDrag)
 }
 
-// 天气图标映射
-const weatherIcons = {
-  '晴': 'fa-sun',
-  '多云': 'fa-cloud-sun',
-  '阴': 'fa-cloud',
-  '雨': 'fa-cloud-rain',
-  '雪': 'fa-snowflake',
-  '雷阵雨': 'fa-cloud-bolt',
-  '雾': 'fa-smog',
-  '霾': 'fa-smog'
-}
+// 天气图标映射（模糊匹配：小雨/中雨/阵雨等命中'雨'）
+const weatherIcons = [
+  { keys: ['晴'], icon: 'fa-sun' },
+  { keys: ['多云', '晴间多云'], icon: 'fa-cloud-sun' },
+  { keys: ['阴'], icon: 'fa-cloud' },
+  { keys: ['雨', '小雨', '中雨', '大雨', '暴雨', '阵雨', '雷阵雨', '毛毛雨', '雷雨'], icon: 'fa-cloud-rain' },
+  { keys: ['雪', '小雪', '中雪', '大雪', '暴雪', '雨夹雪', '阵雪'], icon: 'fa-snowflake' },
+  { keys: ['雾'], icon: 'fa-smog' },
+  { keys: ['霾', '沙尘', '扬沙'], icon: 'fa-smog' }
+]
 
 const getWeatherIcon = (weatherText) => {
-  return weatherIcons[weatherText] || 'fa-cloud'
+  if (!weatherText) return 'fa-cloud'
+  for (const group of weatherIcons) {
+    if (group.keys.some(k => weatherText.includes(k))) return group.icon
+  }
+  return 'fa-cloud'
 }
 
 const formatTime = (timeStr) => {
@@ -219,10 +222,8 @@ const fetchWeather = async () => {
   try {
     console.log('[WeatherCard] 开始获取天气数据，坐标:', props.longitude, props.latitude)
     
-    // 从环境变量读取 API Key（不硬编码在代码中）
-    const apiKey = import.meta.env.VITE_AMAP_KEY || props.apiKey
-    
-    const geoUrl = `https://restapi.amap.com/v3/geocode/regeo?key=${apiKey}&location=${props.longitude},${props.latitude}`
+    // 通过后端代理调用高德接口（key 只存服务器，避免暴露到浏览器）
+    const geoUrl = `/api/gaode/regeocode?location=${props.longitude},${props.latitude}`
     console.log('[WeatherCard] 逆地理编码...')
     
     const geoResponse = await fetch(geoUrl)
@@ -242,8 +243,8 @@ const fetchWeather = async () => {
       cityName = '北京市'
     }
 
-    // 获取天气
-    const weatherUrl = `https://restapi.amap.com/v3/weather/weatherInfo?key=${apiKey}&city=${adcode}&extensions=base`
+    // 获取天气（走后端代理）
+    const weatherUrl = `/api/gaode/weather?city=${adcode}&extensions=base`
     console.log('[WeatherCard] 天气查询...')
     
     const weatherResponse = await fetch(weatherUrl)
@@ -319,8 +320,6 @@ defineExpose({
 .weather-card.dragging {
   cursor: move;
   transition: none;
-  top: 0;
-  right: 0;
 }
 
 /* 折叠状态的小标签 */

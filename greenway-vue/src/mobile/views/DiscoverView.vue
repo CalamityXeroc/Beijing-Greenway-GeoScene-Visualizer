@@ -108,7 +108,7 @@ const totalStats = computed(() => {
   const feats = allFeatures.value
   const km = feats.reduce((s, f) => s + (parseFloat(f.properties?.length) || 0), 0)
   return {
-    count: feats.length || 17,
+    count: feats.length,   // 接口失败时显示 0（不再硬编码 17 误导）
     km: Math.round(km),
     poi: poiCount.value
   }

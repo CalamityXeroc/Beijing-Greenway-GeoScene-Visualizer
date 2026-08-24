@@ -207,12 +207,15 @@ function dominantName(profile) {
 async function doRecommend() {
   loading.value = true
   try {
-    result.value = await fetchRecommend({
+    const data = await fetchRecommend({
       mode: mode.value,
       interests: isBalanced.value ? ['balanced'] : interests.value,
       needs: needs.value,
       topN: 3
     })
+    // 归一化响应结构：兼容顶层 items 与 {code,data:{items}}，异常时不白屏
+    const items = Array.isArray(data?.items) ? data.items : data?.data?.items
+    result.value = Array.isArray(items) ? { ...data, items } : { items: [], error: '返回数据格式异常' }
   } catch (e) {
     alert('推荐失败：' + e.message)
   } finally {

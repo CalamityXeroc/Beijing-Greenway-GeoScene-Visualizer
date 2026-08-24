@@ -114,7 +114,12 @@ const inputEl = ref(null)
 const showSuggestions = ref(true)
 
 // 会话ID：组件实例存活期间保持一致，关闭重开沿用同一会话上下文
-const conversationId = (crypto.randomUUID?.() || String(Date.now()))
+const conversationId = (() => {
+  try {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+  } catch (e) { /* 降级 */ }
+  return 'chat-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
+})()
 
 let _mid = 1
 const makeId = () => _mid++
@@ -136,16 +141,23 @@ const suggestions = [
   '温榆河绿道有多长？'
 ]
 
-/* ─────────────────────────── 消息解析（**粗体** + 换行）─────────────────────────── */
+/* ─────────────────────────── 消息解析（**粗体** + 换行，防 XSS）─────────────────────────── */
+// 先转义 HTML 特殊字符，再解析 **粗体** 与换行（只生成安全标签）
+const escapeHtml = (s) => String(s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 const parseMsgContent = (text) => {
   if (!text) return [{ text: '', bold: false }]
-  const lines = text.replace(/\n/g, '<br>')
+  // 1. 转义所有 HTML（杜绝注入）
+  // 2. 换行替换为 <br> 安全标签
+  const lines = escapeHtml(text).replace(/\n/g, '<br>')
   const parts = []
   const regex = /\*\*(.+?)\*\*/g
   let lastIndex = 0
   let match
   while ((match = regex.exec(lines)) !== null) {
     if (match.index > lastIndex) parts.push({ text: lines.slice(lastIndex, match.index), bold: false })
+    // 粗体部分同样已转义，安全
     parts.push({ text: match[1], bold: true })
     lastIndex = regex.lastIndex
   }

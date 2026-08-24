@@ -51,7 +51,8 @@ let wasExpanded = false
 
 const toggle = () => { emit('update:modelValue', !props.modelValue) }
 const close = () => { emit('update:modelValue', false) }
-const dismiss = () => emit('dismiss')
+// 遮罩点击：同时更新 v-model 与发 dismiss 事件（兼容两种用法）
+const dismiss = () => { emit('update:modelValue', false); emit('dismiss') }
 
 watch(() => props.modelValue, (v) => {
   if (v) emit('open')

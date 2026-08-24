@@ -175,9 +175,11 @@ const useMyLocation = async (target) => {
     error.value = '无法获取当前位置，请检查定位权限'
     return
   }
-  const { lng, lat } = userLocation.value
-  const address = await reverseGeocode(lng, lat)
-  setPoint(target, { lng, lat, address: address || '我的位置' })
+  // 原生定位返回 WGS-84，后端按 GCJ-02 解析 → 需转换，与地图点选坐标系一致
+  const { wgs84ToGcj02 } = await import('@/utils/coordinateTransform')
+  const gcj = wgs84ToGcj02(userLocation.value.lng, userLocation.value.lat)
+  const address = await reverseGeocode(gcj.lng, gcj.lat)
+  setPoint(target, { lng: gcj.lng, lat: gcj.lat, address: address || '我的位置' })
   toast('已使用当前位置', 'success')
 }
 

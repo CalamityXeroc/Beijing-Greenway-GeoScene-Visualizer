@@ -249,13 +249,20 @@ const loadFeed = async () => {
 }
 
 const refreshFeed = () => loadFeed()
+let hasMoreFeed = true
 const loadMoreFeed = async () => {
+  if (loadingMore.value || !hasMoreFeed) return
   loadingMore.value = true
   try {
+    // 接口每次取最新 N 条，已加载的通过 id 去重，避免重复追加
     const data = await fetchRecentComments(feedList.value.length + 10)
-    const more = data.data?.list || []
-    if (more.length) {
-      feedList.value = [...feedList.value, ...more.map(mapFeedItem)]
+    const all = (data.data?.list || []).map(mapFeedItem)
+    const seen = new Set(feedList.value.map(f => f.id))
+    const fresh = all.filter(f => !seen.has(f.id))
+    if (fresh.length) {
+      feedList.value = [...feedList.value, ...fresh]
+    } else {
+      hasMoreFeed = false  // 没有新数据说明已到底
     }
   } catch (e) {
     console.error('加载更多动态失败:', e)
@@ -265,7 +272,10 @@ const loadMoreFeed = async () => {
 }
 
 const toggleFeedLike = (feed) => { feed.liked = !feed.liked; feed.likes += feed.liked ? 1 : -1 }
-const viewComment = (feed) => router.push(`/mobile/detail/${feed.greenway_id || 1}`)
+const viewComment = (feed) => {
+  const id = Number(feed.greenway_id)
+  if (Number.isFinite(id) && id > 0) router.push(`/mobile/detail/${id}`)
+}
 
 const getAvatarBg = (name) => {
   const colors = [

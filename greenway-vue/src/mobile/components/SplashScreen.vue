@@ -96,7 +96,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
   duration: {
@@ -111,6 +111,18 @@ const splashFinished = ref(false)
 const progress = ref(0)
 const loadingText = ref('加载中...')
 const showSkip = ref(false)
+
+// 定时器句柄（模块级，供跳过/卸载清理）
+let skipTimer = null
+let interval = null
+let finishTimer = null
+let finished = false
+const finishOnce = () => {
+  if (finished) return
+  finished = true
+  splashFinished.value = true
+  emit('finish')
+}
 
 const loadingMessages = [
   '初始化应用...',
@@ -155,30 +167,36 @@ onMounted(async () => {
   }
 
   // 1.2秒后显示跳过按钮
-  const skipTimer = setTimeout(() => { showSkip.value = true }, 1200)
+  skipTimer = setTimeout(() => { showSkip.value = true }, 1200)
 
-  const interval = setInterval(() => {
+  interval = setInterval(() => {
     progress.value += Math.random() * 30
     if (progress.value > 90) progress.value = 90
     const idx = Math.floor((progress.value / 100) * loadingMessages.length)
     loadingText.value = loadingMessages[Math.min(idx, loadingMessages.length - 1)]
   }, 300)
 
-  setTimeout(() => {
+  finishTimer = setTimeout(() => {
     clearInterval(interval)
     clearTimeout(skipTimer)
     progress.value = 100
     loadingText.value = '进入应用...'
-    setTimeout(() => {
-      splashFinished.value = true
-      emit('finish')
-    }, 600)
+    setTimeout(finishOnce, 600)
   }, props.duration)
 })
 
+onBeforeUnmount(() => {
+  // 卸载时释放所有定时器，避免跳过/卸载后继续更新
+  clearInterval(interval)
+  clearTimeout(skipTimer)
+  clearTimeout(finishTimer)
+})
+
 const handleSkip = () => {
-  splashFinished.value = true
-  emit('finish')
+  clearInterval(interval)
+  clearTimeout(skipTimer)
+  clearTimeout(finishTimer)
+  finishOnce()
 }
 </script>
 

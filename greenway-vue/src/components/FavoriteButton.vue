@@ -43,8 +43,13 @@ async function onClick() {
     return
   }
   busy.value = true
-  await toggle(props.greenwayId)
-  busy.value = false
+  try {
+    await toggle(props.greenwayId)
+  } catch (e) {
+    console.error('[收藏] 操作失败:', e)
+  } finally {
+    busy.value = false  // 网络错误也要恢复按钮状态，避免永久禁用
+  }
 }
 </script>
 

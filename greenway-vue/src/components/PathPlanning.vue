@@ -305,6 +305,7 @@ function onDestInput(e) {
 }
 
 function onWaypointInput(e, wp) {
+  searchTarget.value = 'waypoint-' + wp.id
   debouncedSearch(e.target.value)
 }
 
@@ -450,7 +451,9 @@ function drawRoute(route, origin, destination, waypoints) {
       symbol: { type: 'simple-marker', color: '#F44336', size: 12, outline: { color: '#fff', width: 2 } }
     }))
   }
-  waypoints?.forEach((wp, i) => {
+  // 过滤无效途经点（未填写的占位 {lng:0,lat:0} 不绘制，避免出现非洲海岸标记）
+  const isValid = (p) => p && p.lng > 70 && p.lng < 140 && p.lat > 15 && p.lat < 60 && !(p.lng === 0 && p.lat === 0)
+  waypoints?.filter(isValid).forEach((wp, i) => {
     routeLayer.add(new Graphic({
       geometry: new Point({ longitude: wp.lng, latitude: wp.lat, spatialReference: { wkid: 4326 } }),
       symbol: {
@@ -461,7 +464,6 @@ function drawRoute(route, origin, destination, waypoints) {
     }))
   })
 
-  const isValid = (p) => p && p.lng > 70 && p.lng < 140 && p.lat > 15 && p.lat < 60 && !(p.lng === 0 && p.lat === 0)
   const allPts = [origin, destination, ...(waypoints || [])].filter(isValid)
   if (allPts.length > 0) {
     const lngs = allPts.map(p => p.lng)

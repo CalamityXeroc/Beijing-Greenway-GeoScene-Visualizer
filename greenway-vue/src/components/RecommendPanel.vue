@@ -198,9 +198,13 @@ async function doRecommend() {
         topN: 3
       })
     })
+    if (!res.ok) throw new Error(`请求失败（${res.status}）`)
     const data = await res.json()
     if (data.error) throw new Error(data.error)
-    result.value = data
+    // 归一化响应结构：兼容顶层 items 与 {code,data:{items}} 两种格式
+    const items = Array.isArray(data.items) ? data.items : data?.data?.items
+    if (!Array.isArray(items)) throw new Error('返回数据格式异常')
+    result.value = { ...data, items }
   } catch (e) {
     alert('推荐失败：' + e.message)
   } finally {

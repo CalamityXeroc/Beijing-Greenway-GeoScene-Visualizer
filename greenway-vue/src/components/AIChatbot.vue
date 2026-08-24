@@ -146,8 +146,14 @@ const messagesEl   = ref(null)
 const inputEl      = ref(null)
 const showSuggestions = ref(true)
 
-// 生成唯一会话ID（刷新页面重置）
-const conversationId = crypto.randomUUID()
+// 生成唯一会话ID（刷新页面重置）；非安全上下文降级避免崩溃
+const genId = () => {
+  try {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+  } catch (e) { /* 降级 */ }
+  return 'chat-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
+}
+const conversationId = genId()
 
 /* ─────────────────────────── 消息 ─────────────────────────── */
 let _mid = 1
@@ -178,11 +184,14 @@ const selectSuggestion = (text) => {
 }
 
 /* ─────────────────────────── 消息内容解析 ─────────────────────────── */
-// 把 **粗体** 和 \n 换行渲染成 HTML span
+// 把 **粗体** 和 \n 换行渲染成 HTML span；先转义 HTML 防 XSS
+const escapeHtml = (s) => String(s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/\"/g, '&quot;').replace(/'/g, '&#39;')
 const parseMsgContent = (text) => {
   if (!text) return []
-  // 将 \n 替换为 <br> 再拆分粗体
-  const lines = text.replace(/\n/g, '<br>')
+  // 先转义所有 HTML 特殊字符，再替换 \n 为安全 <br> 标签
+  const lines = escapeHtml(text).replace(/\n/g, '<br>')
   const parts = []
   const regex = /\*\*(.+?)\*\*/g
   let lastIndex = 0
