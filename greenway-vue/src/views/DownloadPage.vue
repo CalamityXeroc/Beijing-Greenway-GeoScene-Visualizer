@@ -92,7 +92,7 @@ import QRCode from 'qrcode'
 // 下载配置（生产环境由服务器托管 APK）
 const VERSION = '1.7'
 const APK_SIZE = 173
-const DOWNLOAD_PATH = '/download/绿脉伴侣-v1.7.apk'
+const DOWNLOAD_PATH = '/apk/greenway-v1.7.apk'
 
 const qrCanvas = ref(null)
 
