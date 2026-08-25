@@ -287,6 +287,7 @@
                     <a href="/map" class="fl-link">绿道地图</a>
                     <a href="/login" class="fl-link">用户登录</a>
                     <a href="/register" class="fl-link">注册账号</a>
+                    <a href="/download" class="fl-link">下载安卓 App</a>
                   </div>
                   <div class="fl-group">
                     <div class="fl-title">精选绿道</div>

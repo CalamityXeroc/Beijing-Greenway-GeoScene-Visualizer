@@ -17,6 +17,9 @@
         <div class="footer-inner">
           <p>© 2025-2026 绿脉伴侣</p>
           <p>
+            <router-link to="/download" class="footer-download">下载安卓 App</router-link>
+          </p>
+          <p>
             <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">京ICP备2025153719号-2</a>
           </p>
           <p class="beian-police">
@@ -174,6 +177,18 @@ onMounted(() => {
 .site-footer a:hover {
   color: var(--theme-green, #4CAF50);
   text-decoration: underline;
+}
+.footer-download {
+  display: inline-block;
+  padding: 3px 14px;
+  border: 1px solid currentColor;
+  border-radius: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.footer-download:hover {
+  color: var(--theme-green, #4CAF50) !important;
+  border-color: var(--theme-green, #4CAF50);
 }
 .beian-police {
   display: inline-flex;

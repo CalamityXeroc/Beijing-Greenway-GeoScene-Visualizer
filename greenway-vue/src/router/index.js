@@ -342,6 +342,12 @@ const routes = [
     name: 'FeedbackPage',
     component: () => import('@/views/FeedbackPage.vue'),
     meta: { title: '问题反馈' }
+  },
+  {
+    path: '/download',
+    name: 'DownloadPage',
+    component: () => import('@/views/DownloadPage.vue'),
+    meta: { title: '绿脉伴侣 App 下载' }
   }
 ]
 

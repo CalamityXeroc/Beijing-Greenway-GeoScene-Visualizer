@@ -124,6 +124,16 @@
           </span>
           <svg class="chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>
+        <button class="menu-row" @click="goDownloadApp">
+          <span class="menu-icon" style="background: linear-gradient(135deg, #2563eb, #1d4ed8);">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </span>
+          <span class="menu-content">
+            <span class="menu-label">下载安卓 App</span>
+            <span class="menu-desc">安装包约 173 MB</span>
+          </span>
+          <svg class="chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
       </div>
 
       <!-- 其他 -->
@@ -170,6 +180,14 @@
           </div>
           <div class="about-body">
             <p>绿脉伴侣是一款北京绿道智慧服务平台，提供绿道信息查询、深度学习功能画像、智能推荐、路径规划、可达圈分析、AI 助手问答、社区互动等功能。</p>
+            <a
+              class="about-download-btn"
+              :href="appDownloadUrl"
+              @click.prevent="goDownloadApp"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              下载安卓版 App
+            </a>
             <p class="copyright">© 2025-2026 北京联合大学绿脉伴侣团队</p>
           </div>
           <button class="modal-close" @click="showAboutModal = false">关闭</button>
@@ -259,6 +277,21 @@ const goToPage = (p) => {
     showAboutModal.value = true
     return
   }
+}
+
+// App 下载链接：Web 环境指向下载页（含二维码与安装说明）
+const appDownloadUrl = computed(() => {
+  return `${window.location.origin}/download`
+})
+
+const goDownloadApp = () => {
+  showAboutModal.value = false
+  // 在原生 App 内无法直接安装 APK，提示用浏览器打开
+  if (window.Capacitor?.isNativePlatform?.()) {
+    alert('请在手机浏览器中打开 wandergreen.cn/download 下载安装包')
+    return
+  }
+  window.location.href = appDownloadUrl.value
 }
 </script>
 
@@ -658,6 +691,26 @@ const goToPage = (p) => {
   color: var(--color-text-secondary);
 }
 .about-body .copyright { font-size: var(--text-xs); color: var(--color-text-tertiary); }
+
+.about-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 26px;
+  margin-bottom: 14px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff !important;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+  transition: all 0.25s ease;
+}
+.about-download-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.3);
+}
 
 .modal-close {
   width: 100%;
