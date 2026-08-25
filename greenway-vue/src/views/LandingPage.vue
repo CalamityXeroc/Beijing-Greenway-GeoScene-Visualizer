@@ -1300,6 +1300,63 @@ a.fl-link:hover { color: #A5D6A7; }
   .footer-inner { flex-direction: column; gap: 24px; }
   .lp-nav { display: none; }
 }
+
+/* 低视口高度（浏览器缩放大于 100% 或小屏笔记本）：
+   压缩精选绿道页内容，避免底部按钮被裁切 */
+@media (max-height: 720px) and (min-width: 769px) {
+  .fp-greenways .page-inner { padding-top: 46px; padding-bottom: 14px; }
+  .fp-greenways .section-heading { margin-bottom: 18px; }
+  .fp-greenways .section-tag { margin-bottom: 8px; padding: 3px 12px; }
+  .fp-greenways .section-title { font-size: 1.55rem; }
+  .fp-greenways .section-desc { margin-top: 4px; }
+  .gw-grid { gap: 8px; margin-bottom: 12px; }
+  .gw-card__top { padding: 7px 9px 4px; }
+  .gw-card__body { padding: 1px 9px 5px; }
+  .gw-card__foot { padding: 5px 9px 7px; }
+  .gw-name { font-size: 0.85rem; }
+  .gw-desc { font-size: 0.75rem; }
+  .gw-cta { margin-top: 0; }
+  /* 其余页面也适度压缩顶部留白 */
+  .fp-stats .page-inner,
+  .fp-about .page-inner,
+  .fp-features .page-inner { padding-top: 50px; }
+  /* 平台核心功能页：压缩卡片高度 */
+  .fp-features .section-heading { margin-bottom: 18px; }
+  .fp-features .section-tag { margin-bottom: 8px; padding: 3px 12px; }
+  .fp-features .section-title { font-size: 1.55rem; }
+  .fp-features .section-desc { margin-top: 4px; }
+  .feat-card { padding: 16px 16px; }
+  .feat-icon { width: 38px; height: 38px; border-radius: 10px; margin-bottom: 8px; }
+  .feat-icon svg { width: 20px; height: 20px; }
+  .feat-title { font-size: 0.95rem; margin-bottom: 5px; }
+  .feat-desc { font-size: 0.82rem; line-height: 1.6; }
+  .feat-grid { gap: 12px; }
+}
+
+@media (max-height: 620px) and (min-width: 769px) {
+  .fp-greenways .page-inner { padding-top: 34px; }
+  .fp-greenways .section-heading { margin-bottom: 12px; }
+  .fp-greenways .section-tag { margin-bottom: 5px; }
+  .gw-card__body { padding: 0 9px 4px; }
+  .gw-name { margin-bottom: 2px; }
+  .feat-card { padding: 12px 14px; }
+  .feat-icon { width: 32px; height: 32px; margin-bottom: 6px; }
+  .feat-title { font-size: 0.88rem; }
+  .feat-desc { font-size: 0.78rem; line-height: 1.5; }
+  /* 平台简介页：压缩文本与卡片 */
+  .fp-about .page-inner { padding-top: 34px; }
+  .fp-about .section-heading { margin-bottom: 12px; }
+  .fp-about .section-tag { margin-bottom: 5px; }
+  .about-text { font-size: 0.95rem; line-height: 1.7; margin-bottom: 12px; }
+  .about-grid { gap: 28px; }
+  .about-mini-card { padding: 10px 12px; }
+  .atag { padding: 4px 12px; font-size: 0.8rem; }
+  /* 精选绿道页：进一步收紧 */
+  .fp-greenways .section-desc { display: none; }
+  .gw-card__top { padding: 5px 8px 3px; }
+  .gw-card__foot { padding: 4px 8px 5px; }
+  .gw-desc { -webkit-line-clamp: 1; }
+}
 @media (max-width: 600px) {
   .hero-inner, .page-inner, .final-inner { padding-left: 20px; padding-right: 20px; }
   .lp-header { padding: 0 12px; height: 60px; }
