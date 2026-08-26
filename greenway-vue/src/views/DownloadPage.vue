@@ -142,6 +142,53 @@ const onDownload = () => {
   font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 
+/* 黑夜模式适配 */
+[data-theme="night"] .download-page {
+  background: linear-gradient(170deg, #162142 0%, #0f172a 45%, #101a2e 100%);
+}
+
+[data-theme="night"] .dl-nav {
+  background: rgba(15, 23, 42, 0.88);
+  border-bottom-color: #1e293b;
+}
+
+[data-theme="night"] .dl-logo-text { color: #e8f5e9; }
+[data-theme="night"] .dl-nav-link { color: #94a3b8; }
+[data-theme="night"] .dl-nav-link:hover { color: #69f0ae; }
+
+[data-theme="night"] .dl-title {
+  background: linear-gradient(135deg, #7dd3fc, #5eead4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+[data-theme="night"] .dl-subtitle { color: #94a3b8; }
+[data-theme="night"] .dl-desc { color: #64748b; }
+[data-theme="night"] .dl-meta { color: #94a3b8; }
+[data-theme="night"] .dl-sep { color: #334155; }
+
+[data-theme="night"] .dl-qr-section {
+  background: #111c33;
+  border-color: #1e293b;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.4);
+}
+[data-theme="night"] .dl-qr-canvas { border-color: #1e293b; }
+[data-theme="night"] .dl-qr-tip { color: #94a3b8; }
+[data-theme="night"] .dl-install-tips h3 { color: #e2e8f0; }
+[data-theme="night"] .dl-steps { color: #94a3b8; }
+
+[data-theme="night"] .dl-warn {
+  color: #fbbf24;
+  background: #1c1917;
+  border-color: #78350f;
+}
+
+[data-theme="night"] .dl-footer {
+  border-top-color: #1e293b;
+  color: #64748b;
+}
+[data-theme="night"] .dl-footer a { color: #64748b; }
+[data-theme="night"] .dl-footer a:hover { color: #69f0ae; }
+
 /* 导航 */
 .dl-nav {
   display: flex;
