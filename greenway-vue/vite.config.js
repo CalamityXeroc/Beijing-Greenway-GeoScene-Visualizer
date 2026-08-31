@@ -18,6 +18,12 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
         rewrite: (path) => path
+      },
+      // 百度全景静态图代理：绕过 CORS（百度 API 不支持跨域）
+      '/baidu-pano': {
+        target: 'https://api.map.baidu.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/baidu-pano/, '')
       }
     }
   },
