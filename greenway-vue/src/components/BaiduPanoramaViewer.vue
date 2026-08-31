@@ -15,8 +15,8 @@
           </span>
         </div>
         <div class="panorama-controls">
-          <button 
-            class="control-btn close-btn" 
+          <button
+            class="control-btn close-btn"
             @click="closeViewer"
             title="关闭"
           >
@@ -25,22 +25,49 @@
         </div>
       </div>
 
-      <!-- 百度全景容器 -->
-      <div ref="baiduPanorama" class="panorama-content"></div>
+      <!-- 全景图片容器（百度全景静态图 API，支持视角旋转） -->
+      <div class="panorama-content" ref="panoramaContent">
+        <img
+          v-if="!loadError && panoramaSrc"
+          :src="panoramaSrc"
+          class="panorama-img"
+          alt="百度街景全景"
+          draggable="false"
+          @error="handleImageError"
+          @load="handleImageLoad"
+          @mousedown="onMouseDown"
+          @mousemove="onMouseMove"
+          @mouseup="onMouseUp"
+          @mouseleave="onMouseUp"
+          @touchstart="onTouchStart"
+          @touchmove="onTouchMove"
+          @touchend="onTouchEnd"
+        />
+        <div v-if="loading" class="panorama-loading">
+          <div class="loading-spinner"></div>
+          <span>加载街景中...</span>
+        </div>
 
-      <!-- 暂无街景提示层 -->
-      <div class="pano-error-overlay" v-if="loadError">
-        <div class="pano-error-box">
-          <div class="pano-error-icon">
-            <i class="fas fa-street-view"></i>
-          </div>
-          <div class="pano-error-title">该位置暂无街景数据</div>
-          <div class="pano-error-desc">
-            百度街景由移动采集车拍摄，主要覆盖城市道路；
-            绿道内部通常不允许车辆通行，因此部分观景点可能暂无街景影像。
-          </div>
-          <div class="pano-error-actions">
-            <button class="pano-btn" @click="closeViewer">关闭</button>
+        <!-- 视角控制提示 -->
+        <div v-if="!loadError && panoramaSrc" class="panorama-hint">
+          <i class="fas fa-mouse-pointer"></i>
+          拖拽旋转视角 · 滚轮缩放 · 方向键切换
+        </div>
+
+        <!-- 暂无街景提示层 -->
+        <div class="pano-error-overlay" v-if="loadError">
+          <div class="pano-error-box">
+            <div class="pano-error-icon">
+              <i class="fas fa-street-view"></i>
+            </div>
+            <div class="pano-error-title">该位置暂无街景数据</div>
+            <div class="pano-error-desc">
+              百度街景由移动采集车拍摄，主要覆盖城市道路；
+              绿道内部通常不允许车辆通行，因此部分观景点可能暂无街景影像。
+            </div>
+            <div class="pano-error-actions">
+              <button class="pano-btn" @click="closeViewer">关闭</button>
+            </div>
           </div>
         </div>
       </div>
@@ -54,8 +81,8 @@
           </span>
         </div>
         <div class="points-navigation">
-          <button 
-            v-for="(point, index) in panoramaPoints" 
+          <button
+            v-for="(point, index) in panoramaPoints"
             :key="index"
             class="point-btn"
             :class="{ active: currentPointIndex === index }"
@@ -89,129 +116,158 @@ const props = defineProps({
   },
   baiduMapKey: {
     type: String,
-    default: 'YOUR_BAIDU_MAP_KEY' // 需要申请百度地图API密钥
+    default: 'YOUR_BAIDU_MAP_KEY' // 百度地图开放平台申请的密钥
   }
 })
 
 const emit = defineEmits(['close', 'point-change'])
 
-const baiduPanorama = ref(null)
+const panoramaContent = ref(null)
 const currentPointIndex = ref(props.initialPoint)
 const loadError = ref(false)
-let panoramaService = null
-let panoramaInstance = null
-let baiduMapLoaded = false
+const loading = ref(false)
+const panoramaSrc = ref('')
+
+// 视角状态
+const heading = ref(0)   // 水平视角 0-360
+const pitch = ref(0)     // 垂直视角 -45~45
+const fov = ref(100)     // 视野宽度
+
+// 拖拽状态
+let dragging = false
+let lastX = 0
+let lastY = 0
+let lastTouchDist = 0
 
 const currentPoint = computed(() => {
   return props.panoramaPoints[currentPointIndex.value] || { name: '全景浏览', lng: 116.4, lat: 40 }
 })
 
-// 动态加载百度地图API
-const loadBaiduMapAPI = () => {
-  return new Promise((resolve, reject) => {
-    if (window.BMapGL) {
-      resolve()
-      return
-    }
-
-    const script = document.createElement('script')
-    script.src = `https://api.map.baidu.com/api?v=1.0&type=webgl&ak=${props.baiduMapKey}&callback=initBaiduMap`
-    script.onerror = reject
-    
-    window.initBaiduMap = () => {
-      baiduMapLoaded = true
-      resolve()
-    }
-    
-    document.head.appendChild(script)
+// 构造全景静态图 URL（百度全景静态图 API）
+const buildPanoramaUrl = () => {
+  const point = currentPoint.value
+  const params = new URLSearchParams({
+    ak: props.baiduMapKey,
+    width: '1024',
+    height: '512',
+    location: `${point.lng},${point.lat}`,
+    fov: String(fov.value),
+    heading: String(Math.round(heading.value)),
+    pitch: String(Math.round(pitch.value)),
+    'auto': '0'
   })
+  // 加时间戳避免浏览器缓存相同参数图片
+  return `https://api.map.baidu.com/panorama/v2?${params.toString()}&_t=${Date.now()}`
 }
 
-// 初始化百度全景
-const initBaiduPanorama = async () => {
-  if (!baiduPanorama.value) return
-
-  try {
-    loadError.value = false
-    await loadBaiduMapAPI()
-
-    // 创建全景服务
-    panoramaService = new window.BMapGL.Panorama(baiduPanorama.value)
-    
-    // 监听全景加载失败（无街景数据时触发）
-    panoramaService.addEventListener('position_changed', () => {
-      loadError.value = false
-    })
-
-    // 设置全景位置
-    const point = new window.BMapGL.Point(currentPoint.value.lng, currentPoint.value.lat)
-    
-    // 如果有指定的全景ID，使用ID；否则搜索最近的全景点
-    if (currentPoint.value.panoId) {
-      panoramaService.setId(currentPoint.value.panoId)
-    } else {
-      panoramaService.setPosition(point)
-    }
-
-    // 设置全景参数
-    panoramaService.setPov({
-      heading: 0,
-      pitch: 0
-    })
-
-    // 延迟检测是否成功加载（无街景时 setPosition 不会报错，但容器为隐藏状态）
-    setTimeout(() => {
-      checkPanoramaLoaded()
-    }, 4500)
-
-    console.log('[百度全景] 初始化成功:', currentPoint.value.name)
-    
-  } catch (error) {
-    console.error('[百度全景] 初始化失败:', error)
+// 加载全景
+const loadPanorama = () => {
+  const point = currentPoint.value
+  if (!point || !point.lng || !point.lat) {
     loadError.value = true
+    return
   }
+  loading.value = true
+  loadError.value = false
+  panoramaSrc.value = buildPanoramaUrl()
+}
+
+// 图片加载成功（全景有效）
+const handleImageLoad = () => {
+  loading.value = false
+  loadError.value = false
+}
+
+// 图片加载失败（无街景 / 参数非法）
+const handleImageError = () => {
+  loading.value = false
+  loadError.value = true
+  panoramaSrc.value = ''
+}
+
+// 旋转视角
+const rotateView = (dHeading, dPitch) => {
+  heading.value = (heading.value + dHeading + 360) % 360
+  pitch.value = Math.max(-45, Math.min(45, pitch.value + dPitch))
+  loadPanorama()
+}
+
+// 缩放视野
+const zoomView = (delta) => {
+  fov.value = Math.max(40, Math.min(140, fov.value + delta))
+  loadPanorama()
+}
+
+// --- 鼠标拖拽 ---
+const onMouseDown = (e) => {
+  dragging = true
+  lastX = e.clientX
+  lastY = e.clientY
+}
+
+const onMouseMove = (e) => {
+  if (!dragging) return
+  const dx = e.clientX - lastX
+  const dy = e.clientY - lastY
+  lastX = e.clientX
+  lastY = e.clientY
+  // 水平拖动旋转 heading，垂直拖动调整 pitch
+  rotateView(dx * 0.8, dy * 0.6)
+}
+
+const onMouseUp = () => {
+  dragging = false
+}
+
+// --- 触摸拖拽 ---
+const onTouchStart = (e) => {
+  if (e.touches.length === 1) {
+    dragging = true
+    lastX = e.touches[0].clientX
+    lastY = e.touches[0].clientY
+  } else if (e.touches.length === 2) {
+    // 双指缩放
+    const dx = e.touches[0].clientX - e.touches[1].clientX
+    const dy = e.touches[0].clientY - e.touches[1].clientY
+    lastTouchDist = Math.sqrt(dx * dx + dy * dy)
+  }
+}
+
+const onTouchMove = (e) => {
+  e.preventDefault()
+  if (e.touches.length === 1 && dragging) {
+    const tx = e.touches[0].clientX
+    const ty = e.touches[0].clientY
+    const dx = tx - lastX
+    const dy = ty - lastY
+    lastX = tx
+    lastY = ty
+    rotateView(dx * 0.8, dy * 0.6)
+  } else if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX
+    const dy = e.touches[0].clientY - e.touches[1].clientY
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (lastTouchDist > 0) {
+      const delta = dist - lastTouchDist
+      zoomView(delta * -0.2)
+    }
+    lastTouchDist = dist
+  }
+}
+
+const onTouchEnd = () => {
+  dragging = false
+  lastTouchDist = 0
 }
 
 // 切换观景点
-const switchPoint = async (index) => {
+const switchPoint = (index) => {
   if (index === currentPointIndex.value) return
-  
   currentPointIndex.value = index
-  loadError.value = false
-  const point = props.panoramaPoints[index]
-  
-  // 若全景服务未初始化，先初始化
-  if (!panoramaService) {
-    await initBaiduPanorama()
-    return
-  }
-  
-  const baiduPoint = new window.BMapGL.Point(point.lng, point.lat)
-  
-  if (point.panoId) {
-    panoramaService.setId(point.panoId)
-  } else {
-    panoramaService.setPosition(baiduPoint)
-  }
-  
-  // 切换后重新检测
-  setTimeout(() => {
-    checkPanoramaLoaded()
-  }, 4500)
-  
+  heading.value = 0
+  pitch.value = 0
+  loadPanorama()
   emit('point-change', index)
-}
-
-// 检测全景是否实际加载（百度无街景时不会创建可交互渲染层）
-const checkPanoramaLoaded = () => {
-  const container = baiduPanorama.value
-  if (!container) return
-  // 全景成功加载的标志：容器内存在非隐藏的 canvas（全景渲染层）
-  const hasCanvas = container.querySelector('canvas') &&
-    window.getComputedStyle(container.querySelector('canvas')).display !== 'none'
-  if (!hasCanvas) {
-    loadError.value = true
-  }
 }
 
 // 关闭查看器
@@ -219,59 +275,55 @@ const closeViewer = () => {
   emit('close')
 }
 
-// 销毁全景
-const destroyPanorama = () => {
-  if (panoramaService) {
-    // 百度地图全景没有destroy方法，清空容器即可
-    if (baiduPanorama.value) {
-      baiduPanorama.value.innerHTML = ''
-    }
-    panoramaService = null
-  }
-}
-
-// 监听可见性变化
-watch(() => props.visible, (newVal) => {
-  if (newVal) {
-    setTimeout(() => {
-      initBaiduPanorama()
-    }, 100)
-  } else {
-    destroyPanorama()
-  }
-})
-
-onMounted(() => {
-  if (props.visible) {
-    initBaiduPanorama()
-  }
-})
-
-onBeforeUnmount(() => {
-  destroyPanorama()
-})
-
 // 键盘控制
 const handleKeydown = (e) => {
   if (!props.visible) return
-  
+
   if (e.key === 'Escape') {
     closeViewer()
   } else if (e.key === 'ArrowLeft') {
-    const prevIndex = currentPointIndex.value > 0 ? currentPointIndex.value - 1 : props.panoramaPoints.length - 1
-    switchPoint(prevIndex)
+    rotateView(-30, 0)
   } else if (e.key === 'ArrowRight') {
-    const nextIndex = currentPointIndex.value < props.panoramaPoints.length - 1 ? currentPointIndex.value + 1 : 0
-    switchPoint(nextIndex)
+    rotateView(30, 0)
+  } else if (e.key === 'ArrowUp') {
+    rotateView(0, 10)
+  } else if (e.key === 'ArrowDown') {
+    rotateView(0, -10)
   }
 }
 
+// 滚轮缩放
+const handleWheel = (e) => {
+  if (!props.visible) return
+  e.preventDefault()
+  zoomView(e.deltaY > 0 ? 10 : -10)
+}
+
+watch(() => props.visible, (newVal) => {
+  if (newVal) {
+    heading.value = 0
+    pitch.value = 0
+    fov.value = 100
+    setTimeout(() => {
+      loadPanorama()
+    }, 100)
+  } else {
+    panoramaSrc.value = ''
+    loadError.value = false
+  }
+})
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('wheel', handleWheel, { passive: false })
+  if (props.visible) {
+    loadPanorama()
+  }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('wheel', handleWheel)
 })
 </script>
 
@@ -392,6 +444,70 @@ onBeforeUnmount(() => {
   width: 100%;
   position: relative;
   background: #000;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panorama-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-drag: none;
+  touch-action: none;
+}
+
+.panorama-img:active {
+  cursor: grabbing;
+}
+
+/* 加载指示 */
+.panorama-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #94a3b8;
+  font-size: 14px;
+  z-index: 4;
+}
+
+.loading-spinner {
+  width: 42px;
+  height: 42px;
+  border: 3px solid rgba(76, 175, 80, 0.2);
+  border-top-color: #4CAF50;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 操作提示 */
+.panorama-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.65);
+  color: #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  z-index: 4;
+  pointer-events: none;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  transition: opacity 0.5s ease;
+  animation: fadeIn 0.5s ease;
 }
 
 /* 暂无街景提示层 */
@@ -399,7 +515,9 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   background: linear-gradient(160deg, #1a2a4a, #0f1e3d);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 5;
 }
 .pano-error-box {
@@ -428,11 +546,6 @@ onBeforeUnmount(() => {
 }
 .pano-btn:hover {
   transform: translateY(-2px); box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
-}
-
-/* 修复百度地图黑色方块问题 - 只隐藏特定的控件 */
-.panorama-content :deep(.anchorBL) {
-  opacity: 0.3 !important;
 }
 
 .panorama-footer {
@@ -550,6 +663,10 @@ onBeforeUnmount(() => {
   }
 
   .panorama-title > span:first-of-type {
+    display: none;
+  }
+
+  .panorama-hint {
     display: none;
   }
 
