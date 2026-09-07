@@ -28,6 +28,33 @@
       <!-- 全景容器（Photo Sphere Viewer 渲染完整 360° 全景，支持拖拽旋转/缩放/全屏） -->
       <div ref="viewerContainer" class="panorama-content"></div>
 
+      <!-- 街道移动箭头（前进/后退，模仿街景导航） -->
+      <div v-if="!loadError && !loading" class="street-nav">
+        <button
+          class="street-arrow forward"
+          :class="{ moving: moving }"
+          :disabled="moving"
+          @click="moveAlongStreet(true)"
+          title="向前移动"
+        >
+          <i class="fas fa-chevron-up"></i>
+        </button>
+        <button
+          class="street-arrow backward"
+          :class="{ moving: moving }"
+          :disabled="moving"
+          @click="moveAlongStreet(false)"
+          title="向后移动"
+        >
+          <i class="fas fa-chevron-down"></i>
+        </button>
+      </div>
+
+      <!-- 轻提示（移动失败/配额等，不遮挡全景） -->
+      <transition name="toast-fade">
+        <div v-if="toast" class="street-toast">{{ toast }}</div>
+      </transition>
+
       <!-- 加载中提示 -->
       <div v-if="loading && !loadError" class="panorama-loading">
         <div class="loading-spinner"></div>
@@ -129,20 +156,32 @@ const currentPointIndex = ref(props.initialPoint)
 const loadError = ref(false)
 const errorType = ref('nopano') // 'nopano' 无街景 | 'quota' 配额耗尽
 const loading = ref(false)
+const moving = ref(false) // 街道移动中
+const toast = ref('') // 轻提示（移动失败等）
+let toastTimer = null
 let viewer = null
+// 当前实际位置（沿街移动后会偏离原点位）
+let currentPos = { lng: 0, lat: 0 }
 
 const currentPoint = computed(() => {
   return props.panoramaPoints[currentPointIndex.value] || { name: '全景浏览', lng: 116.4, lat: 40 }
 })
 
+// 轻提示（不全屏遮挡）
+const showToast = (msg) => {
+  toast.value = msg
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toast.value = '' }, 2200)
+}
+
 // 构造完整 360° 全景图 URL（fov=360 输出 2:1 等距柱状投影，一次请求本地无限旋转）
 // 走 /baidu-pano 同源代理（百度 API 不支持 CORS）
-const buildPanoUrl = (point) => {
+const buildPanoUrl = (lng, lat) => {
   const params = new URLSearchParams({
     ak: staticKey,
     width: '1024',
     height: '512',
-    location: `${point.lng},${point.lat}`,
+    location: `${lng},${lat}`,
     fov: '360',
     heading: '0',
     pitch: '0'
@@ -151,13 +190,13 @@ const buildPanoUrl = (point) => {
 }
 
 // 加载全景图（走代理 fetch，可读取错误 JSON 区分配额/无街景）
-const loadPanoImage = (point) => {
+const loadPanoImage = (lng, lat) => {
   return new Promise((resolve, reject) => {
-    if (!point || !point.lng || !point.lat) {
+    if (!lng || !lat) {
       reject(new Error('nopano'))
       return
     }
-    fetch(buildPanoUrl(point))
+    fetch(buildPanoUrl(lng, lat))
       .then(r => r.arrayBuffer())
       .then(buf => {
         const head = new Uint8Array(buf.slice(0, 2))
@@ -178,6 +217,42 @@ const loadPanoImage = (point) => {
   })
 }
 
+// 沿当前朝向计算移动后的坐标（heading: 0=北 顺时针，distance 米）
+const moveCoord = (lng, lat, headingDeg, distance) => {
+  const rad = headingDeg * Math.PI / 180
+  const dLat = distance * Math.cos(rad) / 111000
+  const dLng = distance * Math.sin(rad) / (111000 * Math.cos(lat * Math.PI / 180))
+  return { lng: lng + dLng, lat: lat + dLat }
+}
+
+// 获取当前朝向对应的百度 heading（PSV yaw 逆时针为正，百度 heading 顺时针为正）
+const currentHeading = () => {
+  if (!viewer) return 0
+  const yawDeg = viewer.getPosition().yaw * 180 / Math.PI
+  return ((-yawDeg) % 360 + 360) % 360
+}
+
+// 沿街景前进/后退（点击箭头：坐标向朝向方向偏移后重新取景）
+const moveAlongStreet = async (forward) => {
+  if (!viewer || moving.value) return
+  moving.value = true
+  try {
+    const heading = currentHeading()
+    const target = moveCoord(currentPos.lng, currentPos.lat, forward ? heading : (heading + 180) % 360, 25)
+    const url = await loadPanoImage(target.lng, target.lat)
+    currentPos = target
+    await viewer.setPanorama(url, { transition: 400 })
+  } catch (error) {
+    if (error.message === 'quota') {
+      showToast('今日百度街景配额已用完，请明天再试')
+    } else {
+      showToast('该方向暂无街景数据，请换个方向试试')
+    }
+  } finally {
+    moving.value = false
+  }
+}
+
 // 初始化查看器
 const initViewer = async () => {
   if (!viewerContainer.value) return
@@ -187,7 +262,8 @@ const initViewer = async () => {
 
   try {
     const point = currentPoint.value
-    const url = await loadPanoImage(point)
+    currentPos = { lng: point.lng, lat: point.lat }
+    const url = await loadPanoImage(currentPos.lng, currentPos.lat)
 
     // 销毁旧查看器
     if (viewer) {
@@ -201,12 +277,13 @@ const initViewer = async () => {
       caption: point.description,
       // 缩放 / 视角移动 / 全屏 按钮（全屏为浏览器原生全屏）
       navbar: ['zoom', 'move', 'fullscreen'],
-      defaultZoomLvl: 50,
+      defaultZoomLvl: 35,
       mousewheel: true,
       mousemove: true,
       keyboard: true,
       fisheye: false,
-      minFov: 30,
+      // 限制放大倍率，避免纹理过度拉伸发糊（1024x512 为百度输出上限）
+      minFov: 50,
       maxFov: 90,
       defaultYaw: 0,
       defaultPitch: 0
@@ -247,7 +324,8 @@ const switchPoint = async (index) => {
   loading.value = true
   try {
     const point = props.panoramaPoints[index]
-    const url = await loadPanoImage(point)
+    currentPos = { lng: point.lng, lat: point.lat }
+    const url = await loadPanoImage(currentPos.lng, currentPos.lat)
     await viewer.setPanorama(url, {
       transition: 600,
       caption: point.description
@@ -434,6 +512,87 @@ onBeforeUnmount(() => {
 .panorama-content :deep(.psv-container) {
   width: 100% !important;
   height: 100% !important;
+}
+
+/* 街道移动箭头（模仿街景导航，前进大、后退小） */
+.street-nav {
+  position: absolute;
+  bottom: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.street-arrow {
+  pointer-events: auto;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+.street-arrow.backward {
+  width: 40px;
+  height: 40px;
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+.street-arrow:hover:not(:disabled) {
+  background: rgba(76, 175, 80, 0.75);
+  border-color: #fff;
+  transform: scale(1.1);
+}
+
+.street-arrow:disabled,
+.street-arrow.moving {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.street-arrow.moving i {
+  animation: spin 0.8s linear infinite;
+}
+
+/* 轻提示 */
+.street-toast {
+  position: absolute;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  z-index: 8;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+  opacity: 0;
 }
 
 /* 加载指示 */
