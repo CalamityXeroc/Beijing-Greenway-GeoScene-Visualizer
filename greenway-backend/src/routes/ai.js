@@ -47,6 +47,20 @@ async function getFunctionProfileOverview(pool) {
 // Map<conversationId, Message[]>
 // 每个 Message: { role: 'user'|'assistant', content: string }
 const conversationStore = new Map()
+// 会话最后访问时间（用于定期清理不活跃会话，避免内存无限增长）
+const conversationLastSeen = new Map()
+const CONVERSATION_TTL_MS = 12 * 60 * 60 * 1000  // 12 小时无访问则清理
+
+// 定期清理过期会话（每 30 分钟）
+setInterval(() => {
+  const now = Date.now()
+  for (const [cid, lastSeen] of conversationLastSeen) {
+    if (now - lastSeen > CONVERSATION_TTL_MS) {
+      conversationStore.delete(cid)
+      conversationLastSeen.delete(cid)
+    }
+  }
+}, 30 * 60 * 1000).unref?.()
 
 // 每个会话最多保留的消息条数（单边，共 2x 轮数）
 const MAX_HISTORY_MESSAGES = 20
@@ -58,6 +72,7 @@ const getHistory = (conversationId) => {
   if (!conversationStore.has(conversationId)) {
     conversationStore.set(conversationId, [])
   }
+  conversationLastSeen.set(conversationId, Date.now())
   return conversationStore.get(conversationId)
 }
 

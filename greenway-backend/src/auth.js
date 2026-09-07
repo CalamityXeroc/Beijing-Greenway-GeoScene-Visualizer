@@ -19,6 +19,10 @@ import jwt from 'jsonwebtoken';
 const router = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'greenway-secret-2025-change-me';
+// 安全提示：生产环境务必在 .env.local 配置强随机 JWT_SECRET，否则任何人可用默认密钥伪造管理员 token
+if (!process.env.JWT_SECRET) {
+  console.warn('[安全] ⚠️ 未配置 JWT_SECRET 环境变量，正在使用默认密钥（仅限开发环境）')
+}
 const JWT_EXPIRES  = '24h';
 const SALT_ROUNDS  = 10;
 

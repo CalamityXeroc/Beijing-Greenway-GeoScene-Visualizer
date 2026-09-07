@@ -55,4 +55,11 @@ router.get('/regeocode', (req, res) => {
   proxyGaodeApi(req, res, '/v3/geocode/regeo', { location })
 })
 
+// 实时天气（经后端代理，避免前端暴露高德 key）
+router.get('/weather', (req, res) => {
+  const { city, extensions = 'base' } = req.query
+  if (!city) return res.status(400).json({ status: '0', info: '缺少 city 参数' })
+  proxyGaodeApi(req, res, '/v3/weather/weatherInfo', { city, extensions })
+})
+
 export default router
