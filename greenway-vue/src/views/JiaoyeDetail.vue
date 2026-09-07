@@ -293,8 +293,8 @@ const panoramaPoints = ref([
   {
     name: '温榆河郊野段',
     description: '温榆河郊野沿线道路',
-    lng: 116.51,
-    lat: 40.05
+    lng: 116.511248,
+    lat: 40.049044
   },
 
   {

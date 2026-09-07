@@ -307,8 +307,8 @@ const panoramaPoints = ref([
   {
     name: '龙潭湖段',
     description: '龙潭湖公园东门',
-    lng: 116.44,
-    lat: 39.87
+    lng: 116.444,
+    lat: 39.876
   },
 
   {

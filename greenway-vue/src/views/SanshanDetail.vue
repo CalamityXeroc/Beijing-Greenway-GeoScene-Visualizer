@@ -289,10 +289,10 @@ const WHEEL_EDGE_EPSILON = 2
 const panoramaPoints = ref([
 
   {
-    name: '颐和园东门',
-    description: '颐和园东宫门（同庆街）',
-    lng: 116.275,
-    lat: 39.999
+    name: '颐和园北宫门',
+    description: '颐和园北宫门（苏州街）',
+    lng: 116.2705,
+    lat: 40.0077
   },
 
   {
