@@ -25,35 +25,37 @@
         </div>
       </div>
 
-      <!-- 全景容器（Photo Sphere Viewer 渲染完整 360° 全景，支持拖拽旋转/缩放/全屏） -->
-      <div ref="viewerContainer" class="panorama-content"></div>
+      <!-- 全景区域（PSV 渲染 + 内部叠加箭头） -->
+      <div class="panorama-stage">
+        <div ref="viewerContainer" class="panorama-content"></div>
 
-      <!-- 街道移动箭头（前进/后退，模仿街景导航） -->
-      <div v-if="!loadError && !loading" class="street-nav">
-        <button
-          class="street-arrow forward"
-          :class="{ moving: moving }"
-          :disabled="moving"
-          @click="moveAlongStreet(true)"
-          title="向前移动"
-        >
-          <i class="fas fa-chevron-up"></i>
-        </button>
-        <button
-          class="street-arrow backward"
-          :class="{ moving: moving }"
-          :disabled="moving"
-          @click="moveAlongStreet(false)"
-          title="向后移动"
-        >
-          <i class="fas fa-chevron-down"></i>
-        </button>
+        <!-- 街道移动箭头（浮在全景画面内部，模仿街景导航） -->
+        <div v-if="!loadError && !loading" class="street-nav">
+          <button
+            class="street-arrow forward"
+            :class="{ moving: moving }"
+            :disabled="moving"
+            @click="moveAlongStreet(true)"
+            title="向前移动"
+          >
+            <i class="fas fa-chevron-up"></i>
+          </button>
+          <button
+            class="street-arrow backward"
+            :class="{ moving: moving }"
+            :disabled="moving"
+            @click="moveAlongStreet(false)"
+            title="向后移动"
+          >
+            <i class="fas fa-chevron-down"></i>
+          </button>
+        </div>
+
+        <!-- 轻提示（移动失败/配额等，不遮挡全景） -->
+        <transition name="toast-fade">
+          <div v-if="toast" class="street-toast">{{ toast }}</div>
+        </transition>
       </div>
-
-      <!-- 轻提示（移动失败/配额等，不遮挡全景） -->
-      <transition name="toast-fade">
-        <div v-if="toast" class="street-toast">{{ toast }}</div>
-      </transition>
 
       <!-- 加载中提示 -->
       <div v-if="loading && !loadError" class="panorama-loading">
@@ -501,10 +503,19 @@ onBeforeUnmount(() => {
   border-color: #f44336;
 }
 
-.panorama-content {
+.panorama-stage {
   flex: 1;
   width: 100%;
   position: relative;
+  background: #000;
+  overflow: hidden;
+}
+
+.panorama-content {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   background: #000;
 }
 
@@ -514,16 +525,16 @@ onBeforeUnmount(() => {
   height: 100% !important;
 }
 
-/* 街道移动箭头（模仿街景导航，前进大、后退小） */
+/* 街道移动箭头（浮在全景画面内部：前进大、后退小） */
 .street-nav {
   position: absolute;
-  bottom: 92px;
+  bottom: 56px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   z-index: 5;
   pointer-events: none;
 }
@@ -572,7 +583,7 @@ onBeforeUnmount(() => {
 /* 轻提示 */
 .street-toast {
   position: absolute;
-  top: 76px;
+  top: 20px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.72);
