@@ -32,8 +32,7 @@
         <!-- 街道移动箭头（浮在全景画面内部，模仿街景导航） -->
         <div v-if="!loadError && !loading" class="street-nav">
           <button
-            class="street-arrow forward"
-            :class="{ moving: moving }"
+            class="street-arrow"
             :disabled="moving"
             @click="moveAlongStreet(true)"
             title="向前移动"
@@ -41,8 +40,7 @@
             <i class="fas fa-chevron-up"></i>
           </button>
           <button
-            class="street-arrow backward"
-            :class="{ moving: moving }"
+            class="street-arrow"
             :disabled="moving"
             @click="moveAlongStreet(false)"
             title="向后移动"
@@ -50,6 +48,16 @@
             <i class="fas fa-chevron-down"></i>
           </button>
         </div>
+
+        <!-- 自定义全屏按钮（全屏画面区域，箭头在全屏时依然可用） -->
+        <button
+          v-if="!loadError"
+          class="street-fullscreen"
+          @click="toggleFullscreen"
+          :title="isFullscreen ? '退出全屏' : '全屏'"
+        >
+          <i class="fas" :class="isFullscreen ? 'fa-compress' : 'fa-expand'"></i>
+        </button>
 
         <!-- 轻提示（移动失败/配额等，不遮挡全景） -->
         <transition name="toast-fade">
@@ -160,6 +168,7 @@ const errorType = ref('nopano') // 'nopano' 无街景 | 'quota' 配额耗尽
 const loading = ref(false)
 const moving = ref(false) // 街道移动中
 const toast = ref('') // 轻提示（移动失败等）
+const isFullscreen = ref(false)
 let toastTimer = null
 let viewer = null
 // 当前实际位置（沿街移动后会偏离原点位）
@@ -174,6 +183,21 @@ const showToast = (msg) => {
   toast.value = msg
   if (toastTimer) clearTimeout(toastTimer)
   toastTimer = setTimeout(() => { toast.value = '' }, 2200)
+}
+
+// 自定义全屏（全屏画面区域 stage，箭头/提示随 stage 一起进入全屏）
+const toggleFullscreen = () => {
+  const stage = document.querySelector('.panorama-stage')
+  if (!stage) return
+  if (document.fullscreenElement) {
+    document.exitFullscreen()
+  } else if (stage.requestFullscreen) {
+    stage.requestFullscreen()
+  }
+}
+
+const onFullscreenChange = () => {
+  isFullscreen.value = !!document.fullscreenElement
 }
 
 // 构造完整 360° 全景图 URL（fov=360 输出 2:1 等距柱状投影，一次请求本地无限旋转）
@@ -277,8 +301,8 @@ const initViewer = async () => {
       container: viewerContainer.value,
       panorama: url,
       caption: point.description,
-      // 缩放 / 视角移动 / 全屏 按钮（全屏为浏览器原生全屏）
-      navbar: ['zoom', 'move', 'fullscreen'],
+      // 缩放 / 视角移动 按钮（全屏由自定义按钮接管，保证箭头在全屏时可用）
+      navbar: ['zoom', 'move'],
       defaultZoomLvl: 35,
       mousewheel: true,
       mousemove: true,
@@ -384,10 +408,12 @@ const handleKeydown = (e) => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+  document.addEventListener('fullscreenchange', onFullscreenChange)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
 })
 </script>
 
@@ -525,7 +551,7 @@ onBeforeUnmount(() => {
   height: 100% !important;
 }
 
-/* 街道移动箭头（浮在全景画面内部：前进大、后退小） */
+/* 街道移动箭头（浮在全景画面内部，两箭头等大） */
 .street-nav {
   position: absolute;
   bottom: 56px;
@@ -534,50 +560,66 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   z-index: 5;
   pointer-events: none;
 }
 
 .street-arrow {
   pointer-events: auto;
-  width: 54px;
-  height: 54px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.45);
   border: 2px solid rgba(255, 255, 255, 0.75);
   color: #fff;
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(2px);
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
-}
-
-.street-arrow.backward {
-  width: 40px;
-  height: 40px;
-  font-size: 15px;
-  opacity: 0.85;
 }
 
 .street-arrow:hover:not(:disabled) {
   background: rgba(76, 175, 80, 0.75);
   border-color: #fff;
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
-.street-arrow:disabled,
-.street-arrow.moving {
-  opacity: 0.5;
+.street-arrow:disabled {
+  opacity: 0.6;
   cursor: wait;
 }
 
-.street-arrow.moving i {
-  animation: spin 0.8s linear infinite;
+/* 自定义全屏按钮（画面右上角，与箭头风格一致） */
+.street-fullscreen {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  backdrop-filter: blur(2px);
+  transition: background 0.2s ease, transform 0.15s ease;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+.street-fullscreen:hover {
+  background: rgba(76, 175, 80, 0.75);
+  border-color: #fff;
+  transform: scale(1.08);
 }
 
 /* 轻提示 */
