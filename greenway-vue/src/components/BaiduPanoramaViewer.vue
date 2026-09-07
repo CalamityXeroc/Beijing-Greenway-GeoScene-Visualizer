@@ -25,57 +25,17 @@
         </div>
       </div>
 
-      <!-- 百度全景容器（BMapGL WebGL 全景） -->
-      <div ref="baiduPanorama" class="panorama-content"></div>
+      <!-- 全景容器（Photo Sphere Viewer 渲染完整 360° 全景，支持拖拽旋转/缩放/全屏） -->
+      <div ref="viewerContainer" class="panorama-content"></div>
 
-      <!-- 静态图降级渲染层（BMapGL 权限不可用时启用） -->
-      <div v-if="usingFallback" class="panorama-content fallback-layer">
-        <img
-          v-if="fallbackSrc && !loadError"
-          :src="fallbackSrc"
-          class="fallback-img"
-          alt="百度街景全景"
-          draggable="false"
-          @mousedown="onMouseDown"
-          @mousemove="onMouseMove"
-          @mouseup="onMouseUp"
-          @mouseleave="onMouseUp"
-          @touchstart.passive="onTouchStart"
-          @touchmove.passive="onTouchMove"
-          @touchend="onTouchEnd"
-        />
-        <div v-if="fallbackLoading" class="panorama-loading">
-          <div class="loading-spinner"></div>
-          <span>加载街景中...</span>
-        </div>
-        <!-- 降级模式视角控制按钮 -->
-        <div v-if="fallbackSrc && !loadError" class="fallback-controls">
-          <button class="fb-btn" @click="rotateView(-30, 0)" title="左转">
-            <i class="fas fa-chevron-left"></i>
-          </button>
-          <button class="fb-btn fb-up" @click="rotateView(0, 10)" title="上移">
-            <i class="fas fa-chevron-up"></i>
-          </button>
-          <button class="fb-btn" @click="rotateView(30, 0)" title="右转">
-            <i class="fas fa-chevron-right"></i>
-          </button>
-          <button class="fb-btn fb-down" @click="rotateView(0, -10)" title="下移">
-            <i class="fas fa-chevron-down"></i>
-          </button>
-          <button class="fb-btn fb-zoom-in" @click="zoomView(-10)" title="放大">
-            <i class="fas fa-plus"></i>
-          </button>
-          <button class="fb-btn fb-zoom-out" @click="zoomView(10)" title="缩小">
-            <i class="fas fa-minus"></i>
-          </button>
-          <button class="fb-btn fb-fullscreen" @click="toggleFallbackFullscreen" title="全屏">
-            <i class="fas fa-expand"></i>
-          </button>
-        </div>
+      <!-- 加载中提示 -->
+      <div v-if="loading && !loadError" class="panorama-loading">
+        <div class="loading-spinner"></div>
+        <span>加载街景中...</span>
       </div>
 
       <!-- 暂无街景提示层 -->
-      <div class="pano-error-overlay" v-if="loadError && !quotaExceeded">
+      <div class="pano-error-overlay" v-if="loadError && errorType === 'nopano'">
         <div class="pano-error-box">
           <div class="pano-error-icon">
             <i class="fas fa-street-view"></i>
@@ -92,14 +52,14 @@
       </div>
 
       <!-- 配额耗尽提示层 -->
-      <div class="pano-error-overlay" v-if="loadError && quotaExceeded">
+      <div class="pano-error-overlay" v-if="loadError && errorType === 'quota'">
         <div class="pano-error-box">
           <div class="pano-error-icon quota-icon">
             <i class="fas fa-exclamation-triangle"></i>
           </div>
           <div class="pano-error-title">百度街景服务暂不可用</div>
           <div class="pano-error-desc">
-            百度全景接口今日访问量已达到免费配额上限，
+            百度全景接口今日访问量已达到免费配额上限（每日 100 次），
             暂时无法加载街景影像，请明天再试或稍后刷新。
           </div>
           <div class="pano-error-actions">
@@ -108,7 +68,7 @@
         </div>
       </div>
 
-      <!-- 底部导航（点位切换始终保留） -->
+      <!-- 底部导航 -->
       <div class="panorama-footer">
         <div class="panorama-info">
           <span class="info-badge">
@@ -136,6 +96,8 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
+import { Viewer } from '@photo-sphere-viewer/core'
+import '@photo-sphere-viewer/core/index.css'
 
 const props = defineProps({
   visible: {
@@ -158,239 +120,144 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'point-change'])
 
-const baiduPanorama = ref(null)
+// 全景静态图属于服务端 API，与浏览器端 JS API 的 AK 分开；
+// 未配置 VITE_BAIDU_STATIC_KEY 时回退到传入的 key
+const staticKey = import.meta.env.VITE_BAIDU_STATIC_KEY || props.baiduMapKey
+
+const viewerContainer = ref(null)
 const currentPointIndex = ref(props.initialPoint)
 const loadError = ref(false)
-const quotaExceeded = ref(false)
-let panoramaService = null
-let panoramaInstance = null
-let baiduMapLoaded = false
-
-// ===== 静态图降级状态 =====
-const usingFallback = ref(false)
-const fallbackSrc = ref('')
-const fallbackLoading = ref(false)
-let fbHeading = 0
-let fbPitch = 0
-let fbFov = 100
-let fbDragging = false
-let fbLastX = 0
-let fbLastY = 0
-let fbLastTouchDist = 0
+const errorType = ref('nopano') // 'nopano' 无街景 | 'quota' 配额耗尽
+const loading = ref(false)
+let viewer = null
 
 const currentPoint = computed(() => {
   return props.panoramaPoints[currentPointIndex.value] || { name: '全景浏览', lng: 116.4, lat: 40 }
 })
 
-// ================= BMapGL 主方案（原版逻辑） =================
+// 构造完整 360° 全景图 URL（fov=360 输出 2:1 等距柱状投影，一次请求本地无限旋转）
+// 走 /baidu-pano 同源代理（百度 API 不支持 CORS）
+const buildPanoUrl = (point) => {
+  const params = new URLSearchParams({
+    ak: staticKey,
+    width: '1024',
+    height: '512',
+    location: `${point.lng},${point.lat}`,
+    fov: '360',
+    heading: '0',
+    pitch: '0'
+  })
+  return `/baidu-pano/panorama/v2?${params.toString()}&_t=${Date.now()}`
+}
 
-// 动态加载百度地图API
-const loadBaiduMapAPI = () => {
+// 加载全景图（走代理 fetch，可读取错误 JSON 区分配额/无街景）
+const loadPanoImage = (point) => {
   return new Promise((resolve, reject) => {
-    if (window.BMapGL) {
-      resolve()
-      return
-    }
-
-    const script = document.createElement('script')
-    script.src = `https://api.map.baidu.com/api?v=1.0&type=webgl&ak=${props.baiduMapKey}&callback=initBaiduMap`
-    script.onerror = reject
-    
-    window.initBaiduMap = () => {
-      baiduMapLoaded = true
-      resolve()
-    }
-    
-    document.head.appendChild(script)
-  })
-}
-
-// 初始化百度全景
-const initBaiduPanorama = async () => {
-  if (!baiduPanorama.value) return
-
-  try {
-    loadError.value = false
-    quotaExceeded.value = false
-    await loadBaiduMapAPI()
-
-    // 创建全景服务
-    panoramaService = new window.BMapGL.Panorama(baiduPanorama.value)
-    
-    // 监听全景加载失败（无街景数据时触发）
-    panoramaService.addEventListener('position_changed', () => {
-      loadError.value = false
-    })
-
-    // 设置全景位置
-    const point = new window.BMapGL.Point(currentPoint.value.lng, currentPoint.value.lat)
-    
-    // 如果有指定的全景ID，使用ID；否则搜索最近的全景点
-    if (currentPoint.value.panoId) {
-      panoramaService.setId(currentPoint.value.panoId)
-    } else {
-      panoramaService.setPosition(point)
-    }
-
-    // 设置全景参数
-    panoramaService.setPov({
-      heading: 0,
-      pitch: 0
-    })
-
-    // 延迟检测是否成功加载（无街景时 setPosition 不会报错，但容器为隐藏状态）
-    setTimeout(() => {
-      checkPanoramaLoaded()
-    }, 4500)
-
-    console.log('[百度全景] BMapGL 初始化:', currentPoint.value.name)
-    
-  } catch (error) {
-    console.error('[百度全景] BMapGL 初始化失败:', error)
-    // BMapGL 不可用（如 JS API 权限被禁用）→ 降级到静态图
-    startFallback()
-  }
-}
-
-// 检测全景是否实际加载（百度无街景时不会创建可交互渲染层）
-const checkPanoramaLoaded = () => {
-  const container = baiduPanorama.value
-  if (!container) return
-  // BMapGL 渲染出的 canvas（即使权限被禁也会创建黑色 canvas）
-  const hasCanvas = container.querySelector('canvas')
-  // 探测该位置是否有真实街景数据（静态图 API）
-  probePanoData(currentPoint.value).then(probeResult => {
-    if (probeResult === 'quota') {
-      // 百度日配额耗尽，提示稍后重试
-      quotaExceeded.value = true
-      loadError.value = true
-      return
-    }
-    if (probeResult !== 'ok') {
-      // 确实无街景数据
-      loadError.value = true
-      return
-    }
-    // 有街景数据：验证 BMapGL 是否真实显示（canvas 可见且有内容）
-    const canvas = container.querySelector('canvas')
-    const canvasVisible = canvas && window.getComputedStyle(canvas).display !== 'none'
-    if (canvasVisible && canvas.width > 0) {
-      // 读取 canvas 像素判断是否黑屏
-      try {
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          const data = ctx.getImageData(0, 0, Math.min(50, canvas.width), Math.min(50, canvas.height)).data
-          let brightness = 0
-          let count = 0
-          for (let i = 0; i < data.length; i += 40) {
-            brightness += data[i] + data[i + 1] + data[i + 2]
-            count++
-          }
-          const avg = count > 0 ? brightness / (count * 3) : 0
-          if (avg > 8) {
-            // 有真实内容
-            return
-          }
-          // 黑屏 → BMapGL 权限问题 → 降级
-          console.log('[百度全景] BMapGL 黑屏（JS API 权限被禁用），降级到静态图模式')
-          startFallback()
-          return
-        }
-      } catch (e) {
-        // 读像素失败（跨域等）→ 视为正常，不降级
-        return
-      }
-    }
-    // canvas 不可见或无 canvas → 降级
-    console.log('[百度全景] BMapGL 未渲染，降级到静态图模式')
-    startFallback()
-  })
-}
-
-// 探测该位置是否有街景数据（静态图 API 快速探测）
-// 返回: 'ok' 有街景 / 'nopano' 无街景 / 'quota' 配额耗尽 / 'error' 其他
-const probePanoData = (point) => {
-  return new Promise((resolve) => {
     if (!point || !point.lng || !point.lat) {
-      resolve('nopano')
+      reject(new Error('nopano'))
       return
     }
-    // 优先走同源代理（可读取错误 JSON，区分配额/无街景）
-    const proxyUrl = `/baidu-pano/panorama/v2?${new URLSearchParams({
-      ak: props.baiduMapKey,
-      width: '96',
-      height: '48',
-      location: `${point.lng},${point.lat}`,
-      fov: '100',
-      heading: '0',
-      pitch: '0'
-    })}`
-    fetch(proxyUrl)
+    fetch(buildPanoUrl(point))
       .then(r => r.arrayBuffer())
       .then(buf => {
         const head = new Uint8Array(buf.slice(0, 2))
         if (head[0] === 0xff && head[1] === 0xd8) {
-          resolve('ok')
+          // 有效 JPEG → blob URL 交给 PSV（同源 blob 无 CORS 问题）
+          const blobUrl = URL.createObjectURL(new Blob([buf], { type: 'image/jpeg' }))
+          resolve(blobUrl)
         } else {
           const text = new TextDecoder().decode(buf.slice(0, 300))
           if (text.includes('配额') || text.includes('302') || text.includes('QPS') || text.includes('quota')) {
-            resolve('quota')
+            reject(new Error('quota'))
           } else {
-            resolve('nopano')
+            reject(new Error('nopano'))
           }
         }
       })
-      .catch(() => {
-        // 代理不可用（如未配置）时回退 img 探测（img 不受 CORS 限制）
-        const img = new Image()
-        img.onload = () => {
-          resolve(img.naturalWidth > 0 && img.naturalHeight > 0 ? 'ok' : 'nopano')
-        }
-        img.onerror = () => resolve('nopano')
-        img.src = buildStaticUrl(point, 96, 48)
-      })
+      .catch(() => reject(new Error('nopano')))
   })
 }
 
-// 切换观景点
+// 初始化查看器
+const initViewer = async () => {
+  if (!viewerContainer.value) return
+
+  loading.value = true
+  loadError.value = false
+
+  try {
+    const point = currentPoint.value
+    const url = await loadPanoImage(point)
+
+    // 销毁旧查看器
+    if (viewer) {
+      viewer.destroy()
+      viewer = null
+    }
+
+    viewer = new Viewer({
+      container: viewerContainer.value,
+      panorama: url,
+      caption: point.description,
+      // 缩放 / 视角移动 / 全屏 按钮（全屏为浏览器原生全屏）
+      navbar: ['zoom', 'move', 'fullscreen'],
+      defaultZoomLvl: 50,
+      mousewheel: true,
+      mousemove: true,
+      keyboard: true,
+      fisheye: false,
+      minFov: 30,
+      maxFov: 90,
+      defaultYaw: 0,
+      defaultPitch: 0
+    })
+
+    viewer.addEventListener('ready', () => {
+      loading.value = false
+    })
+
+    viewer.addEventListener('panorama-error', () => {
+      loading.value = false
+      loadError.value = true
+      errorType.value = 'nopano'
+    })
+
+    console.log('[百度全景] 加载成功:', point.name)
+  } catch (error) {
+    loading.value = false
+    loadError.value = true
+    errorType.value = error.message === 'quota' ? 'quota' : 'nopano'
+    console.error('[百度全景] 加载失败:', error.message)
+  }
+}
+
+// 切换观景点（每点位一次请求，旋转/缩放本地零消耗）
 const switchPoint = async (index) => {
   if (index === currentPointIndex.value) return
-  
+
   currentPointIndex.value = index
-  loadError.value = false
-  quotaExceeded.value = false
-  
-  // 降级模式下切换静态图
-  if (usingFallback.value) {
-    fbHeading = 0
-    fbPitch = 0
-    await loadFallbackImage()
-    emit('point-change', index)
-    return
-  }
-  
-  const point = props.panoramaPoints[index]
-  
-  // 若全景服务未初始化，先初始化
-  if (!panoramaService) {
-    await initBaiduPanorama()
-    return
-  }
-  
-  const baiduPoint = new window.BMapGL.Point(point.lng, point.lat)
-  
-  if (point.panoId) {
-    panoramaService.setId(point.panoId)
-  } else {
-    panoramaService.setPosition(baiduPoint)
-  }
-  
-  // 切换后重新检测
-  setTimeout(() => {
-    checkPanoramaLoaded()
-  }, 4500)
-  
   emit('point-change', index)
+  loadError.value = false
+
+  if (!viewer) {
+    await initViewer()
+    return
+  }
+
+  loading.value = true
+  try {
+    const point = props.panoramaPoints[index]
+    const url = await loadPanoImage(point)
+    await viewer.setPanorama(url, {
+      transition: 600,
+      caption: point.description
+    })
+    loading.value = false
+  } catch (error) {
+    loading.value = false
+    loadError.value = true
+    errorType.value = error.message === 'quota' ? 'quota' : 'nopano'
+  }
 }
 
 // 关闭查看器
@@ -398,213 +265,40 @@ const closeViewer = () => {
   emit('close')
 }
 
-// 销毁全景
-const destroyPanorama = () => {
-  if (panoramaService) {
-    // 百度地图全景没有destroy方法，清空容器即可
-    if (baiduPanorama.value) {
-      baiduPanorama.value.innerHTML = ''
-    }
-    panoramaService = null
+// 销毁查看器
+const destroyViewer = () => {
+  if (viewer) {
+    viewer.destroy()
+    viewer = null
   }
-  usingFallback.value = false
-  fallbackSrc.value = ''
-  quotaExceeded.value = false
-}
-
-// ================= 静态图降级方案 =================
-
-// 构造全景静态图 URL（fov=100 视角，拖拽旋转）
-const buildStaticUrl = (point, w = 1024, h = 512) => {
-  const params = new URLSearchParams({
-    ak: props.baiduMapKey,
-    width: String(w),
-    height: String(h),
-    location: `${point.lng},${point.lat}`,
-    fov: String(fbFov),
-    heading: String(Math.round(fbHeading)),
-    pitch: String(Math.round(fbPitch))
-  })
-  // 走同源代理（百度 API 不支持 CORS，且 img 直连无法读取配额错误）
-  return `/baidu-pano/panorama/v2?${params.toString()}&_t=${Date.now()}`
-}
-
-// 加载降级全景图
-const loadFallbackImage = () => {
-  return new Promise((resolve) => {
-    const point = currentPoint.value
-    if (!point || !point.lng || !point.lat) {
-      loadError.value = true
-      fallbackLoading.value = false
-      resolve(false)
-      return
-    }
-    fallbackLoading.value = true
-    loadError.value = false
-    const url = buildStaticUrl(point)
-    // 用 fetch 走代理（可读取错误 JSON，区分配额/无街景）
-    fetch(url)
-      .then(r => r.arrayBuffer())
-      .then(buf => {
-        const head = new Uint8Array(buf.slice(0, 2))
-        if (head[0] === 0xff && head[1] === 0xd8) {
-          // 有效图片
-          const blobUrl = URL.createObjectURL(new Blob([buf], { type: 'image/jpeg' }))
-          fallbackSrc.value = blobUrl
-          fallbackLoading.value = false
-          resolve(true)
-        } else {
-          const text = new TextDecoder().decode(buf.slice(0, 300))
-          if (text.includes('配额') || text.includes('302') || text.includes('QPS') || text.includes('quota')) {
-            quotaExceeded.value = true
-          }
-          fallbackLoading.value = false
-          loadError.value = true
-          resolve(false)
-        }
-      })
-      .catch(() => {
-        fallbackLoading.value = false
-        loadError.value = true
-        resolve(false)
-      })
-  })
-}
-
-// 启动降级模式
-const startFallback = async () => {
-  if (usingFallback.value) return
-  // 清空 BMapGL 容器
-  if (baiduPanorama.value) {
-    baiduPanorama.value.innerHTML = ''
-  }
-  usingFallback.value = true
-  await loadFallbackImage()
-}
-
-// 旋转视角
-const rotateView = (dHeading, dPitch) => {
-  fbHeading = (fbHeading + dHeading + 360) % 360
-  fbPitch = Math.max(-45, Math.min(45, fbPitch + dPitch))
-  loadFallbackImage()
-}
-
-// 缩放
-const zoomView = (delta) => {
-  fbFov = Math.max(40, Math.min(140, fbFov + delta))
-  loadFallbackImage()
-}
-
-// 降级模式全屏
-const toggleFallbackFullscreen = () => {
-  const container = baiduPanorama.value && baiduPanorama.value.parentElement
-  const target = document.querySelector('.fallback-layer')
-  if (!target) return
-  if (document.fullscreenElement) {
-    document.exitFullscreen()
-  } else {
-    target.requestFullscreen && target.requestFullscreen()
-  }
-}
-
-// 鼠标拖拽
-const onMouseDown = (e) => {
-  fbDragging = true
-  fbLastX = e.clientX
-  fbLastY = e.clientY
-}
-const onMouseMove = (e) => {
-  if (!fbDragging) return
-  const dx = e.clientX - fbLastX
-  const dy = e.clientY - fbLastY
-  fbLastX = e.clientX
-  fbLastY = e.clientY
-  rotateView(dx * 0.8, dy * 0.6)
-}
-const onMouseUp = () => { fbDragging = false }
-
-// 触摸拖拽
-const onTouchStart = (e) => {
-  if (e.touches.length === 1) {
-    fbDragging = true
-    fbLastX = e.touches[0].clientX
-    fbLastY = e.touches[0].clientY
-  } else if (e.touches.length === 2) {
-    const dx = e.touches[0].clientX - e.touches[1].clientX
-    const dy = e.touches[0].clientY - e.touches[1].clientY
-    fbLastTouchDist = Math.sqrt(dx * dx + dy * dy)
-  }
-}
-const onTouchMove = (e) => {
-  e.preventDefault()
-  if (e.touches.length === 1 && fbDragging) {
-    const tx = e.touches[0].clientX
-    const ty = e.touches[0].clientY
-    const dx = tx - fbLastX
-    const dy = ty - fbLastY
-    fbLastX = tx
-    fbLastY = ty
-    rotateView(dx * 0.8, dy * 0.6)
-  } else if (e.touches.length === 2) {
-    const dx = e.touches[0].clientX - e.touches[1].clientX
-    const dy = e.touches[0].clientY - e.touches[1].clientY
-    const dist = Math.sqrt(dx * dx + dy * dy)
-    if (fbLastTouchDist > 0) {
-      zoomView((dist - fbLastTouchDist) * -0.2)
-    }
-    fbLastTouchDist = dist
-  }
-}
-const onTouchEnd = () => {
-  fbDragging = false
-  fbLastTouchDist = 0
 }
 
 // 监听可见性变化
 watch(() => props.visible, (newVal) => {
   if (newVal) {
     setTimeout(() => {
-      initBaiduPanorama()
+      initViewer()
     }, 100)
   } else {
-    destroyPanorama()
+    destroyViewer()
   }
 })
 
 onMounted(() => {
   if (props.visible) {
-    initBaiduPanorama()
+    initViewer()
   }
 })
 
 onBeforeUnmount(() => {
-  destroyPanorama()
+  destroyViewer()
 })
 
-// 键盘控制
+// Esc 关闭（方向键/缩放由 PSV keyboard 接管）
 const handleKeydown = (e) => {
   if (!props.visible) return
-  
   if (e.key === 'Escape') {
     closeViewer()
-  } else if (e.key === 'ArrowLeft') {
-    if (usingFallback.value) {
-      rotateView(-30, 0)
-    } else {
-      const prevIndex = currentPointIndex.value > 0 ? currentPointIndex.value - 1 : props.panoramaPoints.length - 1
-      switchPoint(prevIndex)
-    }
-  } else if (e.key === 'ArrowRight') {
-    if (usingFallback.value) {
-      rotateView(30, 0)
-    } else {
-      const nextIndex = currentPointIndex.value < props.panoramaPoints.length - 1 ? currentPointIndex.value + 1 : 0
-      switchPoint(nextIndex)
-    }
-  } else if (e.key === 'ArrowUp') {
-    if (usingFallback.value) rotateView(0, 10)
-  } else if (e.key === 'ArrowDown') {
-    if (usingFallback.value) rotateView(0, -10)
   }
 }
 
@@ -736,74 +430,11 @@ onBeforeUnmount(() => {
   background: #000;
 }
 
-/* 静态图降级层 */
-.fallback-layer {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 3;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* PSV 容器铺满 */
+.panorama-content :deep(.psv-container) {
+  width: 100% !important;
+  height: 100% !important;
 }
-
-.fallback-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  cursor: grab;
-  user-select: none;
-  -webkit-user-drag: none;
-  touch-action: none;
-}
-
-.fallback-img:active {
-  cursor: grabbing;
-}
-
-/* 降级模式控制按钮 */
-.fallback-controls {
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 4;
-}
-
-.fb-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #fff;
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.25s ease;
-  backdrop-filter: blur(4px);
-}
-
-.fb-btn:hover {
-  background: rgba(76, 175, 80, 0.6);
-  border-color: #4CAF50;
-  transform: scale(1.08);
-}
-
-.fb-up, .fb-down, .fb-zoom-in, .fb-zoom-out {
-  position: absolute;
-}
-
-.fb-up { top: -52px; left: 0; }
-.fb-down { top: 52px; left: 0; }
-.fb-zoom-in { bottom: -52px; left: 0; }
-.fb-zoom-out { bottom: 0; left: -52px; }
-.fb-fullscreen { margin-top: 8px; }
 
 /* 加载指示 */
 .panorama-loading {
@@ -841,7 +472,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 5;
+  z-index: 7;
 }
 .pano-error-box {
   text-align: center; padding: 40px 60px; max-width: 460px;
@@ -873,11 +504,6 @@ onBeforeUnmount(() => {
 }
 .pano-btn:hover {
   transform: translateY(-2px); box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
-}
-
-/* 修复百度地图黑色方块问题 - 只隐藏特定的控件 */
-.panorama-content :deep(.anchorBL) {
-  opacity: 0.3 !important;
 }
 
 .panorama-footer {
@@ -1008,15 +634,6 @@ onBeforeUnmount(() => {
 
   .point-btn {
     padding: 0.75rem;
-  }
-
-  .fallback-controls {
-    right: 8px;
-  }
-
-  .fb-btn {
-    width: 36px;
-    height: 36px;
   }
 }
 </style>
