@@ -4,7 +4,6 @@
 ![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue.svg)
 ![GeoScene](https://img.shields.io/badge/GeoScene-4.33-blue.svg)
-![DeepSeek](https://img.shields.io/badge/AI-DeepSeek%20V4-Flash-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 基于 Vue 3 + GeoScene JS SDK + 高德地图 + PostgreSQL/PostGIS 的现代 WebGIS 平台，交互式探索北京绿道网络。
@@ -13,29 +12,6 @@
 
 > ⚡ **快速开始？** 请查看 [**快速部署指南.md**](./快速部署指南.md) — 5 分钟内部署完整系统（包含 PostgreSQL、Node.js 配置步骤）
 
----
-
-##  功能截图
-
-
-![落地页](示例图片/1.png)
-
-
-![地图总览](示例图片/2.png)
-
-
-![绿道详情](示例图片/3.png)
-
-
-![GIS 工具](示例图片/4.png)
-
-
-![管理后台](示例图片/5.png)
-
-
-![移动端](示例图片/6.png)
-
----
 
 ##  项目简介
 
