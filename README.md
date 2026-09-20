@@ -12,30 +12,6 @@ A modern WebGIS platform for exploring Beijing's greenway network, built with Vu
 
 > ⚡ **Quick Start?** See the [**快速部署指南.md**](./快速部署指南.md) for complete setup instructions (PostgreSQL + Node.js configuration included)
 
----
-
-##  Screenshots
-
-
-![Landing Page](示例图片/1.png)
-
-
-![Map Overview](示例图片/2.png)
-
-
-![Greenway Detail](示例图片/3.png)
-
-
-![GIS Tools](示例图片/4.png)
-
-
-![Admin Panel](示例图片/5.png)
-
-
-![Mobile View](示例图片/6.png)
-
----
-
 ##  Project Overview
 
 Interactive visualization of **17 major Beijing greenways** featuring a fullscreen landing page, an interactive GeoScene map with Amap basemap tiles, path planning & navigation, **3D flyover tour**, GIS tools, real-time weather, panoramic street view, admin panel, user auth, and a Capacitor-based mobile app.
