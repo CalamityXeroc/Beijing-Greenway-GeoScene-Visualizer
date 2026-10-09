@@ -610,9 +610,10 @@ const GREENWAY_IDS = [
   'beiyi-greenway', 'dongyi-greenway', 'jiaoye-greenway',
   'xiyi-greenway', 'zhongxincheng-greenway'
 ]
-// 只过滤 17 条绿道线（避免重复列 17 项）；市界/市域与功能图层保留展示
+// 只过滤 17 条绿道线（避免重复列 17 项）；市界/市域保留展示
+// '绿道功能区划'（function-grid）由上方专用开关控制，此处排除以免下拉中出现重复项
 const filteredLayerConfig = computed(() =>
-  props.layerConfig.filter(l => !GREENWAY_IDS.includes(l.id))
+  props.layerConfig.filter(l => !GREENWAY_IDS.includes(l.id) && l.id !== 'function-grid')
 )
 
 const userAuth = useUserAuth()
