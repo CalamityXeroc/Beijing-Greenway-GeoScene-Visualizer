@@ -608,10 +608,26 @@ function setupEventListeners() {
   mapManager.on('click', clickHandler)
 
   let lastHoverKey = null
-  pointerMoveHandler = rafThrottle(async (evt) => {
+  let hoverHitTestPending = false
+  let pendingHoverEvt = null
+  let lastHoverHitTestAt = 0
+  let hoverTrailingTimer = null
+  // 悬停拾取最小间隔：限制高频拾取对主线程/GPU 的占用（约 16 次/秒，视觉上依然跟手）
+  const HOVER_HITTEST_MIN_INTERVAL = 60
+
+  // 单次悬停拾取的执行体（保证同一时刻至多一个 hitTest 在飞，避免排队堆积拖垮主线程）
+  const runHoverHitTest = async (evt) => {
     if (!view) return
+    // 平移/缩放等地图交互进行中不做拾取：结果无意义且每条开销很大
+    if (view.interacting || view.navigating) return
+
     const pixel = [evt.x, evt.y]
     const pointerMoved = hasPointerShifted(lastPointerPixel, pixel)
+
+    hoverHitTestPending = true
+    lastHoverHitTestAt = performance.now()
+    // 兜底：异常情况下释放占用标记，避免悬停永久失效
+    const safetyTimer = setTimeout(() => { hoverHitTestPending = false }, 2500)
 
     hoverRequestToken += 1
     const currentToken = hoverRequestToken
@@ -657,7 +673,42 @@ function setupEventListeners() {
     } catch (error) {
       recordDiagError('hover hitTest: ' + (error?.message || error))
       console.warn('[MapViewer] pointermove hitTest 失败', error)
+    } finally {
+      clearTimeout(safetyTimer)
+      hoverHitTestPending = false
+      // 追赶：上一次拾取期间指针又动了，用最新位置补测一次
+      if (pendingHoverEvt) {
+        const next = pendingHoverEvt
+        pendingHoverEvt = null
+        runHoverHitTest(next)
+      }
     }
+  }
+
+  pointerMoveHandler = rafThrottle((evt) => {
+    if (!view) return
+    // 若上一次拾取尚未完成，只记录最新位置，等它结束后补测
+    if (hoverHitTestPending) {
+      pendingHoverEvt = evt
+      return
+    }
+    // 限制拾取频率：间隔不足时延迟补测最新位置
+    const since = performance.now() - lastHoverHitTestAt
+    if (since < HOVER_HITTEST_MIN_INTERVAL) {
+      pendingHoverEvt = evt
+      if (!hoverTrailingTimer) {
+        hoverTrailingTimer = setTimeout(() => {
+          hoverTrailingTimer = null
+          if (pendingHoverEvt && !hoverHitTestPending) {
+            const next = pendingHoverEvt
+            pendingHoverEvt = null
+            runHoverHitTest(next)
+          }
+        }, Math.max(16, HOVER_HITTEST_MIN_INTERVAL - since))
+      }
+      return
+    }
+    runHoverHitTest(evt)
   })
 
   mapManager.on('pointer-move', pointerMoveHandler)
