@@ -763,6 +763,9 @@ function initGlobe() {
 
   globeCleanup = function() {
     renderer.dispose()
+    // 主动释放 WebGL 上下文，避免多地困累积（浏览器同时活跃上下文有上限，
+    // 超限时会强制丢弃最老的上下文导致地图/全景等失效）
+    try { renderer.forceContextLoss?.() } catch (_) { /* 忽略 */ }
     scene.traverse(function(o) { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose() })
   }
 }

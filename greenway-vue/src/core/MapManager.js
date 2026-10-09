@@ -309,7 +309,15 @@ class MapManager {
         const container = viewInstance.container
         if (container) {
           const canvases = container.querySelectorAll('canvas')
-          canvases.forEach(c => c.remove())
+          canvases.forEach(c => {
+            // 主动释放 WebGL 上下文（不等 GC），避免多地困累积触发
+            // 浏览器 "Too many active WebGL contexts" 而将地图上下文丢弃
+            try {
+              const gl = c.getContext('webgl2') || c.getContext('webgl')
+              gl?.getExtension('WEBGL_lose_context')?.loseContext()
+            } catch (_) { /* 忽略 */ }
+            c.remove()
+          })
         }
       } catch (_) { /* 容器可能已被移除 */ }
 

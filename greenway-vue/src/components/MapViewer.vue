@@ -1,11 +1,24 @@
 <template>
-  <div ref="mapContainer" class="map-viewer" :style="{ height: height }"></div>
+  <div ref="mapContainer" class="map-viewer" :style="{ height: height }">
+    <!-- WebGL 上下文丢失提示（浏览器回收显卡上下文时地图会停止响应） -->
+    <div v-if="contextLost" class="map-context-lost">
+      <div class="map-context-lost-box">
+        <div class="map-context-lost-title">地图渲染已中断</div>
+        <div class="map-context-lost-desc">
+          浏览器回收了地图的显卡渲染上下文，地图已停止响应。
+          常见原因是同时打开了多个地图/全景页面，或浏览器标签过多。
+        </div>
+        <button class="map-context-lost-btn" @click="reloadPage">重新加载地图</button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch, nextTick, markRaw } from 'vue'
 import { rafThrottle, scheduleIdleTask } from '@/utils/performance'
 import { useGlobalTheme } from '@/utils/useTheme'
+import { initMapDiag, recordHitTest, recordDiagError } from '@/utils/mapDiagnostics'
 
 const POINTER_MOVE_THRESHOLD = 0.75
 const TILE_PROXY_TIMEOUT_MS = 6000
@@ -240,6 +253,8 @@ onMounted(async () => {
     }
 
     setupEventListeners()
+    setupMapDiagnostics()
+    setupContextLossGuard()
     emit('map-ready', map)
     console.log('[MapViewer] 地图组件初始化完成（GeoScene）')
   } catch (err) {
@@ -279,6 +294,8 @@ onMounted(async () => {
       }
 
       setupEventListeners()
+      setupMapDiagnostics()
+      setupContextLossGuard()
       emit('map-ready', map)
       console.log('[MapViewer] 重试初始化成功')
     } catch (retryErr) {
@@ -555,6 +572,12 @@ const pickFeaturesFromHitTest = (hitResult) => {
   return featuresWithLayers
 }
 
+const contextLost = ref(false)
+
+const reloadPage = () => {
+  if (typeof window !== 'undefined') window.location.reload()
+}
+
 function setupEventListeners() {
   if (!mapManager || !view) return
 
@@ -568,6 +591,7 @@ function setupEventListeners() {
     try {
       const hitResult = await view.hitTest(evt)
       const featuresWithLayers = pickFeaturesFromHitTest(hitResult)
+      recordHitTest('click', featuresWithLayers.length)
       if (featuresWithLayers.length > 0) {
         emit('feature-click', {
           features: featuresWithLayers.map((f) => f.feature),
@@ -577,6 +601,7 @@ function setupEventListeners() {
         })
       }
     } catch (error) {
+      recordDiagError('click hitTest: ' + (error?.message || error))
       console.warn('[MapViewer] click hitTest 失败', error)
     }
   }
@@ -596,6 +621,7 @@ function setupEventListeners() {
       if (currentToken !== hoverRequestToken) return
 
       const featuresWithLayers = pickFeaturesFromHitTest(hitResult)
+      recordHitTest('hover', featuresWithLayers.length)
       const hasFeature = featuresWithLayers.length > 0
       view.container.style.cursor = hasFeature ? 'pointer' : ''
 
@@ -629,6 +655,7 @@ function setupEventListeners() {
         lastPointerPixel = [pixel[0], pixel[1]]
       }
     } catch (error) {
+      recordDiagError('hover hitTest: ' + (error?.message || error))
       console.warn('[MapViewer] pointermove hitTest 失败', error)
     }
   })
@@ -644,6 +671,69 @@ function setupEventListeners() {
   })
 }
 
+// 地图交互诊断（仅 ?mapdiag=1 时激活）
+function setupMapDiagnostics() {
+  if (!mapManager || !view || !mapContainer.value) return
+  initMapDiag({
+    view,
+    container: mapContainer.value,
+    getLayers: () => {
+      const out = []
+      try {
+        const raw = mapManager?._layersMap
+        if (raw && typeof raw.forEach === 'function') {
+          raw.forEach((layer, id) => {
+            let featureCount
+            try {
+              const src = layer?.source
+              if (src && typeof src.length === 'number') featureCount = src.length
+              else if (src && Array.isArray(src.features)) featureCount = src.features.length
+            } catch (_) { /* 忽略 */ }
+            out.push({
+              id,
+              type: layer?.type || '?',
+              loaded: layer?.loaded,
+              visible: layer?.visible,
+              featureCount
+            })
+          })
+        }
+      } catch (_) { /* 忽略 */ }
+      return out
+    }
+  })
+}
+
+// WebGL 上下文丢失守护：浏览器回收显卡上下文时（多地困/多标签），
+// GeoScene 只会标记 fatalError 不自行恢复，此处感知并提示用户一键恢复
+let ctxObserver = null
+let ctxGuardAttached = false
+
+function attachContextGuard(canvas) {
+  if (!canvas || canvas.__ctxGuardAttached) return
+  canvas.__ctxGuardAttached = true
+  canvas.addEventListener('webglcontextlost', () => {
+    console.warn('[MapViewer] WebGL 上下文丢失（地图将停止响应，已提示用户恢复）')
+    contextLost.value = true
+  })
+  canvas.addEventListener('webglcontextrestored', () => {
+    console.log('[MapViewer] WebGL 上下文已恢复')
+    contextLost.value = false
+  })
+}
+
+function setupContextLossGuard() {
+  const container = mapContainer.value
+  if (!container || ctxGuardAttached) return
+  ctxGuardAttached = true
+  container.querySelectorAll('canvas').forEach(attachContextGuard)
+  if (typeof MutationObserver !== 'undefined') {
+    ctxObserver = new MutationObserver(() => {
+      container.querySelectorAll('canvas').forEach(attachContextGuard)
+    })
+    ctxObserver.observe(container, { childList: true, subtree: true })
+  }
+}
 defineExpose({
   getMap: () => map,
   getMapManager: () => mapManager,
@@ -715,6 +805,59 @@ onBeforeUnmount(() => {
   -moz-transform: translateZ(0);
   -ms-transform: translateZ(0);
   -o-transform: translateZ(0);
+}
+
+/* WebGL 上下文丢失提示层 */
+.map-context-lost {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.86);
+  backdrop-filter: blur(3px);
+}
+
+.map-context-lost-box {
+  max-width: 420px;
+  padding: 32px 36px;
+  text-align: center;
+  background: rgba(30, 41, 59, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.map-context-lost-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin-bottom: 12px;
+}
+
+.map-context-lost-desc {
+  font-size: 13px;
+  line-height: 1.85;
+  color: #94a3b8;
+  margin-bottom: 22px;
+}
+
+.map-context-lost-btn {
+  padding: 10px 30px;
+  border: none;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.map-context-lost-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.45);
 }
 
 :deep(.geoscene-ui .geoscene-component) {
