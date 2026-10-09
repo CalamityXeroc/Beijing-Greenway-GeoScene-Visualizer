@@ -18,7 +18,6 @@
 import { ref, onMounted, onBeforeUnmount, watch, nextTick, markRaw } from 'vue'
 import { rafThrottle, scheduleIdleTask } from '@/utils/performance'
 import { useGlobalTheme } from '@/utils/useTheme'
-import { initMapDiag, recordHitTest, recordDiagError } from '@/utils/mapDiagnostics'
 
 const POINTER_MOVE_THRESHOLD = 0.75
 const TILE_PROXY_TIMEOUT_MS = 6000
@@ -253,7 +252,6 @@ onMounted(async () => {
     }
 
     setupEventListeners()
-    setupMapDiagnostics()
     setupContextLossGuard()
     emit('map-ready', map)
     console.log('[MapViewer] 地图组件初始化完成（GeoScene）')
@@ -294,7 +292,6 @@ onMounted(async () => {
       }
 
       setupEventListeners()
-      setupMapDiagnostics()
       setupContextLossGuard()
       emit('map-ready', map)
       console.log('[MapViewer] 重试初始化成功')
@@ -591,7 +588,6 @@ function setupEventListeners() {
     try {
       const hitResult = await view.hitTest(evt)
       const featuresWithLayers = pickFeaturesFromHitTest(hitResult)
-      recordHitTest('click', featuresWithLayers.length)
       if (featuresWithLayers.length > 0) {
         emit('feature-click', {
           features: featuresWithLayers.map((f) => f.feature),
@@ -601,7 +597,6 @@ function setupEventListeners() {
         })
       }
     } catch (error) {
-      recordDiagError('click hitTest: ' + (error?.message || error))
       console.warn('[MapViewer] click hitTest 失败', error)
     }
   }
@@ -637,7 +632,6 @@ function setupEventListeners() {
       if (currentToken !== hoverRequestToken) return
 
       const featuresWithLayers = pickFeaturesFromHitTest(hitResult)
-      recordHitTest('hover', featuresWithLayers.length)
       const hasFeature = featuresWithLayers.length > 0
       view.container.style.cursor = hasFeature ? 'pointer' : ''
 
@@ -671,7 +665,6 @@ function setupEventListeners() {
         lastPointerPixel = [pixel[0], pixel[1]]
       }
     } catch (error) {
-      recordDiagError('hover hitTest: ' + (error?.message || error))
       console.warn('[MapViewer] pointermove hitTest 失败', error)
     } finally {
       clearTimeout(safetyTimer)
@@ -719,39 +712,6 @@ function setupEventListeners() {
 
   zoomWatchHandle = view.watch('zoom', () => {
     emit('zoom-changed', view.zoom)
-  })
-}
-
-// 地图交互诊断（仅 ?mapdiag=1 时激活）
-function setupMapDiagnostics() {
-  if (!mapManager || !view || !mapContainer.value) return
-  initMapDiag({
-    view,
-    container: mapContainer.value,
-    getLayers: () => {
-      const out = []
-      try {
-        const raw = mapManager?._layersMap
-        if (raw && typeof raw.forEach === 'function') {
-          raw.forEach((layer, id) => {
-            let featureCount
-            try {
-              const src = layer?.source
-              if (src && typeof src.length === 'number') featureCount = src.length
-              else if (src && Array.isArray(src.features)) featureCount = src.features.length
-            } catch (_) { /* 忽略 */ }
-            out.push({
-              id,
-              type: layer?.type || '?',
-              loaded: layer?.loaded,
-              visible: layer?.visible,
-              featureCount
-            })
-          })
-        }
-      } catch (_) { /* 忽略 */ }
-      return out
-    }
   })
 }
 
