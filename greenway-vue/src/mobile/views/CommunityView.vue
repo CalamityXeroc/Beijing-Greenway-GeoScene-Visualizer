@@ -147,7 +147,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import MobileBottomNav from '../components/MobileBottomNav.vue'
-import { fetchCommunityStats, fetchGreenwayAssess, fetchRecentComments } from '../services/api'
+import { fetchCommunityStats, fetchGreenwayAssess, fetchRecentComments, fetchGreenways } from '../services/api'
 
 const router = useRouter()
 const activeTab = ref('community')
@@ -178,7 +178,7 @@ const loadRank = async () => {
   try {
     const [assess, geojson] = await Promise.all([
       fetchGreenwayAssess(),
-      import('../services/api').then(m => m.fetchGreenways())
+      fetchGreenways()
     ])
     // name → id 映射（assess 返回 name，详情路由需要 id）
     const map = {}
