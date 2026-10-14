@@ -67,11 +67,26 @@ router.post('/reach', async (req, res) => {
 
     const t0 = Date.now()
     // 加载路网图（全路网，强制非主干道模式）
-    const { graph } = await getGraph(
-      req.pool,
-      wgsLng - margin, wgsLat - margin, wgsLng + margin, wgsLat + margin,
-      Math.min(spanKm, 8)  // 保持全路网（avoid 主干道降级）
-    )
+    // 路网数据仅覆盖北京五环内，范围外取不到路 → 返回空结果 + 说明。
+    // 若直接抛错会变成 500，前端拿不到 hulls 也就画不出起点，用户看到的是"点了没反应"。
+    let graph
+    try {
+      ({ graph } = await getGraph(
+        req.pool,
+        wgsLng - margin, wgsLat - margin, wgsLng + margin, wgsLat + margin,
+        Math.min(spanKm, 8)  // 保持全路网（avoid 主干道降级）
+      ))
+    } catch (e) {
+      console.log(`[可达圈] 路网不可用 (${wgsLng.toFixed(4)}, ${wgsLat.toFixed(4)}): ${e.message}`)
+      return res.json({
+        mode: travelMode,
+        origin: { lng, lat },
+        hulls: {},
+        greenways: [],
+        summary: { reachableCount: 0, within15: 0, nearest: null },
+        notice: '该位置超出路网覆盖范围，暂无法计算可达圈（路网数据覆盖北京五环内）'
+      })
+    }
     console.log(`[可达圈] 路网就绪 ${graph.nodeIdx}节点 ${Date.now() - t0}ms`)
 
     // 距离场（WGS-84 路网坐标）
