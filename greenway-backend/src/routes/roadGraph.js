@@ -21,12 +21,19 @@ function cacheKey(minX, minY, maxX, maxY, spanKm) {
 /**
  * 从数据库加载矩形区域内的道路
  * spanKm > 8 时长距离走主干道（primary/secondary），避免大数据量远程传输超时
+ *
+ * 重要：结果按“距中心点距离”由近到远排序后再截断（KNN，走 GiST 索引）。
+ * 若直接 LIMIT，PostgreSQL 按物理存储顺序返回，会在道路密集区域
+ * （如骑行 30 分钟 bbox 内有 2 万+ 条）随机丢掉起点周边的路网，
+ * 导致起点吸附到 1km 外的节点、可达圈中心偏移。
  */
 export async function loadRoads(pool, minX, minY, maxX, maxY, spanKm) {
   const mainOnly = spanKm > 8
   const highwayCond = mainOnly
     ? "highway IN ('primary','primary_link','secondary','secondary_link')"
     : "highway NOT IN ('motorway','motorway_link','trunk','trunk_link')"
+  const centerLng = (minX + maxX) / 2
+  const centerLat = (minY + maxY) / 2
   const result = await pool.query(`
     SELECT
       osm_id,
@@ -36,8 +43,9 @@ export async function loadRoads(pool, minX, minY, maxX, maxY, spanKm) {
     WHERE highway IS NOT NULL
       AND ${highwayCond}
       AND way && ST_MakeEnvelope($1, $2, $3, $4, 4326)
+    ORDER BY way <-> ST_SetSRID(ST_MakePoint($5, $6), 4326)
     LIMIT 10000
-  `, [minX, minY, maxX, maxY])
+  `, [minX, minY, maxX, maxY, centerLng, centerLat])
   return result.rows
 }
 
