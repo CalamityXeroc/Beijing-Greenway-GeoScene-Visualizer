@@ -666,6 +666,10 @@ function closeMenu() {
 // 点击切换菜单（触屏设备）/ 已开再点关闭
 function toggleMenu(id) {
   clearTimeout(closeTimer)
+  // 桌面端鼠标：hover 已把菜单打开时，点击不应关闭它
+  // （否则用户「移到按钮→点击→移向菜单项」时菜单会被点击关掉，感觉点了打不开）
+  // 触屏设备无 hover，点击仍需切换
+  if (!isTouch && openMenuId.value === id) return
   openMenuId.value = openMenuId.value === id ? null : id
 }
 
