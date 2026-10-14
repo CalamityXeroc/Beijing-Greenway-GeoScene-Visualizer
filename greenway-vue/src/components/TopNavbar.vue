@@ -1058,11 +1058,12 @@ onBeforeUnmount(() => {
   .nav-tools {
     flex: 1 1 auto;
     min-width: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+    flex-wrap: wrap;
   }
-  .nav-tools::-webkit-scrollbar { display: none; }
+  /* 注意：此处不能给 .nav-tools 设 overflow-x: auto。
+     下拉菜单是 position: absolute; top: calc(100% + 6px)，会超出 nav-tools 盒子底部；
+     一旦父级建立裁剪容器，所有下拉菜单都会被裁掉（仅“路径规划”无下拉而正常）。
+     窄屏放不下时改为换行，保证下拉可见。 */
   /* 用户区与搜索保持完整（桌面功能优先） */
   .nav-right {
     flex-shrink: 0;
