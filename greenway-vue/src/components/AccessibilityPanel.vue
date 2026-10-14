@@ -23,6 +23,10 @@
         </div>
         <p v-if="picking" class="ap-picking-hint"><i class="fas fa-hand-pointer"></i> 请在左侧地图上点击任意位置作为起点</p>
         <p v-if="origin && !picking" class="ap-origin-text"><i class="fas fa-check-circle"></i> 起点：{{ origin.address || origin.lng.toFixed(4) + ',' + origin.lat.toFixed(4) }}</p>
+        <!-- 计算过程/失败/后端说明：给出可见反馈，避免“点了没反应” -->
+        <p v-if="loading" class="ap-alert ap-alert--info"><i class="fas fa-spinner fa-spin"></i> 正在计算可达圈…</p>
+        <p v-if="error" class="ap-alert ap-alert--err"><i class="fas fa-triangle-exclamation"></i> {{ error }}</p>
+        <p v-if="notice" class="ap-alert ap-alert--info"><i class="fas fa-circle-info"></i> {{ notice }}</p>
       </div>
 
       <!-- 出行方式 -->
@@ -128,6 +132,8 @@ function changeIndex(i) { changeMin(LEVELS[i] ?? 15) }
 const locating = ref(false)
 const loading = ref(false)
 const picking = ref(false)
+const error = ref('')   // 计算失败原因（面板内可见反馈，替代 alert）
+const notice = ref('')  // 后端说明，如“超出路网覆盖范围”
 
 const reachableNow = computed(() => {
   if (!result.value) return []
@@ -141,20 +147,39 @@ function setMode(m) {
 
 function handlePickOrigin() {
   picking.value = !picking.value
+  error.value = ''
+  notice.value = ''
   emit('pick-origin', picking.value)
+}
+
+/* 起点已确定：立即通知父组件飞行并画出起点标记，不等计算完成。
+   否则计算失败时（如超出路网覆盖范围）标记也不会出现，用户会以为选点没生效。 */
+function publishOrigin() {
+  if (!origin.value) return
+  emit('origin-set', origin.value)
+  emitHull({})
 }
 
 /* 供父组件调用：地图选点结果 */
 function applyOrigin(pt) {
   picking.value = false
   origin.value = { ...pt, address: '地图选点', source: 'map' }
+  publishOrigin()
   recompute()
 }
 defineExpose({ applyOrigin })
 
 async function locateMe() {
+  error.value = ''
+  notice.value = ''
   if (!navigator.geolocation) {
-    alert('您的浏览器不支持定位功能，请使用地图选点')
+    error.value = '您的浏览器不支持定位功能，请使用地图选点'
+    return
+  }
+  // 浏览器仅在安全上下文（HTTPS / localhost）提供定位。
+  // 通过局域网 IP 访问时 getCurrentPosition 必然失败，此处提前说明原因。
+  if (!window.isSecureContext) {
+    error.value = '当前地址非安全环境，浏览器已禁用定位。请改用「地图选点」，或通过 http://localhost:5173 访问'
     return
   }
   picking.value = false
@@ -166,9 +191,10 @@ async function locateMe() {
     // 浏览器 geolocation 返回 WGS-84，高德底图为 GCJ-02，需转换
     const gcj = wgs84ToGcj02(pos.coords.longitude, pos.coords.latitude)
     origin.value = { lng: gcj.lng, lat: gcj.lat, address: '我的位置', source: 'geo' }
+    publishOrigin()
     await recompute()
   } catch {
-    alert('定位失败，请使用地图选点')
+    error.value = '定位失败，请使用地图选点'
   } finally {
     locating.value = false
   }
@@ -177,6 +203,8 @@ async function locateMe() {
 async function recompute() {
   if (!origin.value) return
   loading.value = true
+  error.value = ''
+  notice.value = ''
   try {
     const res = await fetch(`${getApiBaseUrl()}/api/accessibility/reach`, {
       method: 'POST',
@@ -185,21 +213,29 @@ async function recompute() {
     })
     const data = await res.json()
     if (data.error) throw new Error(data.error)
+    notice.value = data.notice || ''
+    // 超出路网覆盖范围时后端只返回说明而不给 hulls，此时不进入“结果”视图，
+    // 否则会显示“可达 0 条绿道”的误导性结果（实际是未参与计算）
+    if (data.notice && !Object.keys(data.hulls || {}).length) {
+      result.value = null
+      return
+    }
     result.value = data
-    // 通知父组件：起点已确定（地图缩放 + 高亮）
-    emit('origin-set', origin.value)
+    // 计算成功：地图飞至起点 + 渲染多档等时圈
+    publishOrigin()
     emitHull()
   } catch (e) {
-    alert('可达圈计算失败：' + e.message)
+    // 面板内提示替代 alert：起点标记仍保留在图上，便于用户换点重试
+    result.value = null
+    error.value = '可达圈计算失败：' + e.message
   } finally {
     loading.value = false
   }
 }
 
-function emitHull() {
-  if (!result.value?.hulls) return
+function emitHull(hulls = result.value?.hulls || {}) {
   emit('hull-change', {
-    hulls: result.value.hulls,
+    hulls,
     minutes: currentMin.value,
     origin: origin.value
   })
@@ -349,6 +385,12 @@ function emitHull() {
 .ap-go:hover { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(21,101,192,0.35); }
 .ap-empty { text-align: center; color: var(--text-secondary, #888); font-size: 0.82rem; padding: 10px 0; line-height: 1.6; }
 .ap-empty-hint { border: 1px dashed var(--border-color, #ddd); border-radius: 10px; padding: 16px 10px; }
+
+/* 状态提示条：计算中 / 失败原因 / 后端说明 */
+.ap-alert { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; font-size: 0.78rem; line-height: 1.55; display: flex; gap: 6px; align-items: flex-start; }
+.ap-alert i { margin-top: 2px; flex: 0 0 auto; }
+.ap-alert--err { color: #B3261E; background: rgba(179, 38, 30, 0.08); border: 1px solid rgba(179, 38, 30, 0.22); }
+.ap-alert--info { color: #1565C0; background: rgba(25, 118, 210, 0.08); border: 1px solid rgba(25, 118, 210, 0.2); }
 
 /* 手机端：面板全宽，避免溢出屏幕 */
 @media (max-width: 480px) {
