@@ -2,6 +2,9 @@
 const store = new Map()
 const inflight = new Map()
 
+// 加载失败时旧值的保留宽限期：期间直接返回旧值，避免数据库抖动导致整页不可用
+const STALE_GRACE_MS = 30_000
+
 export function cached(key, ttlMs, loader) {
   const now = Date.now()
   const hit = store.get(key)
@@ -12,8 +15,12 @@ export function cached(key, ttlMs, loader) {
     store.set(key, { value, expires: Date.now() + ttlMs })
     return value
   }).catch((err) => {
-    // 加载失败时若已有缓存则保留旧值，避免单次抖动拖垮整页
-    if (hit) store.set(key, { value: hit.value, expires: hit.expires })
+    // 加载失败且有旧值：把旧值的宽限期往后顺延并直接返回（此前的实现只是原样写回已过期的 expires，
+    // 导致下一次请求仍然判定为过期、旧值实际上从未被服务过）
+    if (hit) {
+      store.set(key, { value: hit.value, expires: Date.now() + STALE_GRACE_MS })
+      return hit.value
+    }
     throw err
   }).finally(() => {
     inflight.delete(key)

@@ -9,20 +9,25 @@ router.post('/record', async (req, res) => {
     return res.status(400).json({ code: 1, message: '缺少必要参数' })
   }
 
+  // 坐标必须是有限数值：此前的实现直接把这些值拼进 SQL（公开接口，可被注入）
+  const coords = [origin.lng, origin.lat, destination.lng, destination.lat].map((v) => Number(v))
+  if (!coords.every((v) => Number.isFinite(v))) {
+    return res.status(400).json({ code: 1, message: '坐标参数非法' })
+  }
+  const [oLng, oLat, dLng, dLat] = coords
+
   try {
     // PostGIS 绿道关联判断：构建路线线段，查询 500m 内的绿道
-    const routeLine = `ST_SetSRID(ST_MakeLine(ARRAY[
-      ST_SetSRID(ST_MakePoint(${origin.lng}, ${origin.lat}), 4326),
-      ST_SetSRID(ST_MakePoint(${destination.lng}, ${destination.lat}), 4326)
-    ]), 4326)`
-
     const greenwayResult = await req.pool.query(`
       SELECT name FROM greenways
       WHERE geometry IS NOT NULL
-        AND ST_DWithin(geometry, ${routeLine}, 0.005)
+        AND ST_DWithin(geometry, ST_SetSRID(ST_MakeLine(ARRAY[
+          ST_SetSRID(ST_MakePoint($1, $2), 4326),
+          ST_SetSRID(ST_MakePoint($3, $4), 4326)
+        ]), 4326), 0.005)
         AND ST_NumGeometries(geometry) > 0
       LIMIT 10
-    `)
+    `, [oLng, oLat, dLng, dLat])
 
     const is_greenway_related = greenwayResult.rows.length > 0
     const related_greenways = JSON.stringify(greenwayResult.rows.map(r => r.name))
@@ -65,8 +70,8 @@ router.post('/record', async (req, res) => {
 
 // GET /api/route/stats/greenway-rank - 绿道热度排名
 router.get('/stats/greenway-rank', async (req, res) => {
-  const limit = parseInt(req.query.limit) || 10
-  const days = parseInt(req.query.days) || 90
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 100)
+  const days = Math.min(Math.max(parseInt(req.query.days, 10) || 90, 1), 3650)
 
   try {
     const result = await req.pool.query(`
@@ -76,11 +81,11 @@ router.get('/stats/greenway-rank', async (req, res) => {
       FROM route_planning_records r,
            jsonb_array_elements_text(r.related_greenways) j(greenway_name)
       WHERE r.is_greenway_related = true
-        AND r.created_at > NOW() - INTERVAL '${days} days'
+        AND r.created_at > NOW() - ($2::int * INTERVAL '1 day')
       GROUP BY j.greenway_name
       ORDER BY count DESC
       LIMIT $1
-    `, [limit])
+    `, [limit, days])
 
     res.json({ code: 0, data: result.rows })
   } catch (e) {
@@ -136,8 +141,8 @@ router.get('/stats/trend', async (req, res) => {
 
 // GET /api/route/stats/records - 分页记录列表
 router.get('/stats/records', async (req, res) => {
-  const page = parseInt(req.query.page) || 1
-  const pageSize = parseInt(req.query.pageSize) || 20
+  const page = Math.max(parseInt(req.query.page, 10) || 1, 1)
+  const pageSize = Math.min(Math.max(parseInt(req.query.pageSize, 10) || 20, 1), 100)
   const travelMode = req.query.travel_mode || ''
   const greenwayOnly = req.query.greenway_only === 'true'
   const offset = (page - 1) * pageSize

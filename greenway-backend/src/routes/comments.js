@@ -3,10 +3,9 @@ import jwt from 'jsonwebtoken';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { authMiddleware } from '../auth.js';
+import { authMiddleware, JWT_SECRET } from '../auth.js';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'greenway-secret-2025-change-me';
 const DEFAULT_SENSITIVE_WORDS = ['傻逼', '妈的', '垃圾', '滚蛋'];
 const RATE_LIMIT_PER_HOUR = 20;
 
@@ -417,8 +416,9 @@ router.post('/:id/like', authMiddleware, async (req, res) => {
     return res.status(400).json({ code: 400, message: '评论 ID 非法' });
   }
 
-  const client = await req.pool.connect();
+  let client;
   try {
+    client = await req.pool.connect();
     await client.query('BEGIN');
 
     await client.query(
@@ -456,11 +456,11 @@ router.post('/:id/like', authMiddleware, async (req, res) => {
       data: { likeCount: parseInt(countResult.rows[0].like_count, 10) }
     });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (client) await client.query('ROLLBACK').catch(() => {});
     console.error('[comments/like]', err);
     res.status(500).json({ code: 500, message: '服务器错误' });
   } finally {
-    client.release();
+    client?.release();
   }
 });
 
@@ -470,8 +470,9 @@ router.delete('/:id/like', authMiddleware, async (req, res) => {
     return res.status(400).json({ code: 400, message: '评论 ID 非法' });
   }
 
-  const client = await req.pool.connect();
+  let client;
   try {
+    client = await req.pool.connect();
     await client.query('BEGIN');
 
     await client.query(
@@ -507,11 +508,11 @@ router.delete('/:id/like', authMiddleware, async (req, res) => {
       data: { likeCount: parseInt(countResult.rows[0].like_count, 10) }
     });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (client) await client.query('ROLLBACK').catch(() => {});
     console.error('[comments/unlike]', err);
     res.status(500).json({ code: 500, message: '服务器错误' });
   } finally {
-    client.release();
+    client?.release();
   }
 });
 

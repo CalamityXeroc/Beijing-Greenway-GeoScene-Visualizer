@@ -1,7 +1,7 @@
+import './env.js';   // 必须最先导入：保证后续模块读到 .env.local 中的环境变量
 import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
-import dotenv from 'dotenv';
 import os from 'os';
 import authRouter from './auth.js';
 import aiRouter from './routes/ai.js';
@@ -20,8 +20,7 @@ import assessRouter from './routes/assess.js';
 import accessibilityRouter from './routes/accessibility.js';
 import { cached, invalidate } from './cache.js';
 import { preloadFacilitiesCache } from './routes/poi.js';
-
-dotenv.config({ path: '.env.local' });
+import { authMiddleware, adminOnly } from './auth.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;  // 后端端口：3001（非 3000）
@@ -46,6 +45,15 @@ const pool = new pg.Pool({
 
 // 将 pool 注入 req 对象，供各路由使用
 app.use((req, _res, next) => { req.pool = pool; next(); });
+
+// 进程级异常兜底：Express 4 不捕获 async handler 的 rejection（Node 15+ 默认会因此退出进程），
+// 一次数据库抖动就会打挂整个后端。此处仅记录日志，保持服务存活。
+process.on('unhandledRejection', (reason) => {
+  console.error('[未捕获的 Promise 拒绝]', reason instanceof Error ? reason.stack : reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[未捕获的异常]', err?.stack || err);
+});
 
 // 挂载认证与用户管理路由
 app.use('/api', authRouter);
@@ -259,7 +267,7 @@ app.get('/api/greenways/:id', async (req, res) => {
 });
 
 // 创建或更新绿道
-app.post('/api/greenways', async (req, res) => {
+app.post('/api/greenways', authMiddleware, adminOnly, async (req, res) => {
   try {
     const { name, description, length, introduction, location, coordinates } = req.body;
 
@@ -300,7 +308,7 @@ app.post('/api/greenways', async (req, res) => {
 });
 
 // 创建兴趣点
-app.post('/api/greenways/:id/poi', async (req, res) => {
+app.post('/api/greenways/:id/poi', authMiddleware, adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, poi_type, coordinates } = req.body;

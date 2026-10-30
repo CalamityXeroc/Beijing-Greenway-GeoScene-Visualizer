@@ -107,9 +107,6 @@ async function updateCommentStatus(req, res) {
   }
 }
 
-router.patch('/:id/status', authMiddleware, adminOnly, updateCommentStatus);
-router.put('/:id/status', authMiddleware, adminOnly, updateCommentStatus);
-
 router.patch('/batch/status', authMiddleware, adminOnly, async (req, res) => {
   const ids = Array.isArray(req.body.ids) ? req.body.ids.map((n) => parseInt(n, 10)).filter((n) => !Number.isNaN(n)) : [];
   const status = req.body.status;
@@ -141,6 +138,11 @@ router.patch('/batch/status', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+// 单条状态变更必须注册在 /batch/status 之后，否则 'batch' 会被当作 :id 匹配，
+// 导致批量操作恒返回「评论 ID 非法」而完全失效。
+router.patch('/:id/status', authMiddleware, adminOnly, updateCommentStatus);
+router.put('/:id/status', authMiddleware, adminOnly, updateCommentStatus);
+
 async function batchPermanentDelete(req, res) {
   const ids = Array.isArray(req.body.ids) ? req.body.ids.map((n) => parseInt(n, 10)).filter((n) => !Number.isNaN(n)) : [];
 
@@ -148,8 +150,9 @@ async function batchPermanentDelete(req, res) {
     return res.status(400).json({ code: 400, message: 'ids 不能为空' });
   }
 
-  const client = await req.pool.connect();
+  let client;
   try {
+    client = await req.pool.connect();
     await client.query('BEGIN');
 
     const result = await client.query(
@@ -167,11 +170,11 @@ async function batchPermanentDelete(req, res) {
       data: { deleted: result.rows.length }
     });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (client) await client.query('ROLLBACK').catch(() => {});
     console.error('[admin/comments/batch-permanent]', err);
     res.status(500).json({ code: 500, message: '服务器错误' });
   } finally {
-    client.release();
+    client?.release();
   }
 }
 
@@ -181,8 +184,9 @@ async function permanentDelete(req, res) {
     return res.status(400).json({ code: 400, message: '评论 ID 非法' });
   }
 
-  const client = await req.pool.connect();
+  let client;
   try {
+    client = await req.pool.connect();
     await client.query('BEGIN');
 
     const result = await client.query(
@@ -193,7 +197,7 @@ async function permanentDelete(req, res) {
     );
 
     if (result.rows.length === 0) {
-      await client.query('ROLLBACK');
+      if (client) await client.query('ROLLBACK').catch(() => {});
       return res.status(404).json({ code: 404, message: '评论不存在' });
     }
 
@@ -205,11 +209,11 @@ async function permanentDelete(req, res) {
       data: { id: commentId }
     });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (client) await client.query('ROLLBACK').catch(() => {});
     console.error('[admin/comments/permanent]', err);
     res.status(500).json({ code: 500, message: '服务器错误' });
   } finally {
-    client.release();
+    client?.release();
   }
 }
 

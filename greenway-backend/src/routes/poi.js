@@ -99,7 +99,7 @@ router.get('/greenways/name/:name/nearby-facilities', async (req, res) => {
     const facilities = await queryFacilities(req.pool, idRow.rows[0].id, types, radiusM)
     const summary = {}
     for (const f of facilities) { summary[f.poi_type] = (summary[f.poi_type] || 0) + 1 }
-    res.json({ greenwayId: idRow.rows[0].id, greenwayName: name, radius: 1000, facilities, summary })
+    res.json({ greenwayId: idRow.rows[0].id, greenwayName: name, radius: radiusM, facilities, summary })
   } catch (err) {
     console.error('[POI-by-name] 查询失败:', err.message)
     res.status(500).json({ error: err.message })
@@ -116,7 +116,7 @@ router.get('/greenways/:id/nearby-facilities', async (req, res) => {
     const gw = await req.pool.query('SELECT name FROM greenways WHERE id = $1', [id])
     const summary = {}
     for (const f of facilities) { summary[f.poi_type] = (summary[f.poi_type] || 0) + 1 }
-    res.json({ greenwayId: parseInt(id), greenwayName: gw.rows[0]?.name || '', radius: 1000, facilities, summary })
+    res.json({ greenwayId: parseInt(id), greenwayName: gw.rows[0]?.name || '', radius: radiusM, facilities, summary })
   } catch (err) {
     console.error('[POI] 查询失败:', err.message)
     res.status(500).json({ error: err.message })
@@ -314,7 +314,7 @@ router.get('/admin/poi/top', authMiddleware, adminOnly, async (req, res) => {
 })
 
 // 管理后台：POI 统计
-router.get('/admin/poi/stats', async (req, res) => {
+router.get('/admin/poi/stats', authMiddleware, adminOnly, async (req, res) => {
   try {
     // 总览统计
     const overview = await req.pool.query(`

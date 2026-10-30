@@ -12,10 +12,9 @@
 
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { authMiddleware, adminOnly } from '../auth.js';
+import { authMiddleware, adminOnly, JWT_SECRET } from '../auth.js';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'greenway-secret-2025-change-me';
 
 const TYPE_MAP = { suggestion: '功能建议', bug: '问题反馈', content: '内容纠错', other: '其他' };
 const SOURCE_MAP = { web: 'Web 端', app: 'App 端' };

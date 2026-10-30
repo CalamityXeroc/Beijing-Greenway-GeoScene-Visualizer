@@ -15,14 +15,17 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'node:crypto';
 
 const router = Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'greenway-secret-2025-change-me';
-// 安全提示：生产环境务必在 .env.local 配置强随机 JWT_SECRET，否则任何人可用默认密钥伪造管理员 token
-if (!process.env.JWT_SECRET) {
-  console.warn('[安全] ⚠️ 未配置 JWT_SECRET 环境变量，正在使用默认密钥（仅限开发环境）')
-}
+// 未配置 JWT_SECRET 时使用「每次启动随机生成」的密钥，而不是写死的公开字符串，
+// 避免任何人用源码里的默认值伪造管理员 token（历史问题：生产环境因此可被伪造登录）。
+// 代价：未配置时进程重启会让登录态全部失效，因此生产环境仍应在 .env.local 中固定配置。
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  console.warn('[安全] ⚠️ 未配置 JWT_SECRET 环境变量，本次启动使用随机密钥；重启后登录态将失效，请尽快在 .env.local 中配置')
+  return crypto.randomBytes(32).toString('hex')
+})()
 const JWT_EXPIRES  = '24h';
 const SALT_ROUNDS  = 10;
 
@@ -500,6 +503,6 @@ router.get('/community/stats', async (req, res) => {
   }
 });
 
-export { authMiddleware, adminOnly };
+export { authMiddleware, adminOnly, JWT_SECRET };
 export default router;
 
