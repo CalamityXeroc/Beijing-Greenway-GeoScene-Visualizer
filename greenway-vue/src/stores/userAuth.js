@@ -1,5 +1,6 @@
 import { reactive, computed } from 'vue'
 import { getApiBaseUrl } from '../mobile/services/api'
+import { useAdminAuth } from './adminAuth'
 
 const TOKEN_KEY = 'greenway_user_token'
 const USER_KEY  = 'greenway_user'
@@ -18,6 +19,8 @@ const username      = computed(() => state.currentUser?.username || '')
 const nickname      = computed(() => state.currentUser?.nickname || state.currentUser?.username || '')
 
 function setSession(tokenStr, userObj) {
+  // 重新登录后解除「管理员已主动退出」标记，恢复“前台管理员免二次登录”
+  sessionStorage.removeItem('greenway_admin_manual_logout')
   state.token       = tokenStr
   state.currentUser = userObj
   localStorage.setItem(TOKEN_KEY, tokenStr)
@@ -29,6 +32,8 @@ function clearSession() {
   state.currentUser = null
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(USER_KEY)
+  // 前台退出时一并清掉管理员会话，否则管理后台“复用前台身份”获得的登录态会继续有效
+  useAdminAuth().clearSession()
 }
 
 async function apiFetch(url, options = {}) {

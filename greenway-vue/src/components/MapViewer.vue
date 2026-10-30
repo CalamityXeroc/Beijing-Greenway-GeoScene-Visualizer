@@ -357,6 +357,11 @@ const createLayerFromConfig = (config) => {
     }
   }
 
+  // 数据源尚未就绪（详情页初始 data 为 null，等接口返回后赋值）时不建图层：
+  // GeoJSONLayer 在没有 url/source 的情况下加载必然失败，产生控制台报错与未捕获异常。
+  // 数据到达后 props.layers 的深度 watch 会重新调用 syncLayers 完成创建。
+  if (!config.url && !config.data) return null
+
   const layer = layerManager.createVectorLayerFromGeoJSON({
     url: config.url,
     data: config.data,
@@ -509,7 +514,10 @@ async function syncLayers(layersConfig = []) {
 
       const created = createLayerFromConfig(config)
       if (!created?.layer) {
-        console.warn('[MapViewer] 图层创建失败，已跳过', config)
+        // 无 url/data 属于“数据未就绪”的正常等待，不产生告警
+        if (config.url || config.data) {
+          console.warn('[MapViewer] 图层创建失败，已跳过', config)
+        }
         continue
       }
 

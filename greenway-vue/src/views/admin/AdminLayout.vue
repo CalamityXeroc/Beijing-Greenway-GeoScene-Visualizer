@@ -80,7 +80,7 @@ import { useAdminAuth } from '@/stores/adminAuth'
 
 const router = useRouter()
 const route  = useRoute()
-const { adminUser, clearSession, isLoggedIn } = useAdminAuth()
+const { adminUser, logout, isLoggedIn } = useAdminAuth()
 
 // token 被清除后（如任意请求返回 401）自动跳回登录页
 watch(isLoggedIn, (val) => {
@@ -182,7 +182,7 @@ function isActive(path) {
 
 function confirmLogout() {
   if (confirm('确定退出管理后台？')) {
-    clearSession()
+    logout()
     window.location.href = '/admin/login'
   }
 }

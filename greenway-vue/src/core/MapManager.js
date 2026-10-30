@@ -406,10 +406,14 @@ class MapManager {
       tilt,
       fov: 55
     })
+    // 相机被下一次飞行动画打断时 goTo 会 reject，调用方普遍不处理返回值，
+    // 这里统一吞掉中断异常，避免产生未捕获的 Promise 拒绝
     return view.goTo(camera, {
       animate: true,
       duration,
       easing: 'ease-in-out'
+    }).catch((err) => {
+      if (err?.name !== 'AbortError') console.warn('[MapManager] flyTo 中断:', err?.message || err)
     })
   }
 

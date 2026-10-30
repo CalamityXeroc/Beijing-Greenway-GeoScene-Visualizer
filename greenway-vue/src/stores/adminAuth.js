@@ -8,14 +8,18 @@ const KEY_TOKEN = 'greenway_admin_token'
 const KEY_USER  = 'greenway_admin_user'
 const USER_TOKEN_KEY = 'greenway_user_token'
 const USER_KEY = 'greenway_user'
+// 管理员主动退出标记：置位后不再从「前台用户身份」自动复用会话，避免退出后被就地复活
+const KEY_MANUAL_LOGOUT = 'greenway_admin_manual_logout'
 
 // 初始化：优先用管理员独立会话；否则若前台用户是 admin 则同步复用
 function initState() {
   let token = localStorage.getItem(KEY_TOKEN)
   let user  = JSON.parse(localStorage.getItem(KEY_USER) || 'null')
 
+  const manualLogout = sessionStorage.getItem(KEY_MANUAL_LOGOUT) === '1'
+
   // 前台用户会话是 admin 但管理会话为空 → 同步复用（免二次登录）
-  if (!token || !user || user.role !== 'admin') {
+  if (!manualLogout && (!token || !user || user.role !== 'admin')) {
     const userToken = localStorage.getItem(USER_TOKEN_KEY)
     let userObj = null
     try { userObj = JSON.parse(localStorage.getItem(USER_KEY)) } catch { userObj = null }
@@ -41,6 +45,7 @@ export function useAdminAuth() {
   const token      = computed(() => state.token)
 
   function setSession(token, user) {
+    sessionStorage.removeItem(KEY_MANUAL_LOGOUT)
     state.token = token
     state.user  = user
     localStorage.setItem(KEY_TOKEN, token)
@@ -52,6 +57,16 @@ export function useAdminAuth() {
     state.user  = null
     localStorage.removeItem(KEY_TOKEN)
     localStorage.removeItem(KEY_USER)
+  }
+
+  /** 管理员主动退出：打标记后再清会话。
+   *  同时清掉前台会话——路由守卫对 /admin/* 会优先放行「前台管理员身份」，
+   *  若只清管理员键，退出后仍能凭前台身份直接回到后台。 */
+  function logout() {
+    sessionStorage.setItem(KEY_MANUAL_LOGOUT, '1')
+    clearSession()
+    localStorage.removeItem(USER_TOKEN_KEY)
+    localStorage.removeItem(USER_KEY)
   }
 
   /** 通用请求封装，自动携带 Bearer token */
@@ -84,5 +99,5 @@ export function useAdminAuth() {
     throw new Error('接口返回非 JSON 数据，请检查后端路由或反向代理配置')
   }
 
-  return { isLoggedIn, adminUser, token, setSession, clearSession, apiFetch }
+  return { isLoggedIn, adminUser, token, setSession, clearSession, logout, apiFetch }
 }
