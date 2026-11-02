@@ -2036,7 +2036,10 @@ const GEO_SCENE_SERVICE_LAYERS = [
     valueColorMap: GEO_SCENE_GREENWAY_COLORS,
     lineWidth: 4,
     zIndex: 110,
-    opacity: 1
+    opacity: 1,
+    // 要素只有 17 条，改为后端代理一次取全量（带缓存 + 几何简化），
+    // 避免 FeatureLayer 按视野反复查询导致的“时有时无”
+    proxyUrl: '/api/geoscene/greenways'
   },
   {
     id: 'geoscene-pois',
@@ -2093,6 +2096,41 @@ const loadGeoSceneLayer = async (layerId) => {
     if (!cfg) return
     const existing = mapManager.value?.getLayer?.(layerId)
     if (existing) return
+
+    // 走代理的图层：一次性取全量 GeoJSON，本地渲染（不随视野重查）
+    if (cfg.proxyUrl) {
+      const resp = await fetch(cfg.proxyUrl)
+      if (!resp.ok) throw new Error(`代理接口返回 HTTP ${resp.status}`)
+      const geojson = await resp.json()
+      if (!geojson?.features?.length) throw new Error('代理接口返回空数据')
+
+      const blob = new Blob([JSON.stringify(geojson)], { type: 'application/json' })
+      const layer = new GeoJSONLayer({
+        id: cfg.id,
+        title: cfg.title,
+        url: URL.createObjectURL(blob),
+        visible: true,
+        outFields: ['*']
+      })
+      layer.renderer = lm._createUniqueValueRenderer(
+        {
+          uniqueField: cfg.uniqueField,
+          valueColorMap: cfg.valueColorMap,
+          lineWidth: cfg.lineWidth,
+          pointRadius: cfg.pointRadius,
+          polygonOpacity: cfg.polygonOpacity
+        },
+        cfg.geometryType
+      )
+      layer._zIndex = cfg.zIndex
+      layer._interactive = true
+      mapViewer.value.addLayer(cfg.id, layer, { type: 'featureserver', url: cfg.url })
+      console.log(`[GeoScene服务] 已通过代理加载图层: ${layerId}，要素 ${geojson.features.length} 条`)
+      if (layerId === 'geoscene-greenways') {
+        applyGeoSceneGreenwayTheme(globalTheme.value)
+      }
+      return
+    }
     const layer = lm.createFeatureLayerFromService(cfg.url, {
       zIndex: cfg.zIndex,
       opacity: cfg.opacity,

@@ -680,6 +680,30 @@ app.get('/api/function-segments', async (req, res) => {
   }
 })
 
+// ── GeoScene Server 绿道服务代理（带缓存）───────────────────────────────
+// 前端若直连该服务的 FeatureLayer（on-demand 模式），每次平移/缩放都会按可视范围重新查询，
+// 单次响应最大约 1MB，网络较慢时图层会“清空→回填”，表现为要素时有时无。
+// 这里一次性取全量并做几何简化（约 1/10 体积），缓存后由前端只取一次。
+const GEO_SCENE_QUERY_BASE = process.env.GEO_SCENE_QUERY_BASE || 'https://wandergreen.cn/rest/services'
+
+app.get('/api/geoscene/greenways', async (req, res) => {
+  try {
+    const payload = await cached('geoscene:greenways', 10 * 60_000, async () => {
+      const url = `${GEO_SCENE_QUERY_BASE}/${encodeURIComponent('地图')}/MapServer/2/query`
+        + '?where=1%3D1&outFields=*&returnGeometry=true&f=geojson&maxAllowableOffset=0.0002'
+      const resp = await fetch(url)
+      if (!resp.ok) throw new Error(`GeoScene 服务返回 HTTP ${resp.status}`)
+      const data = await resp.json()
+      if (!Array.isArray(data?.features)) throw new Error('GeoScene 服务返回格式异常')
+      return data
+    })
+    res.json(payload)
+  } catch (err) {
+    console.error('[GeoScene绿道代理] 失败:', err.message)
+    res.status(502).json({ error: 'GeoScene 服务数据暂不可用' })
+  }
+})
+
 // 错误处理
 app.use((err, req, res, next) => {
   console.error(err);
