@@ -32,7 +32,7 @@
         </button>
         <div class="dropdown" v-show="openMenuId === 'draw'">
           <div class="dropdown-section">绘制图形</div>
-          <button class="dd-btn" :class="{ active: toolbarRef.activeTool?.value === 'point' }"
+          <button class="dd-btn" :class="{ active: toolbarRef.activeTool === 'point' }"
                   @click="callTool('activateDrawTool', 'point')">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/>
@@ -41,14 +41,14 @@
             </svg>
             点
           </button>
-          <button class="dd-btn" :class="{ active: toolbarRef.activeTool?.value === 'line' }"
+          <button class="dd-btn" :class="{ active: toolbarRef.activeTool === 'line' }"
                   @click="callTool('activateDrawTool', 'line')">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="5" y1="19" x2="19" y2="5"/>
             </svg>
             线
           </button>
-          <button class="dd-btn" :class="{ active: toolbarRef.activeTool?.value === 'polygon' }"
+          <button class="dd-btn" :class="{ active: toolbarRef.activeTool === 'polygon' }"
                   @click="callTool('activateDrawTool', 'polygon')">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <polygon points="12 2 22 20 2 20"/>
@@ -160,7 +160,7 @@
         </button>
         <div class="dropdown" v-show="openMenuId === 'measure'">
           <div class="dropdown-section">测量类型</div>
-          <button class="dd-btn" :class="{ active: toolbarRef.activeTool?.value === 'measure-length' }"
+          <button class="dd-btn" :class="{ active: toolbarRef.activeTool === 'measure-length' }"
                   @click="callTool('activateMeasureTool', 'length')">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="5" y1="12" x2="19" y2="12"/>
@@ -169,7 +169,7 @@
             </svg>
             测距离
           </button>
-          <button class="dd-btn" :class="{ active: toolbarRef.activeTool?.value === 'measure-area' }"
+          <button class="dd-btn" :class="{ active: toolbarRef.activeTool === 'measure-area' }"
                   @click="callTool('activateMeasureTool', 'area')">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="18" height="18" rx="1"/>
@@ -369,7 +369,7 @@
 
       <!-- 空间分析 -->
       <div class="nav-item" @mouseenter="openMenu('spatial')" @mouseleave="closeMenu('spatial')">
-        <button class="nav-btn" :class="{ active: toolbarRef.activeTool?.value === 'spatial' }" @click="toggleMenu('spatial')">
+        <button class="nav-btn" :class="{ active: toolbarRef.activeTool === 'spatial' }" @click="toggleMenu('spatial')">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-8"/>
@@ -380,7 +380,7 @@
         </button>
         <div class="dropdown" v-show="openMenuId === 'spatial'">
           <div class="dropdown-section">空间分析</div>
-          <button class="dd-btn" :class="{ active: toolbarRef.activeTool?.value === 'spatial' }"
+          <button class="dd-btn" :class="{ active: toolbarRef.activeTool === 'spatial' }"
                   @click="callTool('activateSpatialAnalysis')">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <polygon points="12 2 22 20 2 20"/>
@@ -685,6 +685,10 @@ function callTool(method, ...args) {
     localDrawType.value = localDrawType.value === type ? null : type
   } else if (method === 'activateMeasureTool' || method === 'clearDrawings') {
     localDrawType.value = null
+  }
+  // 进入绘制/测量/空间分析后收起菜单，避免遮住地图、影响接下来的交互
+  if (method.startsWith('activate')) {
+    openMenuId.value = null
   }
 }
 

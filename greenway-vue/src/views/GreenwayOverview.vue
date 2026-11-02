@@ -53,6 +53,14 @@
         @map-click="onMapClick"
         @zoom-changed="onZoomChanged"
       />
+      <!-- 工具操作引导：进入绘制/测量/空间分析交互模式时，提示下一步该怎么做 -->
+      <transition name="hint-fade">
+        <div v-if="activeToolHint" class="tool-hint">
+          <i class="fas fa-hand-pointer tool-hint-icon"></i>
+          <span class="tool-hint-text">{{ activeToolHint }}</span>
+          <button class="tool-hint-cancel" @click="cancelActiveTool">取消</button>
+        </div>
+      </transition>
       <!-- 图层说明卡堆叠容器：各图层开关独立，卡片互不影响 -->
       <div class="flc-stack">
         <!-- 绿道功能区划说明卡 -->
@@ -423,9 +431,11 @@ const buildLayerIdByNameMap = () => {
 }
 
 // 地图配置
+// 首帧兜底视野取北京市域几何中心；进入后由 fitToBeijingBoundary() 按市界实际范围精确适配
+// （原先写死 zoom 8.5，在不同分辨率下都会把北京缩成中间一小团）
 const mapConfig = reactive({
-  center: [116.4, 40.4],  // 向北移动视角，使北京区域下移显示
-  zoom: 8.5  // 降低缩放级别，确保完整显示北京
+  center: [116.47, 40.25],
+  zoom: 9.6
 })
 
 // GeoScene Server 公网服务地址（数据源替换目标）
@@ -1189,6 +1199,27 @@ watch(globalTheme, (t) => {
 })
 
 // 地图就绪
+// 首次进入按市界图层实际范围自适应，保证任何分辨率下北京全域完整可见
+let hasInitialFit = false
+const fitToBeijingBoundary = async () => {
+  if (hasInitialFit || !mapManager.value) return
+  hasInitialFit = true
+  const boundaryLayer = mapManager.value.getLayer('beijing-boundary')
+  if (!boundaryLayer) return
+  try {
+    await boundaryLayer.when()
+    const result = await boundaryLayer.queryExtent()
+    const extent = result?.extent
+    if (!extent) return
+    mapManager.value.fitExtent(extent, {
+      padding: { top: 70, bottom: 60, left: 40, right: 40 },
+      duration: 0
+    })
+  } catch (err) {
+    console.warn('[GreenwayOverview] 适配北京市界范围失败:', err?.message || err)
+  }
+}
+
 const onMapReady = (map) => {
   console.log('[GreenwayOverview] 地图已就绪')
   isLoading.value = false
@@ -1208,6 +1239,9 @@ const onMapReady = (map) => {
       }
     })
   }
+
+  // 视野自适应到北京市界范围
+  fitToBeijingBoundary()
 
   // 从 sessionStorage 恢复上次打开的地图图层
   setTimeout(() => {
@@ -2319,6 +2353,31 @@ const onToolActivated = (data) => {
   console.log('[GreenwayOverview] 工具激活:', data)
 }
 
+// ─── 交互工具操作引导 ─────────────────────────────────
+// 绘制/测量/空间分析进入交互模式后原本没有任何提示，用户会以为点击无效
+const TOOL_HINTS = {
+  point: '单击地图放置点，双击结束',
+  line: '连续单击绘制折线，双击结束',
+  polygon: '连续单击绘制多边形，双击结束',
+  'measure-length': '单击起点，沿路径连续单击，双击结束测量',
+  'measure-area': '连续单击绘制待测区域，双击结束测量',
+  spatial: '连续单击绘制分析区域，双击结束（统计区域内绿道与设施）'
+}
+
+// 注意：defineExpose 暴露的 ref 会被 Vue 自动解包，直接取 .activeTool 即可（再取 .value 会得到 undefined）
+const activeTool = computed(() => toolbarRef.value?.activeTool ?? null)
+const activeToolHint = computed(() => (activeTool.value ? TOOL_HINTS[activeTool.value] || '' : ''))
+
+const cancelActiveTool = () => {
+  toolbarRef.value?.cancelActiveTool?.()
+}
+
+const onGlobalKeydown = (e) => {
+  if (e.key === 'Escape' && activeTool.value) {
+    cancelActiveTool()
+  }
+}
+
 // ─── 空间分析 ─────────────────────────────────────────
 const onSpatialAnalysisComplete = async ({ polygon, analysis, analysisId }) => {
   try {
@@ -2549,6 +2608,8 @@ onMounted(() => {
   }
   // 绑定 POI popup 内"查看绿道详情"按钮的全局点击委托
   unbindPoiPopupNav = bindPoiPopupNavigation(router)
+  // ESC 退出当前绘制/测量/分析交互
+  window.addEventListener('keydown', onGlobalKeydown)
 })
 
 // 监听路由变化，在导航时显示加载指示器
@@ -2566,6 +2627,7 @@ let unbindPoiPopupNav = null
 onBeforeUnmount(() => {
   unbindPoiPopupNav?.()
   unbindPoiPopupNav = null
+  window.removeEventListener('keydown', onGlobalKeydown)
   if (tooltipMoveRaf) {
     cancelAnimationFrame(tooltipMoveRaf)
     tooltipMoveRaf = null
@@ -2656,6 +2718,54 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 .flc-stack .function-legend-card { pointer-events: auto; }
+
+/* 工具操作引导条：地图顶部居中提示下一步操作 */
+.tool-hint {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px 9px 14px;
+  max-width: min(580px, calc(100% - 220px));
+  background: var(--card-bg, rgba(255, 255, 255, 0.96));
+  border: 1px solid rgba(46, 125, 50, 0.24);
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+.tool-hint-icon {
+  color: #2E7D32;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.tool-hint-text {
+  font-size: 0.82rem;
+  line-height: 1.25;
+  color: var(--text-primary, #2f3a2f);
+}
+.tool-hint-cancel {
+  flex-shrink: 0;
+  border: none;
+  background: #2E7D32;
+  color: #fff;
+  font-size: 0.75rem;
+  padding: 4px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.18s ease;
+}
+.tool-hint-cancel:hover { background: #1B5E20; }
+
+.hint-fade-enter-active,
+.hint-fade-leave-active { transition: opacity 0.18s ease; }
+.hint-fade-enter-from,
+.hint-fade-leave-to { opacity: 0; }
 
 /* 附近设施卡：位于功能区划卡正右侧（并排，底部对齐，互不遮挡） */
 .function-legend-card--poi {

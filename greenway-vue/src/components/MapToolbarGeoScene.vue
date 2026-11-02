@@ -558,6 +558,7 @@ defineExpose({
   activateDrawTool,
   activateMeasureTool,
   activateSpatialAnalysis,
+  cancelActiveTool: removeCurrentInteraction,
   clearSpatialAnalysis,
   switchTheme,
   toggleBaseLayer,
