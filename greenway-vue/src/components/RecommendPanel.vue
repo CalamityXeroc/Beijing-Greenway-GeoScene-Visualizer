@@ -68,7 +68,7 @@
             </div>
             <div class="rp-item-meta">
               <span class="rp-meta-tag">{{ item.lenKm }} km</span>
-              <span class="rp-meta-tag">热度第 {{ item.heatRank }} 名</span>
+              <span v-if="item.heatRank" class="rp-meta-tag">热度第 {{ item.heatRank }} 名</span>
               <span v-if="item.profile" class="rp-meta-tag rp-meta-type">{{ dominantName(item.profile) }}</span>
             </div>
             <ul class="rp-reasons">
@@ -224,7 +224,7 @@ async function askAI() {
 
     // 给 AI 完整的数据明细，让它能逐条深入分析
     const recDetail = result.value.items.map((it, idx) =>
-      `第${idx + 1}名 ${it.name}（综合${it.score}分，长${it.lenKm}km，热度第${it.heatRank}名，` +
+      `第${idx + 1}名 ${it.name}（综合${it.score}分，长${it.lenKm}km，${it.heatRank ? `热度第${it.heatRank}名` : '暂无热度排名'}，` +
       `生态${it.profile.eco}%/风景${it.profile.scenic}%/历史文化${it.profile.history}%/城市${it.profile.urban}%，` +
       `理由：${it.reasons.map(r => r.text).join('；')}）`
     ).join('\n')

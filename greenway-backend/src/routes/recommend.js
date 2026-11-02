@@ -145,7 +145,12 @@ router.post('/recommend', async (req, res) => {  try {
       } else {
         reasons.push({ type: 'function', text: '功能类型均衡，各种玩法都能满足' })
       }
-      reasons.push({ type: 'heat', text: `人气热度排名第 ${heatRankMap[it.name]} 位` })
+      // 无热度记录或热度为 0 时视为「暂无排名」，避免展示一个无意义的末位名次
+      const heatRank = it.heat > 0 ? heatRankMap[it.name] ?? null : null
+      reasons.push({
+        type: 'heat',
+        text: heatRank ? `人气热度排名第 ${heatRank} 位` : '暂无热度排名（近期关注度较低）'
+      })
       const fac = facMap[it.name] || {}
       const haveNeeds = Object.values(NEED_POI_TYPES).filter(cfg => (parseInt(fac[cfg.key]) || 0) > 0)
       const facText = `周边 ${fac.cnt || 0} 处设施` + (haveNeeds.length ? `（${haveNeeds.map(c => c.label).join('、')}）` : '')
@@ -156,7 +161,7 @@ router.post('/recommend', async (req, res) => {  try {
         score: it.score,
         matchRate: it.score,
         lenKm: Math.round(it.len * 10) / 10,
-        heatRank: heatRankMap[it.name],
+        heatRank: heatRank ?? null,
         profile: { eco: Math.round(it.profile.eco * 100), scenic: Math.round(it.profile.scenic * 100), history: Math.round(it.profile.history * 100), urban: Math.round(it.profile.urban * 100) },
         reasons,
         lng: it.geo?.lng,

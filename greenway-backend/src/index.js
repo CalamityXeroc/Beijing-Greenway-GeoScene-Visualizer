@@ -819,8 +819,34 @@ function getLocalIP() {
 const localIP = getLocalIP();
 
 // ===== 定时任务：每5分钟更新热度指数 =====
+
+// 补齐缺失的热度行。
+// 原先定时任务只对已存在的行做 UPDATE，新入库的绿道永远不会被创建，
+// 导致推荐/评估接口取 heatRankMap[name] 得到 undefined。
+async function ensureHeatRows() {
+  try {
+    const result = await pool.query(`
+      INSERT INTO greenway_heatmap
+        (greenway_name, click_count, route_count, comment_count, heat_index, last_updated)
+      SELECT g.name, 0, 0, 0, 0, CURRENT_TIMESTAMP
+      FROM greenways g
+      WHERE g.geometry IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM greenway_heatmap h WHERE h.greenway_name = g.name
+        )
+    `);
+    if (result.rowCount > 0) {
+      console.log(`[热度] 已补齐 ${result.rowCount} 条缺失的热度记录`);
+    }
+  } catch (e) {
+    console.error('[热度] 补齐热度记录失败:', e.message);
+  }
+}
+
 async function updateHeatIndex() {
   try {
+    // 先补齐缺行，否则后续 UPDATE 永远漏掉这些绿道
+    await ensureHeatRows();
     // 统计近7天各绿道点击量/路径规划/评论/POI点击，更新热度指数
     // 公式: click*0.15 + route*0.40 + comment*0.20 + poi_click*0.25
     await pool.query(`
