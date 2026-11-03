@@ -3,6 +3,7 @@ import { isMobileDevice } from '@/utils/useMobileOptimization'
 import { Capacitor } from '@capacitor/core'
 import { useAdminAuth } from '@/stores/adminAuth'
 import { useUserAuth } from '@/stores/userAuth'
+import { beginRouteLoading, endRouteLoading } from '@/stores/routeLoading'
 
 // 使用各自独立的详情页面组件（不再使用统一模板）
 
@@ -365,6 +366,9 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   document.title = to.meta.title || '绿脉伴侣'
 
+  // 切换页面且目标组件需要懒加载时，显示全局加载遮罩（延迟 150ms 避免瞬切闪烁）
+  if (to.path !== from.path) beginRouteLoading()
+
   // 管理端鉴权检查（优先复用前台用户身份：若已是 admin 角色则免二次登录）
   if (to.meta.requiresAdmin) {
     const { isLoggedIn: userLoggedIn, currentUser: userInfo } = useUserAuth()
@@ -398,5 +402,21 @@ router.beforeEach((to, from, next) => {
 
   next()
 })
+
+// 导航完成 / 失败都要收起遮罩
+router.afterEach(() => { endRouteLoading() })
+router.onError(() => { endRouteLoading() })
+
+/**
+ * 预加载地图页相关的重资源（地图组件 + GeoScene 核心）。
+ * 在首页 hover / 点击 / 空闲时调用，让进入地图时接近秒开。
+ */
+export function preloadMapChunk() {
+  return Promise.all([
+    import('@/views/GreenwayOverview.vue'),
+    import('@/core/MapManager.js'),
+    import('@/core/LayerManager.js')
+  ]).catch(() => {})
+}
 
 export default router

@@ -9,6 +9,14 @@
       <!-- 路由视图 -->
       <router-view />
 
+      <!-- 全局路由加载遮罩：覆盖懒加载组件下载与地图初始化的空窗期 -->
+      <transition name="route-loading-fade">
+        <div v-if="routeLoading" class="route-loading" role="status" aria-live="polite">
+          <div class="route-loading-spinner"></div>
+          <p class="route-loading-text">正在加载…</p>
+        </div>
+      </transition>
+
       <!-- AI 绿道助手浮窗（仅在地图界面显示） -->
       <AIChatbot v-if="showChatbot" />
 
@@ -36,6 +44,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useGlobalTheme } from '@/utils/useTheme'
+import { routeLoading } from '@/stores/routeLoading'
 import AIChatbot from '@/components/AIChatbot.vue'
 import { useAdminAuth } from '@/stores/adminAuth'
 import { 
@@ -146,6 +155,40 @@ onMounted(() => {
   /* 移动端优化（保留触摸反馈透明，允许文本选择供用户复制内容） */
   -webkit-tap-highlight-color: transparent;
 }
+
+/* 全局路由加载遮罩：跟随主题，避免切换期间白屏/黑屏 */
+.route-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: var(--bg-primary);
+  color: var(--text-secondary, #6b7c6b);
+}
+.route-loading-spinner {
+  width: 42px;
+  height: 42px;
+  border: 3px solid rgba(46, 125, 50, 0.18);
+  border-top-color: #2E7D32;
+  border-radius: 50%;
+  animation: routeLoadingSpin 0.8s linear infinite;
+}
+.route-loading-text {
+  margin: 0;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+}
+@keyframes routeLoadingSpin {
+  to { transform: rotate(360deg); }
+}
+.route-loading-fade-enter-active,
+.route-loading-fade-leave-active { transition: opacity 0.25s ease; }
+.route-loading-fade-enter-from,
+.route-loading-fade-leave-to { opacity: 0; }
 
 .desktop-app {
   width: 100%;

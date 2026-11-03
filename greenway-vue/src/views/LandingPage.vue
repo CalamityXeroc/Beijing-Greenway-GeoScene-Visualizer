@@ -63,7 +63,7 @@
               </button>
             </div>
           </template>
-          <a href="/map" class="btn-primary" @mouseenter="preloadComponent('@/views/GreenwayOverview.vue')">进入地图</a>
+          <router-link to="/map" class="btn-primary" @mouseenter="preloadMap" @focus="preloadMap">进入地图</router-link>
         </div>
       </div>
     </header>
@@ -93,10 +93,10 @@
                 智绘微观绿道，定制你的专属自然
               </p>
               <div class="hero__cta">
-                <a href="/map" class="cta-primary">
+                <router-link to="/map" class="cta-primary" @mouseenter="preloadMap" @focus="preloadMap">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                   立即探索地图
-                </a>
+                </router-link>
                 <button @click="goTo(1)" class="cta-secondary">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   了解平台
@@ -203,7 +203,7 @@
               <p class="section-desc">17 条精品绿道，等待您亲身探索</p>
             </div>
             <div class="gw-grid">
-              <a v-for="gw in greenwayCards" :key="gw.id" :href="gw.path" class="gw-card" :class="{ revealed: currentPage >= 3 }" @mouseenter="preloadDetailComponent(gw.path)">
+              <router-link v-for="gw in greenwayCards" :key="gw.id" :to="gw.path" class="gw-card" :class="{ revealed: currentPage >= 3 }" @mouseenter="preloadDetailComponent(gw.path)">
                 <div class="gw-card__top">
                   <div class="gw-tag" :style="{ background: gw.tagBg }">{{ gw.type }}</div>
                   <div class="gw-len">{{ gw.length }}km</div>
@@ -222,13 +222,13 @@
                   </span>
                 </div>
                 <div class="gw-card__bar" :style="{ background: gw.barColor }"></div>
-              </a>
+              </router-link>
             </div>
             <div class="gw-cta">
-              <a href="/map" class="btn-primary">
+              <router-link to="/map" class="btn-primary" @mouseenter="preloadMap" @focus="preloadMap">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                 在地图中查看全部 17 条绿道
-              </a>
+              </router-link>
             </div>
           </div>
         </section>
@@ -263,10 +263,10 @@
                 <p>无需注册，立即进入地图，发现身边的绿道之美</p>
               </div>
               <div class="banner-actions">
-                <a href="/map" class="btn-primary btn-lg">
+                <router-link to="/map" class="btn-primary btn-lg" @mouseenter="preloadMap" @focus="preloadMap">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                   进入地图
-                </a>
+                </router-link>
                 <a href="/register" class="btn-ghost btn-lg">注册账号</a>
               </div>
             </div>
@@ -284,7 +284,7 @@
                 <div class="footer-links">
                   <div class="fl-group">
                     <div class="fl-title">功能入口</div>
-                    <a href="/map" class="fl-link">绿道地图</a>
+                    <router-link to="/map" class="fl-link" @mouseenter="preloadMap" @focus="preloadMap">绿道地图</router-link>
                     <a href="/login" class="fl-link">用户登录</a>
                     <a href="/register" class="fl-link">注册账号</a>
                     <a href="/download" class="fl-link">下载安卓 App</a>
@@ -333,6 +333,7 @@ import * as THREE from 'three'
 import { useUserAuth } from '@/stores/userAuth'
 import { useAdminAuth } from '@/stores/adminAuth'
 import { useRouter } from 'vue-router'
+import { preloadMapChunk } from '@/router'
 
 const userAuth = useUserAuth()
 const { isLoggedIn: adminIsLoggedIn, adminUser } = useAdminAuth()
@@ -545,36 +546,36 @@ function initCanvas() {
 // ══════════════════════════════════════════════════
 // 生命周期
 // ══════════════════════════════════════════════════
-// 预加载关键组件
-function preloadComponent(path) {
-  import(path).catch(() => {})
+// 预加载地图页重资源（静态字面量，Vite 才能正确打包）
+function preloadMap() {
+  preloadMapChunk()
 }
 
-// 根据路径预加载对应的细节页面组件
+// 详情页按需预加载：import.meta.glob 由构建时静态收集，不能用 import(变量)
+const detailModules = import.meta.glob('../views/*Detail.vue')
+const DETAIL_FILE_MAP = {
+  '/wenyu': '../views/WenyuDetail.vue',
+  '/huanerhuan': '../views/HuanerhuanDetail.vue',
+  '/sanshan': '../views/SanshanDetail.vue',
+  '/aosen': '../views/AosenDetail.vue',
+  '/beiyunhe': '../views/BeiyunheDetail.vue',
+  '/yingcheng': '../views/YingchengDetail.vue',
+  '/changping42': '../views/Changping42Detail.vue',
+  '/changying': '../views/ChangyingDetail.vue',
+  '/liangmahe': '../views/LiangmaheDetail.vue',
+  '/chaoyang': '../views/ChaoyangDetail.vue',
+  '/nansha': '../views/NanshaDetail.vue',
+  '/lidu': '../views/LiduDetail.vue',
+  '/beiyi': '../views/BeiyiDetail.vue',
+  '/dongyi': '../views/DongyiDetail.vue',
+  '/jiaoye': '../views/JiaoyeDetail.vue',
+  '/xiyi': '../views/XiyiDetail.vue',
+  '/zhongxincheng': '../views/ZhongxinchengDetail.vue'
+}
+
 function preloadDetailComponent(path) {
-  const componentMap = {
-    '/wenyu': '@/views/WenyuDetail.vue',
-    '/huanerhuan': '@/views/HuanerhuanDetail.vue',
-    '/sanshan': '@/views/SanshanDetail.vue',
-    '/aosen': '@/views/AosenDetail.vue',
-    '/beiyunhe': '@/views/BeiyunheDetail.vue',
-    '/yingcheng': '@/views/YingchengDetail.vue',
-    '/changping42': '@/views/Changping42Detail.vue',
-    '/changying': '@/views/ChangyingDetail.vue',
-    '/liangmahe': '@/views/LiangmaheDetail.vue',
-    '/chaoyang': '@/views/ChaoyangDetail.vue',
-    '/nansha': '@/views/NanshaDetail.vue',
-    '/lidu': '@/views/LiduDetail.vue',
-    '/beiyi': '@/views/BeiyiDetail.vue',
-    '/dongyi': '@/views/DongyiDetail.vue',
-    '/jiaoye': '@/views/JiaoyeDetail.vue',
-    '/xiyi': '@/views/XiyiDetail.vue',
-    '/zhongxincheng': '@/views/ZhongxinchengDetail.vue'
-  }
-  const componentPath = componentMap[path]
-  if (componentPath) {
-    preloadComponent(componentPath)
-  }
+  const file = DETAIL_FILE_MAP[path]
+  if (file && detailModules[file]) detailModules[file]().catch(() => {})
 }
 
 // ── 🔦 鼠标追光 + 视差 ──
@@ -805,14 +806,19 @@ onMounted(() => {
   // ── 3D 倾斜卡片 ──
   initTiltCards()
 
-  // 预加载地图和所有绿道详情页面
-  setTimeout(() => {
-    preloadComponent('@/views/GreenwayOverview.vue')
-    preloadComponent('@/views/WenyuDetail.vue')
-    preloadComponent('@/views/AosenDetail.vue')
-    preloadComponent('@/views/HuanerhuanDetail.vue')
-    preloadComponent('@/views/SanshanDetail.vue')
-  }, 1000)
+  // 空闲时预加载地图页重资源，让进入地图时接近秒开
+  // 延迟 2.5s 避免与首页自身资源竞争；弱网（2G）不预加载
+  const conn = navigator.connection
+  const slowNet = conn && /(^|-)2g$/.test(conn.effectiveType || '')
+  if (!slowNet) {
+    setTimeout(() => {
+      if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(() => preloadMap(), { timeout: 3000 })
+      } else {
+        preloadMap()
+      }
+    }, 2500)
+  }
 })
 
 onBeforeUnmount(() => {

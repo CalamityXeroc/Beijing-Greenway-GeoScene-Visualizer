@@ -4,7 +4,7 @@
     <div v-if="isLoading" class="loading-overlay">
       <div class="loading-spinner">
         <div class="spinner"></div>
-        <p>加载中...</p>
+        <p>正在加载地图资源…</p>
       </div>
     </div>
     
@@ -1220,12 +1220,12 @@ const fitToBeijingBoundary = async () => {
   }
 }
 
-const onMapReady = (map) => {
+const onMapReady = async (map) => {
   console.log('[GreenwayOverview] 地图已就绪')
-  isLoading.value = false
 
   if (!map) {
     console.error('[GreenwayOverview] 地图初始化失败，map 为 null')
+    isLoading.value = false
     return
   }
 
@@ -1242,6 +1242,20 @@ const onMapReady = (map) => {
 
   // 视野自适应到北京市界范围
   fitToBeijingBoundary()
+
+  // 等首帧渲染 + 底图就绪再撤遮罩，否则会出现「遮罩没了、地图却还是一片白」的空窗
+  const view = mapManager.value?.getView?.()
+  const baseLayer = mapManager.value?.getLayer('gaode-base-layer')
+  await Promise.race([
+    (async () => {
+      if (view?.when) await view.when().catch(() => {})
+      if (baseLayer?.when) await baseLayer.when().catch(() => {})
+      // 给首帧绘制留出时间，避免遮罩刚好在瓦片到位前消失
+      await new Promise((resolve) => setTimeout(resolve, 1200))
+    })(),
+    new Promise((resolve) => setTimeout(resolve, 8000))
+  ])
+  isLoading.value = false
 
   // 从 sessionStorage 恢复上次打开的地图图层
   setTimeout(() => {
