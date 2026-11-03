@@ -1,11 +1,9 @@
 <template>
   <div class="greenroad-page">
-    <!-- 加载指示器 -->
+    <!-- 加载指示器（与全局路由遮罩同一套绿色转圈，不再叠加蓝/白两套动画） -->
     <div v-if="isLoading" class="loading-overlay">
-      <div class="loading-spinner">
-        <div class="spinner"></div>
-        <p>正在加载地图资源…</p>
-      </div>
+      <div class="loading-overlay-spinner"></div>
+      <p class="loading-overlay-text">正在加载地图资源…</p>
     </div>
     
     <!-- 导航栏：sticky 吸顶，不参与页面滚动但始终可见 -->
@@ -2704,30 +2702,20 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--bg-primary);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
   z-index: 5000;
-  animation: fadeIn 0.3s ease-in;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.loading-spinner {
-  text-align: center;
-  color: white;
-}
-
-.spinner {
-  width: 50px;
-  height: 50px;
-  margin: 0 auto 20px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+.loading-overlay-spinner {
+  width: 42px;
+  height: 42px;
+  border: 3px solid rgba(46, 125, 50, 0.18);
+  border-top-color: #2E7D32;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -2736,10 +2724,11 @@ onBeforeUnmount(() => {
   to { transform: rotate(360deg); }
 }
 
-.loading-spinner p {
-  font-size: 14px;
+.loading-overlay-text {
   margin: 0;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary, #6b7c6b);
 }
 
 /* 导航栏粘性容器：吸顶显示 */

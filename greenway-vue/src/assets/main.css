@@ -210,20 +210,8 @@ body {
   color: var(--theme-blue);
 }
 
-/* 加载动画 */
-.loading-spinner {
-  display: inline-block;
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(33, 150, 243, 0.2);
-  border-radius: 50%;
-  border-top-color: var(--theme-blue);
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+/* 加载动画：已移除全局蓝色 .loading-spinner（各处均使用自带 scoped 样式，
+   地图页统一改用绿色转圈，避免多个动画叠加） */
 
 /* ============ 通用元素黑夜模式样式 ============ */
 
