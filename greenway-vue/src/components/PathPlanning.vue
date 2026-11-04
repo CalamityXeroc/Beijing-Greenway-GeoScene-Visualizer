@@ -275,7 +275,16 @@ function onDragStart(e) {
 
 function onDrag(e) {
   if (!isDragging.value) return
-  panelPos.value = { x: e.clientX - dragOffset.value.x, y: e.clientY - dragOffset.value.y }
+  // 面板用 bottom 定位：换算成「顶部不低于地图容器顶部 8px」，
+  // 否则可以一直往上拖，标题栏跑到屏幕外后就再也拖不回来
+  const el = panelRef.value
+  const parentH = el?.parentElement?.clientHeight || window.innerHeight
+  const panelH = el?.offsetHeight || 0
+  const minY = 28 + panelH - parentH
+  panelPos.value = {
+    x: e.clientX - dragOffset.value.x,
+    y: Math.max(minY, e.clientY - dragOffset.value.y)
+  }
 }
 
 function onDragEnd() {

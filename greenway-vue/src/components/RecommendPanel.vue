@@ -122,7 +122,9 @@ function onDrag(e) {
   if (!isDragging.value) return
   panelPos.value = {
     x: Math.max(8, Math.min(window.innerWidth - PANEL_W - 8, dragStart.px + e.clientX - dragStart.mx)),
-    y: Math.max(76, Math.min(window.innerHeight - 90, dragStart.py + e.clientY - dragStart.my))
+    // 纵向上限改为相对地图容器顶部：容器本身就在导航栏下方，
+    // 原先写死 76 会让面板最高只能到导航栏下方约 140px 处，无法拖到地图顶部
+    y: Math.max(8, Math.min(window.innerHeight - 90, dragStart.py + e.clientY - dragStart.my))
   }
 }
 function endDrag() {
