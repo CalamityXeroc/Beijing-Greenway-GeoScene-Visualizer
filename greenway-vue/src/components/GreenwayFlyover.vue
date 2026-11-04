@@ -4,54 +4,80 @@
       <!-- 3D 场景 -->
       <div ref="sceneContainer" class="scene-canvas"></div>
 
-      <!-- 顶部栏 -->
+      <!-- 电影感暗角 + 上下渐变，提升画面质感（纯 CSS，不影响性能） -->
+      <div class="scene-vignette"></div>
+
+      <!-- 顶部浮动胶囊 -->
       <div class="flyover-topbar">
         <div class="topbar-left">
-          <button class="btn-icon" @click="emit('close')" title="退出">
-            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor"/></svg>
+          <button class="close-btn" @click="emit('close')" title="退出漫游">
+            <svg viewBox="0 0 24 24" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor"/></svg>
           </button>
-          <span class="topbar-title">🎬 {{ greenwayName }} · 3D 漫游</span>
-          <span class="time-indicator" v-if="timeOfDay">{{ timeOfDay }}</span>
+          <span class="brand-dot" :style="{ background: greenwayColor }"></span>
+          <span class="brand-name">{{ greenwayName }}</span>
+          <span class="brand-sub">3D 漫游</span>
+          <span class="time-chip" v-if="timeOfDay">{{ timeOfDay }}</span>
         </div>
+
         <div class="topbar-right">
-          <span class="waypoint-label">{{ currentIdx + 1 }} / {{ waypoints.length }}</span>
-          <button class="btn-icon" @click="prevWaypoint" :disabled="currentIdx <= 0" title="上一个">
-            <svg viewBox="0 0 24 24" width="18" height="18"><path d="M7 6l5 5-5 5V6z" fill="currentColor"/></svg>
-          </button>
-          <button class="btn-icon btn-play" @click="togglePlay" title="播放/暂停">
-            <svg v-if="playing" viewBox="0 0 24 24" width="20" height="20"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="currentColor"/></svg>
-            <svg v-else viewBox="0 0 24 24" width="20" height="20"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
-          </button>
-          <button class="btn-icon" @click="nextWaypoint" :disabled="currentIdx >= waypoints.length - 1" title="下一个">
-            <svg viewBox="0 0 24 24" width="18" height="18"><path d="M17 6l-5 5 5 5V6z" fill="currentColor"/></svg>
-          </button>
-          <select v-model="speed" class="speed-select">
-            <option :value="0.5">0.5x</option>
-            <option :value="1">1x</option>
-            <option :value="2">2x</option>
-          </select>
-          <span class="sep"></span>
-          <button class="btn-icon layer-toggle" :class="{ off: !showBuildings }"
-                  @click="toggleBuildings" title="三维建筑">
-            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          <button class="btn-icon layer-toggle" :class="{ off: !showLabels }"
-                  @click="toggleLabels" title="名称标注">
-            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M20 6H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1zM8 9l-3 3 3 3M16 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
+          <div class="ctrl-group">
+            <button class="ctrl-btn" @click="prevWaypoint" :disabled="currentIdx <= 0" title="上一站">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M7 6l5 5-5 5V6z" fill="currentColor"/></svg>
+            </button>
+            <button class="ctrl-btn ctrl-play" @click="togglePlay" :title="playing ? '暂停' : '播放'">
+              <svg v-if="playing" viewBox="0 0 24 24" width="18" height="18"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="currentColor"/></svg>
+              <svg v-else viewBox="0 0 24 24" width="18" height="18"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+            </button>
+            <button class="ctrl-btn" @click="nextWaypoint" :disabled="currentIdx >= waypoints.length - 1" title="下一站">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M17 6l-5 5 5 5V6z" fill="currentColor"/></svg>
+            </button>
+          </div>
+
+          <div class="speed-group">
+            <button v-for="s in [0.5, 1, 2]" :key="s" class="speed-item"
+                    :class="{ active: speed === s }" @click="speed = s">{{ s }}x</button>
+          </div>
+
+          <div class="ctrl-group">
+            <button class="ctrl-btn" :class="{ off: !showBuildings }" @click="toggleBuildings" title="三维建筑">
+              <svg viewBox="0 0 24 24" width="15" height="15"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="ctrl-btn" :class="{ off: !showLabels }" @click="toggleLabels" title="名称标注">
+              <svg viewBox="0 0 24 24" width="15" height="15"><path d="M20 6H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1zM8 9l-3 3 3 3M16 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- 进度条 -->
-      <div class="progress-track">
-        <div class="progress-fill" :style="{ width: progressPct + '%' }"></div>
-        <div
-          v-for="(wp, i) in waypoints"
-          :key="i"
-          class="progress-dot"
-          :class="{ active: i === currentIdx, done: i < currentIdx }"
-          :style="{ left: (i / (waypoints.length - 1)) * 100 + '%' }"
-        ></div>
+      <!-- 左下角场景信息 -->
+      <div class="scene-info">
+        <div class="si-title">{{ greenwayName }}</div>
+        <div class="si-row">
+          <span class="si-item"><b>{{ currentIdx + 1 }}</b><i>/{{ waypoints.length }} 站</i></span>
+          <span class="si-divider"></span>
+          <span class="si-item"><i>航段</i><b>{{ flownKm }}</b><i>/{{ totalKm }} km</i></span>
+          <span class="si-divider"></span>
+          <span class="si-item">{{ headingText }}</span>
+        </div>
+      </div>
+
+      <!-- 底部进度 -->
+      <div class="progress-wrap">
+        <div class="progress-track">
+          <div class="progress-fill" :style="{ width: progressPct + '%' }"></div>
+          <div
+            v-for="(wp, i) in waypoints"
+            :key="i"
+            class="progress-dot"
+            :class="{ active: i === currentIdx, done: i < currentIdx }"
+            :style="{ left: (i / (waypoints.length - 1)) * 100 + '%' }"
+          ></div>
+        </div>
+        <div class="progress-meta">
+          <span class="pm-pct">{{ progressPct.toFixed(0) }}%</span>
+          <span class="pm-hint">空格 播放 / 暂停 · ← → 切换站点</span>
+          <span class="pm-km">航段 {{ flownKm }} / {{ totalKm }} km</span>
+        </div>
       </div>
 
       <!-- 信息提示 -->
@@ -60,7 +86,8 @@
       <!-- 加载中 -->
       <div class="loading-overlay" v-if="loading">
         <div class="loading-spinner"></div>
-        <span>加载飞行路径...</span>
+        <span class="loading-text">正在生成三维场景…</span>
+        <span class="loading-sub">{{ greenwayName }}</span>
       </div>
 
       <!-- 加载失败提示（不静默落到默认中心） -->
@@ -126,6 +153,37 @@ const progressPct = computed(() => {
   return (currentIdx.value / (waypoints.value.length - 1)) * 100
 })
 
+// ---- 里程与朝向（供底部信息展示）----
+
+/** 相邻航点累计里程（公里），预计算一次 */
+const legDistances = computed(() => {
+  const wps = waypoints.value
+  const out = []
+  for (let i = 0; i < wps.length - 1; i += 1) {
+    out.push(haversineDist(wps[i].lat, wps[i].lng, wps[i + 1].lat, wps[i + 1].lng) / 1000)
+  }
+  return out
+})
+
+const totalKm = computed(() => {
+  const sum = legDistances.value.reduce((a, b) => a + b, 0)
+  return sum >= 100 ? Math.round(sum) : Math.round(sum * 10) / 10
+})
+
+const flownKm = computed(() => {
+  const sum = legDistances.value.slice(0, currentIdx.value).reduce((a, b) => a + b, 0)
+  return sum >= 100 ? Math.round(sum) : Math.round(sum * 10) / 10
+})
+
+/** 当前朝向（八方位） */
+const headingText = computed(() => {
+  const wp = waypoints.value[currentIdx.value]
+  if (!wp) return ''
+  const h = ((wp.heading || 0) % 360 + 360) % 360
+  const dirs = ['北', '东北', '东', '东南', '南', '西南', '西', '西北']
+  return `朝${dirs[Math.round(h / 45) % 8]}`
+})
+
 // ---- 工具函数 ----
 
 /** 解析 hex 颜色为 [r, g, b, a] 数组 */
@@ -133,6 +191,23 @@ function hexToRgba(hex, alpha = 1) {
   const match = hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i)
   if (!match) return [76, 175, 80, alpha]
   return [parseInt(match[1], 16), parseInt(match[2], 16), parseInt(match[3], 16), alpha]
+}
+
+/** 朝向平滑：对 bearing 序列做圆周加权平均，消除转弯处的方向突变 */
+function smoothWaypointHeadings(list) {
+  if (!Array.isArray(list) || list.length < 2) return
+  const raw = list.map(w => w.heading || 0)
+  list.forEach((w, i) => {
+    let sx = 0, sy = 0
+    for (let k = -1; k <= 1; k += 1) {
+      const j = Math.min(raw.length - 1, Math.max(0, i + k))
+      const rad = (raw[j] * Math.PI) / 180
+      const weight = k === 0 ? 2 : 1
+      sx += Math.cos(rad) * weight
+      sy += Math.sin(rad) * weight
+    }
+    w.heading = ((Math.atan2(sy, sx) * 180) / Math.PI + 360) % 360
+  })
 }
 
 /** 根据时间返回天空色 */
@@ -154,6 +229,8 @@ async function loadFlyover() {
     const resp = await fetch(`/api/greenways${idParam}/flyover?maxPoints=45&scene=1`)
     const data = await resp.json()
     waypoints.value = data.waypoints || []
+    // 对朝向做一次圆周滑动平均：转弯处不会出现方向突变
+    smoothWaypointHeadings(waypoints.value)
     resolvedGreenwayId = data.greenwayId || props.greenwayId
     sceneData.value = {
       buildings: data.buildings || [],
@@ -223,7 +300,7 @@ async function initScene() {
       size: [256, 256],
       origin: { x: -20037508.342787, y: 20037508.342787 },
       spatialReference: { wkid: 102100 },
-      lods: Array.from({ length: 18 }, (_, i) => ({
+      lods: Array.from({ length: 19 }, (_, i) => ({
         level: i, resolution: 156543.033928 / Math.pow(2, i),
         scale: 591657527.591555 / Math.pow(2, i)
       }))
@@ -266,9 +343,21 @@ async function initScene() {
 
   loading.value = false
 
-  // 飞到第一个点
+  // 入场：先置身高空俯视，再俯冲到首站，比直接出现更有仪式感
   if (waypoints.value.length > 0) {
+    const first = waypoints.value[0]
+    const cam = computeCameraParams(0)
+    try {
+      await mapManager.getView().goTo({
+        position: [first.lng, first.lat, 2600],
+        heading: cam.heading,
+        tilt: 42
+      }, { duration: 0 })
+      await new Promise((r) => setTimeout(r, 260))
+    } catch (e) { /* 入场动画失败不影响主流程 */ }
     goToWaypoint(0)
+    // 首段飞行开始后采样帧率，必要时自动降级
+    setTimeout(() => { autoTunePerformance() }, 8000)
   }
 }
 
@@ -297,8 +386,8 @@ function createGlowPath(geometry) {
       // 外层：宽光晕（半透明）
       new PathSymbol3DLayer({
         profile: 'circle',
-        width: 30,          // 30m 宽光晕
-        height: 8,
+        width: 46,          // 外层宽光晕
+        height: 14,
         anchor: 'bottom',
         cap: 'round',
         join: 'round',
@@ -309,8 +398,8 @@ function createGlowPath(geometry) {
       // 中层：中等宽度辉光
       new PathSymbol3DLayer({
         profile: 'circle',
-        width: 15,
-        height: 5,
+        width: 26,
+        height: 9,
         anchor: 'bottom',
         cap: 'round',
         join: 'round',
@@ -321,8 +410,8 @@ function createGlowPath(geometry) {
       // 内层：明亮核心
       new PathSymbol3DLayer({
         profile: 'circle',
-        width: 5,
-        height: 3,
+        width: 10,
+        height: 5,
         anchor: 'bottom',
         cap: 'round',
         join: 'round',
@@ -336,11 +425,11 @@ function createGlowPath(geometry) {
   const pathGraphic = new Graphic({
     geometry: polyline,
     symbol: pathSymbol,
-    elevationInfo: { mode: 'relative-to-ground', offset: 3 }
+    elevationInfo: { mode: 'relative-to-ground', offset: 10 }
   })
 
   const glLayer = new GraphicsLayer({
-    elevationInfo: { mode: 'relative-to-ground', offset: 3 }
+    elevationInfo: { mode: 'relative-to-ground', offset: 10 }
   })
   mapManager.addLayer('glow-path', glLayer)
   glLayer.add(pathGraphic)
@@ -354,7 +443,7 @@ function addPathEndMarkers(polyline) {
   const mapManager = getMapManager()
   const [r, g, b] = hexToRgba(props.greenwayColor)
   const markerLayer = new GraphicsLayer({
-    elevationInfo: { mode: 'relative-to-ground', offset: 5 }
+    elevationInfo: { mode: 'relative-to-ground', offset: 14 }
   })
 
   // 提取首尾坐标
@@ -371,6 +460,7 @@ function addPathEndMarkers(polyline) {
   markerLayer.add(new Graphic({
     geometry: new Point({ longitude: startCoord[0], latitude: startCoord[1], spatialReference: { wkid: 4326 } }),
     symbol: new PointSymbol3D({
+      verticalOffset: { screenLength: 22, maxWorldLength: 400, minWorldLength: 20 },
       symbolLayers: [
         new IconSymbol3DLayer({
           resource: { primitive: 'circle' },
@@ -382,6 +472,13 @@ function addPathEndMarkers(polyline) {
           width: 12, depth: 12, height: 12,
           anchor: 'relative',
           material: { color: [r, g, b, 0.6] }
+        }),
+        new TextSymbol3DLayer({
+          text: '起点',
+          size: 13,
+          font: { family: 'Microsoft YaHei', weight: 'bold' },
+          material: { color: [255, 255, 255, 1] },
+          halo: { color: [18, 52, 22, 0.92], size: 2.6 }
         })
       ]
     })
@@ -391,6 +488,7 @@ function addPathEndMarkers(polyline) {
   markerLayer.add(new Graphic({
     geometry: new Point({ longitude: endCoord[0], latitude: endCoord[1], spatialReference: { wkid: 4326 } }),
     symbol: new PointSymbol3D({
+      verticalOffset: { screenLength: 22, maxWorldLength: 400, minWorldLength: 20 },
       symbolLayers: [
         new IconSymbol3DLayer({
           resource: { primitive: 'circle' },
@@ -402,6 +500,13 @@ function addPathEndMarkers(polyline) {
           width: 10, depth: 10, height: 16,
           anchor: 'relative',
           material: { color: [255, 70, 70, 0.7] }
+        }),
+        new TextSymbol3DLayer({
+          text: '终点',
+          size: 13,
+          font: { family: 'Microsoft YaHei', weight: 'bold' },
+          material: { color: [255, 255, 255, 1] },
+          halo: { color: [70, 20, 20, 0.92], size: 2.6 }
         })
       ]
     })
@@ -450,7 +555,7 @@ function createBuildingsLayer() {
           new ExtrudeSymbol3DLayer({
             size: b.height || 12,
             material: { color },
-            castShadows: false,
+            castShadows: true,
             edges: { type: 'solid', color: [0, 0, 0, isNight ? 0.5 : 0.25], size: 0.6 }
           })
         ]
@@ -523,7 +628,7 @@ function createPoiLabelsLayer() {
     default: '#757575'
   }
 
-  const layer = new GraphicsLayer({ elevationInfo: { mode: 'relative-to-ground', offset: 4 } })
+  const layer = new GraphicsLayer({ elevationInfo: { mode: 'relative-to-ground', offset: 12 } })
   const seen = new Set()
 
   pois.forEach(p => {
@@ -585,7 +690,7 @@ function createWaypointBeads() {
   const mapManager = getMapManager()
   const [r, g, b] = hexToRgba(props.greenwayColor)
   const beadLayer = new GraphicsLayer({
-    elevationInfo: { mode: 'relative-to-ground', offset: 8 }
+    elevationInfo: { mode: 'relative-to-ground', offset: 16 }
   })
 
   waypoints.value.forEach((wp, i) => {
@@ -645,13 +750,13 @@ function updateTrail(idx) {
 
   // 已飞轨迹：亮色实线
   if (flownCoords.length >= 2) {
-    const flownLayer = new GraphicsLayer({ elevationInfo: { mode: 'relative-to-ground', offset: 4 } })
+    const flownLayer = new GraphicsLayer({ elevationInfo: { mode: 'relative-to-ground', offset: 12 } })
     flownLayer.add(new Graphic({
       geometry: new Polyline({ paths: [flownCoords], spatialReference: { wkid: 4326 } }),
       symbol: new LineSymbol3D({
         symbolLayers: [
           new PathSymbol3DLayer({
-            profile: 'circle', width: 4, height: 2.5,
+            profile: 'circle', width: 8, height: 4,
             anchor: 'bottom', cap: 'round', join: 'round',
             profileRotation: 'heading',
             material: { color: [Math.min(r * 1.5, 255), Math.min(g * 1.5, 255), Math.min(b * 1.5, 255), 1] }
@@ -664,13 +769,13 @@ function updateTrail(idx) {
 
   // 未飞轨迹：暗色残影
   if (remainingCoords.length >= 2) {
-    const remLayer = new GraphicsLayer({ elevationInfo: { mode: 'relative-to-ground', offset: 3 } })
+    const remLayer = new GraphicsLayer({ elevationInfo: { mode: 'relative-to-ground', offset: 10 } })
     remLayer.add(new Graphic({
       geometry: new Polyline({ paths: [remainingCoords], spatialReference: { wkid: 4326 } }),
       symbol: new LineSymbol3D({
         symbolLayers: [
           new PathSymbol3DLayer({
-            profile: 'circle', width: 3, height: 2,
+            profile: 'circle', width: 6, height: 3,
             anchor: 'bottom', cap: 'round', join: 'round',
             profileRotation: 'heading',
             material: { color: [r, g, b, 0.15] }
@@ -726,6 +831,52 @@ function updateWaypointBeads(idx) {
 
 // ============ 相机控制 ============
 
+/** 结束收尾：拉高并回望来路，形成完整收束感 */
+function pullUpToOverview() {
+  if (!mapManager || waypoints.value.length === 0) return
+  const last = waypoints.value[waypoints.value.length - 1]
+  const cam = computeCameraParams(waypoints.value.length - 1)
+  mapManager.flyTo(
+    [last.lng, last.lat],
+    (cam.heading + 150) % 360,
+    38,
+    3200,
+    2800 / speed.value
+  )
+}
+
+/**
+ * 低性能设备自动降级：
+ * 飞行开始后采样帧率，低于 30fps 时关阴影、隐藏建筑名标注，
+ * 避免核显机器出现明显卡顿（观感优先于特效）。
+ */
+async function autoTunePerformance() {
+  const view = mapManager?.getView?.()
+  if (!view) return
+  const fps = await new Promise((resolve) => {
+    let frames = 0
+    const t0 = performance.now()
+    const tick = () => {
+      frames += 1
+      if (performance.now() - t0 < 2000) requestAnimationFrame(tick)
+      else resolve(Math.round(frames / ((performance.now() - t0) / 1000)))
+    }
+    requestAnimationFrame(tick)
+  })
+  console.info(`[3D漫游] 实测帧率 ${fps}fps`)
+  if (fps >= 25) return
+  console.warn(`[3D漫游] 帧率偏低(${fps}fps)，自动降级渲染`)
+  try {
+    if (view.environment?.lighting) view.environment.lighting.directShadowsEnabled = false
+  } catch (e) { /* 忽略 */ }
+  const namesLayer = mapManager?.getLayer?.('scene-building-names')
+  if (namesLayer) namesLayer.visible = false
+  showLabels.value = false
+  infoTip.value = '已自动切换为性能模式'
+  clearTimeout(window._tipTimer)
+  window._tipTimer = setTimeout(() => { infoTip.value = '' }, 2600)
+}
+
 function goToWaypoint(idx) {
   if (!mapManager || idx >= waypoints.value.length) return
   currentIdx.value = idx
@@ -745,15 +896,15 @@ function goToWaypoint(idx) {
 function computeCameraParams(idx) {
   const wp = waypoints.value[idx]
   let heading = wp.heading || 0
-  let tilt = 65
-  let altitude = 200
+  let tilt = 62
+  let altitude = 900
 
-  // 根据下一站距离调整高度（开阔感）
+  // 根据下一站距离调整高度：相机高度需与可用影像层级（最高 18 级）匹配，
+  // 原先 100–500m 需要 19–20 级影像，实际取不到，画面必然发糊
   if (idx < waypoints.value.length - 1) {
     const next = waypoints.value[idx + 1]
     const dist = haversineDist(wp.lat, wp.lng, next.lat, next.lng)
-    // 距离越远飞越高（150m ~ 500m）
-    altitude = Math.min(500, Math.max(100, dist * 0.6))
+    altitude = Math.min(1400, Math.max(800, dist * 1.6))
     heading = bearing(wp.lat, wp.lng, next.lat, next.lng)
 
     // 转弯时增大 tilt（更俯视）来增强 banking 感
@@ -763,7 +914,7 @@ function computeCameraParams(idx) {
       const turnAngle = angleDiff(prevHeading, heading)
       if (turnAngle > 20) {
         tilt = 55  // 更俯视
-        altitude = Math.max(altitude * 1.2, 250)  // 转弯飞高一点
+        altitude = Math.max(altitude * 1.15, 1000)  // 转弯飞高一点
       }
     }
   }
@@ -805,6 +956,7 @@ function autoPlay() {
   if (currentIdx.value >= waypoints.value.length - 1) {
     playing.value = false
     infoTip.value = '✅ 漫游结束'
+    pullUpToOverview()
     return
   }
   const delay = 2500 / speed.value
@@ -825,15 +977,34 @@ function prevWaypoint() {
 
 // ---- 生命周期 ----
 
+// ---- 键盘快捷键：空格播放/暂停，左右切站，Esc 退出 ----
+function onKeydown(e) {
+  if (!props.visible) return
+  if (e.code === 'Space') {
+    e.preventDefault()
+    togglePlay()
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault()
+    nextWaypoint()
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault()
+    prevWaypoint()
+  } else if (e.key === 'Escape') {
+    emit('close')
+  }
+}
+
 watch(() => props.visible, async (v) => {
   if (v) {
     document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKeydown)
     const ok = await loadFlyover()
     // 设置天空时间
     getTimeBasedSky()
     if (ok) await initScene()
   } else {
     document.body.style.overflow = ''
+    window.removeEventListener('keydown', onKeydown)
     playing.value = false
     clearTimeout(flyTimer)
     clearTimeout(window._tipTimer)
@@ -843,6 +1014,7 @@ watch(() => props.visible, async (v) => {
 
 onBeforeUnmount(() => {
   document.body.style.overflow = ''
+  window.removeEventListener('keydown', onKeydown)
   playing.value = false
   clearTimeout(flyTimer)
   clearTimeout(window._tipTimer)
@@ -852,100 +1024,225 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .flyover-overlay {
-  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  position: fixed; inset: 0;
   z-index: 9999; background: #000;
 }
 .flyover-container {
-  width: 100%; height: 100%; position: relative;
+  width: 100%; height: 100%; position: relative; overflow: hidden;
 }
 .scene-canvas {
   width: 100%; height: 100%;
 }
+
+/* ── 电影感暗角 ── */
+.scene-vignette {
+  position: absolute; inset: 0; z-index: 5; pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 42%, rgba(0,0,0,.34) 100%),
+    linear-gradient(180deg, rgba(0,0,0,.5) 0%, rgba(0,0,0,0) 16%, rgba(0,0,0,0) 76%, rgba(0,0,0,.55) 100%);
+}
+
+/* ── 顶部浮动胶囊 ── */
 .flyover-topbar {
-  position: absolute; top: 0; left: 0; right: 0; height: 56px;
-  background: linear-gradient(180deg, rgba(0,0,0,.85) 0%, transparent 100%);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 16px; z-index: 10;
+  position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+  z-index: 10;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  padding: 8px 12px 8px 10px;
+  max-width: min(1080px, calc(100% - 40px));
+  background: rgba(14, 22, 18, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
 }
-.topbar-left, .topbar-right {
-  display: flex; align-items: center; gap: 10px;
-}
-.topbar-title {
-  color: #fff; font-size: 1.1em; font-weight: 600;
-}
-.time-indicator {
-  color: #ffd54f; font-size: 0.8em; background: rgba(255,255,255,.08);
-  padding: 2px 8px; border-radius: 10px;
-}
-.waypoint-label {
-  color: #aaa; font-size: .85em; font-variant-numeric: tabular-nums;
-}
-.btn-icon {
-  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
-  border-radius: 8px; color: #fff; padding: 6px 8px; cursor: pointer;
-  display: flex; align-items: center; transition: all .2s;
-}
-.btn-icon:hover { background: rgba(255,255,255,.18); transform: scale(1.05); }
-.btn-icon:disabled { opacity: .25; cursor: default; transform: none; }
-.btn-play { padding: 8px 12px; background: rgba(76,175,80,.15); border-color: rgba(76,175,80,.25); }
-.btn-play:hover { background: rgba(76,175,80,.25); }
-.sep { width: 1px; height: 20px; background: rgba(255,255,255,.15); margin: 0 2px; }
-.layer-toggle { color: #9FE8A0; border-color: rgba(76,175,80,.3); }
-.layer-toggle.off { opacity: .35; color: #999; border-color: rgba(255,255,255,.12); }
-.layer-toggle.off:hover { opacity: .6; }
-.speed-select {
-  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
-  border-radius: 8px; color: #fff; padding: 4px 6px; font-size: .85em; cursor: pointer;
-}
-.speed-select option { background: #1a1a2e; color: #fff; }
+.topbar-left, .topbar-right { display: flex; align-items: center; gap: 10px; }
 
-.progress-track {
-  position: absolute; bottom: 60px; left: 20px; right: 20px;
-  height: 4px; background: rgba(255,255,255,.08); border-radius: 2px; z-index: 10;
+.close-btn {
+  width: 30px; height: 30px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; cursor: pointer;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.82);
+  transition: all .18s ease;
 }
-.progress-fill {
-  height: 100%; background: linear-gradient(90deg, #4CAF50, #69F0AE);
-  border-radius: 2px; transition: width .6s ease;
-  box-shadow: 0 0 10px rgba(76,175,80,.4);
-}
-.progress-dot {
-  position: absolute; top: -5px; width: 14px; height: 14px; border-radius: 50%;
-  background: rgba(255,255,255,.15); border: 2px solid rgba(255,255,255,.06);
-  transform: translateX(-50%); transition: all .4s ease;
-}
-.progress-dot.active {
-  background: #fff; border-color: #4CAF50;
-  box-shadow: 0 0 14px rgba(76,175,80,.7), 0 0 28px rgba(76,175,80,.3);
-}
-.progress-dot.done { background: rgba(76,175,80,.4); border-color: rgba(76,175,80,.2); }
+.close-btn:hover { background: rgba(255, 90, 90, 0.22); border-color: rgba(255, 120, 120, 0.4); color: #fff; }
 
-.info-tip {
-  position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
-  background: rgba(0,0,0,.8); color: #fff; padding: 8px 20px;
-  border-radius: 20px; font-size: .9em; z-index: 10;
-  animation: poiIn .3s ease;
+.brand-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  box-shadow: 0 0 10px currentColor;
+}
+.brand-name {
+  color: #fff; font-size: 0.94rem; font-weight: 700; letter-spacing: .01em;
+  white-space: nowrap;
+}
+.brand-sub {
+  color: rgba(255, 255, 255, 0.42); font-size: 0.76rem; font-weight: 500;
+  padding-left: 2px; white-space: nowrap;
+}
+.time-chip {
+  color: #FFD54F; font-size: 0.74rem;
+  background: rgba(255, 213, 79, 0.12);
+  border: 1px solid rgba(255, 213, 79, 0.22);
+  padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+}
+
+/* 控制按钮组 */
+.ctrl-group {
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.ctrl-btn {
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%; cursor: pointer;
+  background: transparent; color: rgba(255, 255, 255, 0.78);
+  transition: all .18s ease;
+}
+.ctrl-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.ctrl-btn:disabled { opacity: .26; cursor: default; }
+.ctrl-btn.off { opacity: .3; }
+.ctrl-play {
+  background: #2E7D32; color: #fff;
+  box-shadow: 0 2px 12px rgba(46, 125, 50, 0.5);
+}
+.ctrl-play:hover:not(:disabled) { background: #388E3C; }
+
+/* 速度分段控件 */
+.speed-group {
+  display: flex; align-items: center; gap: 2px;
+  padding: 3px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.speed-item {
+  min-width: 40px; height: 26px;
+  border: none; border-radius: 999px; cursor: pointer;
+  background: transparent; color: rgba(255, 255, 255, 0.6);
+  font-size: 0.76rem; font-weight: 600; font-variant-numeric: tabular-nums;
+  transition: all .18s ease;
+}
+.speed-item:hover { color: #fff; }
+.speed-item.active {
+  background: rgba(255, 255, 255, 0.92); color: #14301a;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+}
+
+/* ── 左下角场景信息卡 ── */
+.scene-info {
+  position: absolute; left: 22px; bottom: 96px; z-index: 10;
+  padding: 11px 15px;
+  border-radius: 14px;
+  background: rgba(14, 22, 18, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   pointer-events: none;
 }
+.si-title {
+  color: #fff; font-size: 0.88rem; font-weight: 700; margin-bottom: 6px;
+  letter-spacing: .01em;
+}
+.si-row { display: flex; align-items: center; gap: 10px; }
+.si-item {
+  display: inline-flex; align-items: baseline; gap: 2px;
+  color: rgba(255, 255, 255, 0.55); font-size: 0.74rem; white-space: nowrap;
+}
+.si-item b {
+  color: #9FE8A0; font-size: 0.92rem; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.si-item i { font-style: normal; }
+.si-divider { width: 1px; height: 12px; background: rgba(255, 255, 255, 0.14); }
 
+/* ── 底部进度 ── */
+.progress-wrap {
+  position: absolute; left: 22px; right: 22px; bottom: 26px; z-index: 10;
+}
+.progress-track {
+  position: relative; height: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.progress-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #2E7D32, #69F0AE);
+  transition: width .6s cubic-bezier(.4, 0, .2, 1);
+  box-shadow: 0 0 12px rgba(105, 240, 174, 0.55);
+}
+.progress-dot {
+  position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  transform: translate(-50%, -50%);
+  transition: all .4s ease;
+}
+.progress-dot.done { background: rgba(105, 240, 174, 0.5); border-color: rgba(105, 240, 174, 0.3); }
+.progress-dot.active {
+  width: 15px; height: 15px;
+  background: #fff; border-color: #69F0AE;
+  box-shadow: 0 0 0 4px rgba(105, 240, 174, 0.18), 0 0 16px rgba(105, 240, 174, 0.8);
+}
+
+.progress-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 9px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+.pm-pct { color: #9FE8A0; font-weight: 700; font-size: 0.8rem; }
+.pm-hint { color: rgba(255, 255, 255, 0.3); }
+.pm-km { color: rgba(255, 255, 255, 0.55); }
+
+/* ── 提示气泡 ── */
+.info-tip {
+  position: absolute; top: 84px; left: 50%; transform: translateX(-50%);
+  background: rgba(14, 22, 18, 0.8); color: #fff; padding: 8px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px; font-size: 0.84rem; z-index: 10;
+  backdrop-filter: blur(10px);
+  animation: tipIn .28s ease;
+  pointer-events: none;
+}
+@keyframes tipIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── 加载 / 错误 ── */
 .loading-overlay {
-  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: rgba(0,0,0,.92); z-index: 20; color: #fff; gap: 16px;
+  position: absolute; inset: 0; z-index: 20;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: radial-gradient(ellipse at 50% 40%, #16241b 0%, #070c09 70%);
+  color: #fff;
 }
 .loading-spinner {
-  width: 40px; height: 40px; border: 3px solid rgba(255,255,255,.12);
-  border-top-color: #4CAF50; border-radius: 50%; animation: spin .8s linear infinite;
+  width: 44px; height: 44px;
+  border: 3px solid rgba(105, 240, 174, 0.16);
+  border-top-color: #69F0AE;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 0.92rem; color: rgba(255, 255, 255, 0.86); letter-spacing: .02em; }
+.loading-sub { font-size: 0.78rem; color: rgba(255, 255, 255, 0.38); }
+
 .flyover-error {
-  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  position: absolute; inset: 0; z-index: 20;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: rgba(0,0,0,.92); z-index: 20; color: #fff; gap: 14px; padding: 20px; text-align: center;
+  background: radial-gradient(ellipse at 50% 40%, #24161a 0%, #0a0608 70%);
+  color: #fff; gap: 14px; padding: 20px; text-align: center;
 }
 .flyover-error .error-icon { font-size: 40px; }
 .flyover-error .error-msg { font-size: 15px; color: #eee; max-width: 320px; line-height: 1.6; }
 .flyover-error .error-close {
-  margin-top: 6px; padding: 8px 26px; border: none; border-radius: 20px;
+  margin-top: 6px; padding: 8px 26px; border: none; border-radius: 999px;
   background: #43A047; color: #fff; font-size: 14px; cursor: pointer;
 }
 .flyover-error .error-close:hover { background: #2E7D32; }

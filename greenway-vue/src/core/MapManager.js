@@ -42,19 +42,22 @@ class MapManager {
 
     this._mapInstance = new GeoSceneMap({
       layers: [],
-      ground: this._mode === '3d' ? { surfaceColor: groundColor3d } : undefined
+      // 三维场景使用 GeoScene 全球高程服务，获得真实地形起伏；
+      // 服务不可用时在下方回退为纯色地面
+      ground: this._mode === '3d' ? 'world-elevation' : undefined
     })
 
     if (this._mode === '3d') {
-      // 根据时间计算天空颜色（清晨/白天/黄昏/夜晚）
+      // 高程服务异常时回退纯色平面，避免整个场景白屏
+      const groundRef = this._mapInstance.ground
+      if (groundRef?.when) {
+        groundRef.when().catch(() => {
+          console.warn('[MapManager] 高程服务不可用，回退纯色地形')
+          try { this._mapInstance.ground = { surfaceColor: groundColor3d } } catch (e) { /* 忽略 */ }
+        })
+      }
+
       const hour = new Date().getHours()
-      let skyColor
-      if (hour >= 5 && hour < 7)        { skyColor = [30, 25, 40, 1] }      // 清晨深蓝紫
-      else if (hour >= 7 && hour < 9)   { skyColor = [60, 70, 100, 1] }      // 早晨浅蓝
-      else if (hour >= 9 && hour < 17)  { skyColor = [70, 120, 180, 1] }    // 白天天蓝
-      else if (hour >= 17 && hour < 19) { skyColor = [100, 60, 40, 1] }     // 黄昏暖橙
-      else if (hour >= 19 && hour < 20) { skyColor = [40, 30, 60, 1] }      // 傍晚紫蓝
-      else                              { skyColor = [8, 8, 20, 1] }         // 夜晚深蓝
 
       this._viewInstance = new SceneView({
         container: target,
@@ -76,15 +79,17 @@ class MapManager {
         environment: {
           starsEnabled: hour >= 19 || hour < 5,
           atmosphereEnabled: true,
-          atmosphere: { quality: 'high' },
+          atmosphere: { quality: 'medium' },
+          // 太阳光 + 实时阴影 + 环境光遮蔽：建筑和绿道管道才有体积感
           lighting: {
-            type: 'virtual',
-            directShadowsEnabled: false,
+            type: 'sun',
+            date: new Date(),
+            directShadowsEnabled: true,
             ambientOcclusionEnabled: false,
             waterReflectionEnabled: false
           }
         },
-        background: { color: skyColor },
+        // 不设 background：一旦设成纯色就会盖掉大气天空
         alphaCompositingEnabled: true,
       })
       console.log('[MapManager] 3D SceneView 初始化完成')
