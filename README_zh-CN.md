@@ -34,7 +34,7 @@
 -  管理后台评论管理（`/admin/comments`）：支持筛选、单条处理与批量处理
 -  评论敏感词拦截：命中敏感词直接禁止发布并提示
 - 全站昼夜主题（按北京时间自动切换），管理后台双主题完整适配
--  **AI 助手（绿道小助手）**：基于 DeepSeek-V4-Flash，，支持路线推荐、操作指引、绿道知识问答，对话自动写入数据库
+-  **AI 助手（绿道小助手）**：基于 DeepSeek-V4.1-Flash，，支持路线推荐、操作指引、绿道知识问答，对话自动写入数据库
 -  **管理员 AI 对话分析：** 词云 + 每日趋势折线图（7/30/90 天可选）+ 最近提问记录，支持昼夜主题自动切换（ECharts + echarts-wordcloud，中文分词使用 `segment` 库）
 -  **3D 飞行漫游（3D Flyover）**：发光管状路径（PathSymbol3DLayer）+ 路径光珠（已飞/当前/未来状态）+ 飞行轨迹（已飞段亮色/未飞段暗色）+ 转弯倾斜 + 时段氛围（星空、天空色、地面色自适应），支持播放/暂停/调速/前后跳转。路径经 PostGIS `ST_SimplifyPreserveTopology` + `ST_LineInterpolatePoint` 精确采样为 45 个等距航点（最多 4,911 个原始顶点精简至 45 个）。**真三维城市场景增强**：沿绿道 800m 走廊加载最多 250 栋 OSM 真三维建筑（`planet_osm_polygon` 11 万栋 footprint，`PolygonSymbol3D` + `ExtrudeSymbol3DLayer` 按面积估算高度挤出，建筑类型分色——住宅米黄/商业蓝灰/学校绿灰等，夜晚自动调暗成城市夜景，`ST_SimplifyPreserveTopology` 轮廓简化 + bbox 粗筛 + 预计算面积列保证接口仅 ~0.24s）；建筑名称与沿线 POI（地铁/公交/景点/公园/餐饮等分类彩色圆点）以 `LabelSymbol3D` 名称标注浮显（自动面向相机、自动避让），顶部栏可一键开关建筑/标注图层。
 -  **POI 附近设施**：从高德 POI API 导入 7 类共 847 条便民设施（地铁站、公交站、停车场、公共卫生间、便利店、影剧院、景点），经 PostGIS `ST_DWithin` 筛选绿道周边指定范围内。专业 SVG 矢量地图标记，支持悬浮 tooltip、点击详情弹窗。顶部导航栏内置全局关键词搜索（自动补全 + 键盘导航）。图例面板和详情页图层控制器支持按类型独立开关，详情页支持搜索半径可调（500m~5km）。会话间通过 sessionStorage 持久化图层状态。
@@ -83,6 +83,20 @@
 -  **Web 手机浏览器适配（桌面页面响应式）**：用手机浏览器直接访问网站时，桌面页面自动切换为移动布局，所有功能可用——顶部导航工具条横向滚动 + 触摸点按切换下拉菜单（hover 在触屏不可用，改点击切换，点外部自动关闭）；首页恢复原生滚动；管理后台侧边栏折叠为汉堡抽屉（点汉堡滑出侧边栏 + 遮罩，点菜单项自动关闭）；17 个绿道详情页标题居中显示（修复 480px 内边距把标题推出屏幕的问题）；地图说明卡与各分析面板（路径规划/推荐/可达圈/画像）改为全宽不溢出；搜索框输入字号固定 14px；允许双指缩放与文本选择（可访问性）。
 -  **PC 端布局修复**：顶部导航在中等宽度窗口（1024~1366px）下工具条自动改为横向滚动，避免菜单+搜索+用户区溢出屏幕；触屏设备检测改用 `pointer: coarse`，避免 Windows 触控板电脑误判为触屏导致 hover 菜单失效；管理后台桌面端折叠按钮恢复可用。
 -  **绿道对比（多选并排 PK）**：导航栏新增「绿道推荐」统一入口（含智能推荐 / 绿道评估 / 绿道对比三个子功能）。绿道对比面板最多勾选 3 条绿道，多色叠加雷达图（红/蓝/绿 vs 全市平均虚线）+ 八项指标对比表（综合评分、五维评分：生态自然度/出行便捷度/设施完备度/人气活力值/休闲适宜度、长度、热度排名，每维度最优标绿，无热度数据的绿道显示“暂无”）+ 综合最优结论行；地图同步多色高亮被选绿道、其余置灰，关闭面板自动恢复；任意增删/更换对比项图表即时更新；一键“去最优绿道”（走最近入口导航）+ “AI 对比解读”（250-300 字场景化选道建议，如遛娃/骑行/访古）。
+
+### 最近更新（2026-11）
+
+-  **三维漫游重做**：漫游场景从「贴了卫星图的平面」改为真实三维。地形接入 GeoScene 全球高程服务（不可达时自动回退纯色地面），影像层级上限放开到 18 级、相机高度提升至 800–1400 米——原先的 100–500 米需要 19–20 级影像而实际取不到，正是画面长期发糊的根因。光照由虚拟光改为**太阳光 + 实时阴影**，去掉遮挡大气的纯色背景，并叠加 CSS 暗角做电影感调色。绿道管道加粗到 46/26/10 米，起终点补上「起点」「终点」文字标识，入场从 2600 米高空俯冲、结束时拉高回望，朝向做圆周滑动平均以消除转弯甩头。HUD 重做为居中浮动毛玻璃胶囊（分段式 0.5×/1×/2× 速度、圆形播放控件、场景信息卡、带百分比与航段里程的加粗进度条），并支持快捷键（空格 / ← → / Esc）。另加自动降级：场景稳定后采样帧率，低于 25fps 时自动关闭阴影与建筑名标注。
+-  **绿道图层稳定性**：绿道原由 GeoScene 服务的 FeatureLayer 以 on-demand 模式渲染，每次平移缩放都重新查询；全量几何约 1.1MB，网络稍慢就会「先清空再回填」，表现为绿道时有时无。新增后端接口 `/api/geoscene/greenways`，一次性查询并做 `maxAllowableOffset` 几何简化（1.1MB → 116KB），缓存 10 分钟；前端改用该数据本地渲染，平移不再产生任何服务查询。配色、悬浮高亮、点击弹窗行为保持不变。
+-  **进入地图秒开**：首页的地图入口原本是普通 `<a href="/map">`，每次点击都整页刷新（重新下载解析入口包、Three.js 与 GeoScene），这正是「有时很快、有时长时间白屏」的原因。现全部改为路由跳转；新增全局路由加载遮罩（由路由守卫驱动、渲染在懒加载组件之外，组件尚未下载也能显示）；地图页遮罩保持到首帧与底图就绪；预加载改为静态 `import` 与 `import.meta.glob`（原先用 `import(变量)` 构建期无法解析，从未生效），首页空闲时预热地图重资源。
+-  **推荐面板修复**：`greenway_heatmap` 缺少温榆河的记录，导致推荐面板渲染出「热度第 undefined 名」。新增幂等补行（启动时与每次定时更新前执行——原定时任务只做 `UPDATE`，新增绿道永远补不进来），无热度数据时返回 `null` 而非 `undefined`，桌面端与移动端卡片均加 `v-if` 保护。
+-  **工具操作引导**：进入绘制 / 测量 / 空间分析后原本没有任何反馈。现于地图顶部显示提示条（「连续单击绘制…双击结束」），可通过按钮或 Esc 取消，选择工具后下拉菜单自动收起。同时修复了从未生效的工具激活高亮——`defineExpose` 暴露的 ref 会被自动解包，原代码多读了一层 `.value`。
+-  **地图初始视野**：初始相机原先写死 zoom 8.5（能看到呼和浩特到大连，绿道缩成一小团）。现改为首次加载时按市界图层范围自适应，任何分辨率下都能完整框住北京全域。
+-  **加载动画统一**：地图遮罩内叠了三套转圈（新增的绿色、`main.css` 的全局蓝色 `.loading-spinner`、组件内的白色 `.spinner`）。现统一为单一绿色转圈，与全局遮罩一致，并删除不再被引用的全局蓝色规则。
+-  **面板可拖拽范围**：推荐 / 评估 / 对比三个面板位于地图容器内，而容器顶边在导航栏下方 64px，其拖拽上限却写死 76px，导致永远够不到地图顶部。上限改为 8px（停在导航栏正下方）；路径规划面板同步补上上限，避免拖出屏幕后标题栏不可恢复。
+-  **后端加固**：`JWT_SECRET` 不再回退到源码中的硬编码字符串（生产曾用它签发令牌，管理员 token 可被伪造——已实测确认并修复）；环境变量改为首个 import 的引导模块，确保模块顶层读取 `process.env` 时 `.env.local` 已加载；绿道/POI 写接口与 `/api/admin/poi/stats` 补上管理员校验；路径记录坐标改为参数化查询（SQL 注入）；批量评论状态路由移到 `/:id/status` 之前（此前被永久遮蔽）；连接池取连接移入 `try` 块；新增进程级 `unhandledRejection` 兜底；缓存「失败回退旧值」真正生效（原先写回的仍是已过期的 TTL）；分页参数加上下界。
+-  **AI 服务切换**：助手改接 DeepSeek 的 OpenAI 兼容接口（`deepseek-flash`），响应时间从 25–35 秒降到约 2 秒；`AI_MAX_TOKENS` 提升到 2048，因为思考 token 也计入额度。
+-  **交付优化**：nginx 开启 HTTP/2（`http2 on`），并对带内容哈希的构建产物设置一年 `immutable` 缓存——首次访问约 2.4MB / 219 个文件，二次访问全部命中缓存（实测 0.7 秒出图）。
 
 ### 最近更新（2026-08）
 
@@ -372,7 +386,7 @@ npm run dev       # http://localhost:5173
 GET /api/greenways              # 获取所有绿道列表
 GET /api/greenways/:id          # 按 ID 获取单条绿道详情（含设施/颜色/图片）
 GET /api/greenways?name=温榆河  # 按名称筛选，返回 GeoJSON FeatureCollection
-POST /api/ai/chat               # AI 对话（DeepSeek-V4-Flash）
+POST /api/ai/chat               # AI 对话（DeepSeek-V4.1-Flash）
 DELETE /api/ai/context/:id      # 清除对话历史
 POST /api/comments              # 发布评论（含敏感词检测、可选评分）
 GET /api/comments               # 按绿道查询评论
@@ -491,9 +505,19 @@ DB_USER=postgres
 DB_PASSWORD=your_password
 PORT=3001
 JWT_SECRET=your_jwt_secret
-DEEPSEEK_API_KEY=your_deepseek_api_key
+
+# AI 服务（OpenAI 兼容接口，当前为 DeepSeek）
+SILICONFLOW_API_URL=https://api.deepseek.com/v1/chat/completions
+SILICONFLOW_API_KEY=your_deepseek_api_key
+AI_MODEL=deepseek-flash
+AI_MAX_TOKENS=2048
+AI_TEMPERATURE=0.7
+AI_REQUEST_TIMEOUT=60000
+
 GAODE_KEY=your_amap_web_service_key
 ```
+
+> 变量名沿用历史命名（项目最初接入硅基流动），切换到其它 OpenAI 兼容服务时只需改值。`AI_MAX_TOKENS` 需为思考 token 留出余量——`deepseek-flash` 的 reasoning 内容也计入该额度。
 
 **前端（`greenway-vue/.env.local`）**
 ```env
@@ -536,7 +560,7 @@ VITE_API_BASE=http://localhost:3001
 | POI 附近设施 | 高德 POI API → PostGIS ST_DWithin → GeoJSON → GeoScene GeoJSONLayer + PictureMarkerSymbol |
 | 路径规划 | 本地 Dijkstra 最短路径算法（基于 PostGIS OSM 路网数据） |
 | 图表 / 词云 | ECharts 6 + echarts-wordcloud + vue-echarts |
-| AI 模型 | DeepSeek-V4-Flash（REST API） |
+| AI 模型 | DeepSeek-V4.1-Flash（REST API） |
 | 中文分词 | segment（纯 JS 分词库） |
 | 后端 | Node.js 18+ + Express 4.18 |
 | 数据库 | PostgreSQL 14+ + PostGIS 3.3+ |

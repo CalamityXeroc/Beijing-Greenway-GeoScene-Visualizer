@@ -33,7 +33,7 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  Comment moderation console in admin panel (`/admin/comments`) with search and batch actions
 -  Sensitive-word interception for comments (blocked submissions are rejected with prompt)
 -  Full site day/night theme (auto-switches by Beijing time) + responsive design
--  **AI Assistant (绿道小助手)**: Powered by DeepSeek-V4-Flash, supports route recommendations, tutorials, and Q&A; conversations logged to database
+-  **AI Assistant (绿道小助手)**: Powered by DeepSeek-V4.1-Flash, supports route recommendations, tutorials, and Q&A; conversations logged to database
 -  **Admin AI Chat Analytics**: Word cloud + daily trend chart (7/30/90 day views) + recent messages log, with day/night theme support (ECharts + echarts-wordcloud, Chinese NLP via `segment`)
 -  **3D Flyover Tour (3D 漫游)**: Immersive bird's-eye flight with glowing 3D tube path (PathSymbol3DLayer), auto-play camera animation with banking on turns, waypoint beads with fly/current/upcoming states, camera trail (flown/remaining segments), time-based atmosphere (starfield, sky color, ground color), and playback controls. Paths simplified via PostGIS `ST_SimplifyPreserveTopology` + `ST_LineInterpolatePoint` — exactly 45 equidistant waypoints per greenway, regardless of original vertex count (up to 4,911 raw vertices reduced to 45). **True-3D city scene**: up to 250 real OSM building footprints along an 800 m corridor (`planet_osm_polygon`, 111k buildings) extruded with `PolygonSymbol3D` + `ExtrudeSymbol3DLayer` (height estimated from area, color-coded by building type, dimmed to city-night look after dark), plus `LabelSymbol3D` name callouts for buildings and nearby POIs (metro/bus/scenic/park/food with colored dots); top bar toggles buildings/labels. Query tuned with bbox coarse filter + precomputed area column (~0.24 s).
 -  **POI Nearby Facilities**: 847 facilities across 7 categories (subway, bus, parking, restroom, convenience store, cinema, scenic spots) imported from Amap POI API, filtered by PostGIS `ST_DWithin` within 1 km of greenways. Professional SVG map markers with hover tooltips and click detail popups. Global keyword search with autocomplete + keyboard navigation in the top navbar. Per-type visibility control via layer legend panel and detail-page layer controller. Adjustable search radius (500m–5km) on detail pages. State persisted across page navigation via sessionStorage.
@@ -82,6 +82,20 @@ Interactive visualization of **17 major Beijing greenways** featuring a fullscre
 -  **Web Responsive on Mobile Browsers (desktop pages adapt)**: Visiting the site from a phone browser now adapts every desktop page to mobile — top-nav tools become horizontally scrollable with tap-to-toggle dropdowns (hover unavailable on touch, so clicks toggle menus and outside taps close them); the landing page scrolls natively; the admin sidebar collapses into a hamburger drawer (tap to slide in + mask, tapping a menu item closes it); all 17 greenway detail page titles center correctly (fixed the 480px padding that pushed titles off-screen); map legend cards and analysis panels (path planning / recommendation / reachability / assessment) go full-width without overflow; the search input pins a 14px font size; pinch-zoom and text selection are allowed (accessibility).
 -  **Desktop Layout Fixes**: The top navbar switches its tool strip to horizontal scrolling at medium window widths (1024–1366px) so menus + search + user area never overflow; touch detection now uses `pointer: coarse` so Windows laptops with touchpads no longer lose hover dropdowns; the admin sidebar collapse button works again on desktop.
 -  **Greenway Compare (side-by-side PK)**: A new unified "Greenway Recommend" menu in the top nav groups three helpers — Smart Recommend / Greenway Assess / Greenway Compare. The compare panel lets you tick up to 3 greenways: an overlaid multi-color radar chart (red/blue/green vs dashed city average), an 8-row metrics table (overall score, five dimension scores — ecological / transit / facility / popularity / leisure — length, and heat rank; best value highlighted green, "暂无/N-A" for greenways without heat data), and a verdict row picking the overall winner; the map highlights the compared greenways in their colors and dims the rest, restoring automatically on close; adding/removing/swapping comparison items updates the charts instantly. One-click "Go to best" (nearest-entry routing) plus "AI comparison review" (250–300 chars of scenario-based advice: strolling/cycling/heritage visits, etc.).
+
+### Latest Update (2026-11)
+
+-  **3D Flyover Rebuilt (三维漫游)**: The flyover is now a real 3D scene rather than a flat textured plane. Terrain streams from the GeoScene global elevation service (with automatic fallback to a solid ground if it is unreachable), imagery LOD is opened up to level 18 and the camera flies at 800–1400 m — the previous 100–500 m needed LOD 19–20, which does not exist, and was the root cause of the long-standing blur. Lighting switched from a virtual light to **sun + real-time shadows**, the solid sky background was removed so the atmosphere renders, and a CSS vignette adds cinematic grading. The greenway tube was widened to 46/26/10 m, start/end markers gained 「起点」「终点」 labels, the camera enters with a 2600 m dive and leaves with a pull-up look-back, and headings are smoothed with a circular moving average so corners no longer snap. The HUD was rebuilt as a floating glass pill (segmented 0.5×/1×/2× speed control, circular transport buttons, a scene info card, and a thicker progress bar with percentage and segment mileage) with keyboard shortcuts (Space / ← → / Esc). A self-tuning guard samples the frame rate once the scene settles and automatically disables shadows and building labels below 25 fps.
+-  **Stable Greenway Rendering**: greenways were drawn by a GeoScene FeatureLayer in on-demand mode, re-querying on every pan/zoom; the full geometry is ~1.1 MB, so on slower links the layer cleared and refilled (visible flicker). A new backend endpoint `/api/geoscene/greenways` queries the service once with `maxAllowableOffset` geometry simplification (1.1 MB → 116 KB) and caches it for 10 minutes; the frontend builds a local GeoJSON layer from that payload, so panning now triggers zero service queries. Colours, hover highlight and click pop-ups are unchanged.
+-  **Instant Map Entry**: the landing page's map CTAs were plain `<a href="/map">` links that forced a full page reload — re-downloading and re-parsing the entry bundle, Three.js and GeoScene every time — which was the cause of the "sometimes instant, sometimes a long blank screen" behaviour. All entries are now SPA router links; a global route-loading overlay (driven by router guards and rendered outside the lazy component, so it is visible even while the chunk downloads) covers the gap; the map page keeps its overlay until the first frame and base layer are ready; and prefetching — which never worked because it used `import(variable)`, unresolvable at build time — was rewritten with static imports plus `import.meta.glob`, warming the heavy map chunks while the landing page is idle.
+-  **Recommend Fix (undefined heat rank)**: `greenway_heatmap` had no row for 温榆河, so the recommendation panel rendered "热度第 undefined 名". Added an idempotent backfill (run at startup and before every scheduled heat update — the job previously only ran `UPDATE`, so newly added greenways could never appear), returned `null` instead of `undefined` for greenways without heat data, and added `v-if` guards on both the desktop and mobile cards.
+-  **Tool Guidance (工具操作引导)**: entering draw / measure / spatial-analysis mode previously gave no feedback at all. A hint pill now appears at the top of the map ("连续单击绘制…双击结束"), dismissible via its button or Esc, and the toolbar dropdown closes on selection. This also fixed the tool-active highlight, which had never worked because `defineExpose` refs are auto-unwrapped and the code read `.value` on them.
+-  **Map Initial View**: the initial camera was hard-coded to zoom 8.5 (showing Hohhot to Dalian with the greenways as a small blob). It now fits the Beijing boundary layer's extent with padding on first load, framing the whole municipality at any resolution.
+-  **Unified Loading Indicator**: the map overlay stacked three spinning rings (a new green one, the global blue `.loading-spinner` from `main.css`, and a white scoped `.spinner`). Reduced to a single green spinner consistent with the global overlay; the unused global blue rule was removed.
+-  **Draggable Panels**: the recommend / assess / compare panels live inside the map container, which starts below the 64 px navbar, but their drag clamp was hard-coded to 76 px — so they could never reach the top of the map. The clamp is now 8 px (panels stop just under the navbar), and the route-planning panel gained a matching upper bound so it can no longer be dragged off-screen with its header unreachable.
+-  **Backend Hardening**: `JWT_SECRET` no longer falls back to the hard-coded string in the source (production was signing tokens with it, so admin tokens could be forged — verified and fixed); environment loading moved to a first-import bootstrap so module-level `process.env` reads see `.env.local`; admin auth added to the greenway/POI write endpoints and `/api/admin/poi/stats`; route-record coordinates parameterised (SQL injection); the batch comment-status route moved ahead of `/:id/status` (it was permanently shadowed); pool connections moved inside `try` blocks; a process-level `unhandledRejection` guard added; cache stale-while-error actually implemented (it previously wrote back an already-expired TTL); and pagination bounds clamped.
+-  **AI Provider Switch**: the assistant now talks to DeepSeek's OpenAI-compatible endpoint (`deepseek-flash`), cutting response time from 25–35 s to roughly 2 s; `AI_MAX_TOKENS` raised to 2048 because reasoning tokens count against the budget.
+-  **Delivery**: nginx now serves HTTP/2 (`http2 on`) and marks hashed build assets `immutable` for one year — the first visit transfers ~2.4 MB across 219 files, while repeat visits hit the cache entirely (measured 0.7 s to a rendered map).
 
 ### Latest Update (2026-08)
 
@@ -182,7 +196,7 @@ npm run dev       # http://localhost:5173
 |  **User Favorites** | Favorite greenways (backend persisted), desktop + mobile favorites pages, personal-center real stats |
 |  **Legend Widget** | Official GeoScene Legend component (Expand collapsible), auto heatmap/facility legends |
 |  **Real-time Weather** | Draggable weather widget (Amap API); mobile detail page embeds an inline weather card |
-|  **AI Assistant** | Map/detail-only floating chatbot (DeepSeek-V4-Flash), conversations logged to DB; mobile fullscreen chat panel |
+|  **AI Assistant** | Map/detail-only floating chatbot (DeepSeek-V4.1-Flash), conversations logged to DB; mobile fullscreen chat panel |
 |  **Smart Recommendation** | Preference-driven greenway recommender (travel mode + interests + facility needs → scored ranking with transparent reasons), draggable panel, AI deep-dive interpretation, and smart routing to the greenway's nearest entry |
 |  **AI Chat Analytics** | Admin: word cloud + daily trend + recent messages, dual day/night theme |
 |  **Day/Night Theme** | Auto-switches by Beijing time by default; user can pin day/night or return to follow-time mode (desktop & mobile shared preference) |
@@ -370,7 +384,7 @@ npm run dev       # http://localhost:5173
 GET /api/greenways              # all greenways (summary list)
 GET /api/greenways/:id          # single greenway detail by ID (incl. facilities/color/image)
 GET /api/greenways?name=温榆河  # filter by name → GeoJSON FeatureCollection
-POST /api/ai/chat               # AI conversation (DeepSeek-V4-Flash)
+POST /api/ai/chat               # AI conversation (DeepSeek-V4.1-Flash)
 DELETE /api/ai/context/:id      # clear conversation history
 POST /api/comments              # create a comment (sensitive-word check + optional rating)
 GET /api/comments               # query comments by greenway
@@ -499,9 +513,19 @@ DB_USER=postgres
 DB_PASSWORD=your_password
 PORT=3001
 JWT_SECRET=your_jwt_secret
-DEEPSEEK_API_KEY=your_deepseek_api_key
+
+# AI provider (OpenAI-compatible; currently DeepSeek)
+SILICONFLOW_API_URL=https://api.deepseek.com/v1/chat/completions
+SILICONFLOW_API_KEY=your_deepseek_api_key
+AI_MODEL=deepseek-flash
+AI_MAX_TOKENS=2048
+AI_TEMPERATURE=0.7
+AI_REQUEST_TIMEOUT=60000
+
 GAODE_KEY=your_amap_web_service_key
 ```
+
+> The variable names are historical (the project started on SiliconFlow); only the values need to change when switching to another OpenAI-compatible provider. `AI_MAX_TOKENS` must leave room for reasoning tokens — `deepseek-flash` counts them against the budget.
 
 **Frontend (`greenway-vue/.env.local`)**
 ```env
@@ -543,7 +567,7 @@ VITE_API_BASE=http://localhost:3001
 | 3D flyover | GeoScene SceneView + WebTileLayer (satellite) + Camera flyTo animation + PostGIS ST_SimplifyPreserveTopology |
 | POI facilities | Amap POI API → PostGIS ST_DWithin → GeoJSON → GeoScene GeoJSONLayer + PictureMarkerSymbol |
 | Charts / Word cloud | ECharts 6 + echarts-wordcloud + vue-echarts |
-| AI model | DeepSeek-V4-Flash (REST API) |
+| AI model | DeepSeek-V4.1-Flash (REST API) |
 | Chinese NLP | segment (pure-JS tokenizer) |
 | Backend | Node.js 18+ + Express 4.18 |
 | Database | PostgreSQL 14+ + PostGIS 3.3+ |
