@@ -13,7 +13,7 @@
       </div>
 
       <!-- 大图 Banner 轮播（社区风） -->
-      <section class="banner-section">
+      <section class="banner-section" v-if="bannerTrails.length">
         <div class="banner" @touchstart="onTouchStart" @touchend="onTouchEnd">
           <div class="banner-track" :style="{ transform: `translateX(-${currentSlide * 100}%)` }">
             <div class="banner-slide" v-for="b in bannerTrails" :key="b.id" @click="viewTrailDetail(b)">
@@ -40,20 +40,37 @@
         </div>
       </section>
 
+      <!-- Banner 加载中骨架 -->
+      <section class="banner-section" v-else-if="loading">
+        <div class="banner-skeleton"></div>
+      </section>
+
+      <!-- Banner 加载失败提示 -->
+      <section class="banner-section" v-else>
+        <div class="discover-error" @click="retryLoad">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>
+          </svg>
+          <p class="err-text">{{ loadError || '暂无数据' }}</p>
+          <span class="retry-btn">点击重试</span>
+        </div>
+      </section>
+
       <!-- 数据总览（数字卡） -->
       <div class="stats-grid">
         <div class="stat-item">
-          <span class="stat-num font-number">{{ totalStats.count }}</span>
+          <span class="stat-num font-number">{{ loading || loadError ? '—' : totalStats.count }}</span>
           <span class="stat-label">条绿道</span>
         </div>
         <div class="stat-divider"></div>
         <div class="stat-item">
-          <span class="stat-num font-number">{{ totalStats.km }}</span>
+          <span class="stat-num font-number">{{ loading || loadError ? '—' : totalStats.km }}</span>
           <span class="stat-label">km 总里程</span>
         </div>
         <div class="stat-divider"></div>
         <div class="stat-item">
-          <span class="stat-num font-number">{{ totalStats.poi }}</span>
+          <span class="stat-num font-number">{{ loading || loadError ? '—' : totalStats.poi }}</span>
           <span class="stat-label">个设施</span>
         </div>
       </div>
@@ -70,9 +87,17 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
           </button>
         </div>
-        <div class="card-rail">
+        <div class="card-rail" v-if="hotTrails.length">
           <TrailCard v-for="trail in hotTrails" :key="trail.id" :trail="trail" variant="card"
             @click="viewTrailDetail" />
+        </div>
+        <!-- 加载中骨架 -->
+        <div class="card-rail" v-else-if="loading">
+          <div class="card-skeleton" v-for="i in 3" :key="i"></div>
+        </div>
+        <div class="rail-empty" v-else>
+          {{ loadError || '暂无绿道数据' }}
+          <button class="retry-inline" @click="retryLoad">重试</button>
         </div>
       </section>
 
@@ -102,6 +127,8 @@ const scrollEl = ref(null)
 const hotTrails = ref([])
 const allFeatures = ref([])
 const currentSlide = ref(0)
+const loading = ref(true)
+const loadError = ref('')
 
 // 首页数据总览（实时统计，突出 WebGIS 数据特色）
 const totalStats = computed(() => {
@@ -144,6 +171,8 @@ const calcDifficulty = (len) => {
 
 // 加载热门绿道（同时记录全量用于统计与封面映射）
 const loadHotTrails = async () => {
+  loading.value = true
+  loadError.value = ''
   try {
     const geojson = await fetchGreenways()
     const features = geojson.features || []
@@ -164,7 +193,16 @@ const loadHotTrails = async () => {
       })
   } catch (e) {
     console.error('加载热门绿道失败:', e)
+    loadError.value = '网络加载失败，请检查网络后重试'
+  } finally {
+    loading.value = false
   }
+}
+
+// 重试加载（网络恢复后手动或自动触发）
+const retryLoad = () => {
+  loadHotTrails()
+  loadPoiCount()
 }
 
 // 交互
@@ -195,20 +233,98 @@ const onTouchEnd = (e) => {
   startAutoSlide()
 }
 
+// 网络恢复后自动重试（避免演示时网络波动后页面一直空白）
+const onOnline = () => {
+  if (!hotTrails.value.length) retryLoad()
+}
+
 onMounted(() => {
   loadHotTrails()
   loadPoiCount()
   startAutoSlide()
+  window.addEventListener('online', onOnline)
 })
 
 // keep-alive：切走暂停轮播，切回恢复（省电 + 减少卡顿）
 onDeactivated(() => stopAutoSlide())
-onActivated(() => startAutoSlide())
+onActivated(() => {
+  startAutoSlide()
+  // 切回时若无数据（之前加载失败）自动重试
+  if (!hotTrails.value.length) retryLoad()
+})
 
-onUnmounted(() => stopAutoSlide())
+onUnmounted(() => {
+  stopAutoSlide()
+  window.removeEventListener('online', onOnline)
+})
 </script>
 
 <style scoped>
+/* ===== 加载骨架 / 失败兑底 ===== */
+.banner-skeleton {
+  height: 190px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, rgba(0,0,0,0.05) 25%, rgba(0,0,0,0.02) 37%, rgba(0,0,0,0.05) 63%);
+  background-size: 400% 100%;
+  animation: sk-shimmer 1.4s ease infinite;
+}
+.card-skeleton {
+  width: 220px;
+  height: 150px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg, rgba(0,0,0,0.05) 25%, rgba(0,0,0,0.02) 37%, rgba(0,0,0,0.05) 63%);
+  background-size: 400% 100%;
+  animation: sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+.discover-error {
+  height: 190px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+.discover-error .err-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: 0 16px;
+}
+.discover-error .retry-btn {
+  padding: 6px 20px;
+  border-radius: var(--radius-full);
+  background: var(--fill-primary);
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+.rail-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-sm);
+}
+.rail-empty .retry-inline {
+  margin-left: 8px;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .discover-page {
   position: relative;
   width: 100%;
