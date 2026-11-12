@@ -90,7 +90,7 @@ import { ref, onMounted, computed } from 'vue'
 import QRCode from 'qrcode'
 
 // 下载配置（生产环境由服务器托管 APK）
-const VERSION = '1.7'
+const VERSION = '1.8'
 const APK_SIZE = 173
 const DOWNLOAD_PATH = '/apk/greenway-v1.8.apk'
 
