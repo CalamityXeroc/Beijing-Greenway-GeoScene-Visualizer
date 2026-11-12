@@ -179,3 +179,20 @@ greenway-vue.apk
 tmp_*
 *.sql
 队友协作说明.md
+
+# ============================================================
+# 调试截图与一次性诊断脚本（不上传）
+# ============================================================
+_*.png
+_bp_*.png
+_*.py
+publish_to_server.py
+verify_pano_points.py
+
+# 含服务器地址/密钥/凭据的运维文档（不上传）
+SERVER_INFO.md
+App打包手册.md
+DEPLOY_APK_DOWNLOAD.md
+GeoScene数据发布清单.md
+GeoScene联合问题排查报告.md
+问题文档.txt
