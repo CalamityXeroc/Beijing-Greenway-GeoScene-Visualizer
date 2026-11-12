@@ -442,10 +442,18 @@ function drawRoute(route, origin, destination, waypoints) {
       paths: [polylinePoints],
       spatialReference: { wkid: 4326 }
     })
-    routeLayer.add(new Graphic({
-      geometry: polyline,
-      symbol: { type: 'simple-line', color: '#2196F3', width: 4, cap: 'round', join: 'round' }
-    }))
+    // 发光效果：多个 Graphic 叠加（GeoScene 的 Graphic.symbol 不支持数组）
+    const routePulse = [
+      { color: [198, 40, 40, 0.20], width: 15 },
+      { color: [198, 40, 40, 0.34], width: 9 },
+      { color: '#C62828', width: 4 }
+    ]
+    routePulse.forEach(({ color, width }) => {
+      routeLayer.add(new Graphic({
+        geometry: polyline,
+        symbol: { type: 'simple-line', color, width, cap: 'round', join: 'round' }
+      }))
+    })
   }
 
   if (origin) {
@@ -467,7 +475,7 @@ function drawRoute(route, origin, destination, waypoints) {
       geometry: new Point({ longitude: wp.lng, latitude: wp.lat, spatialReference: { wkid: 4326 } }),
       symbol: {
         type: 'text', text: String(i + 1), color: '#fff',
-        haloColor: '#2196F3', haloSize: 2,
+        haloColor: '#C62828', haloSize: 2,
         font: { size: 11, weight: 'bold' }, yoffset: -8
       }
     }))

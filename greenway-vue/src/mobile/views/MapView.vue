@@ -297,7 +297,13 @@ const drawRoute = ({ route, origin, destination }) => {
       style: (feature) => {
         const type = feature.get('type')
         if (type === 'route') {
-          return new Style({ stroke: new Stroke({ color: '#2196F3', width: 5, cap: 'round', join: 'round' }) })
+          return [
+            // 外层柔和光晕
+            new Style({ stroke: new Stroke({ color: 'rgba(198,40,40,0.20)', width: 16, cap: 'round', join: 'round' }) }),
+            new Style({ stroke: new Stroke({ color: 'rgba(198,40,40,0.34)', width: 10, cap: 'round', join: 'round' }) }),
+            // 主体深红实线
+            new Style({ stroke: new Stroke({ color: '#C62828', width: 5, cap: 'round', join: 'round' }) })
+          ]
         }
         if (type === 'origin') {
           return new Style({ image: new CircleStyle({ radius: 9, fill: new Fill({ color: '#4CAF50' }), stroke: new Stroke({ color: '#fff', width: 2 }) }) })
