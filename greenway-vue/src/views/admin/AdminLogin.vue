@@ -95,10 +95,13 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminAuth } from '@/stores/adminAuth'
+import { useUserAuth } from '@/stores/userAuth'
 import { getApiBaseUrl } from '@/mobile/services/api'
 
 const router = useRouter()
 const { setSession, isLoggedIn } = useAdminAuth()
+// 管理员登录后同步前台会话，使路径规划、评论、收藏等市民功能同样可用
+const { setSession: setUserSession } = useUserAuth()
 
 // 如果已经登录，直接跳转到后台
 if (isLoggedIn.value) {
@@ -132,8 +135,9 @@ async function handleLogin() {
     const data = text ? JSON.parse(text) : {}
     if (!res.ok) throw new Error(data.message || '登录失败')
 
-    // 登录成功，保存 session
+    // 登录成功，保存 session（管理员 + 前台双写，避免市民功能不可用）
     setSession(data.data.token, data.data.user)
+    setUserSession(data.data.token, data.data.user)
 
     // 强制跳转到后台，确保状态完全同步
     router.replace('/admin/dashboard')

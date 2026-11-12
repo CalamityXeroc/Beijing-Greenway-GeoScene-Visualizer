@@ -2,7 +2,8 @@
  * 绿道智能推荐 - API
  * POST /api/greenways/recommend
  * body: { mode: 'walking'|'bicycling', interests: ['eco','scenic','history','urban']|'balanced', needs: ['metro','parking','restroom'], topN: 3 }
- * 评分: 0.40×功能匹配 + 0.28×热度 + 0.22×设施完善度 + 0.10×长度适配（透明可解释）
+ * 评分: 0.55×功能匹配 + 0.15×热度 + 0.20×设施完善度 + 0.10×长度适配（都行模式: 0/0.45/0.35/0.20）
+ *      各因子用排名百分位归一化，最终线性映射到 [65, 98] 作为推荐度展示（排序由原始加权分决定）
  */
 import express from 'express'
 const router = express.Router()
@@ -39,9 +40,10 @@ router.post('/recommend', async (req, res) => {  try {
     const facRes = await req.pool.query(
       'SELECT greenway_name, cnt, metro, parking, restroom FROM greenway_facility_stats'
     )
-    // 4. 长度 + 入口坐标
+    // 4. 长度 + 入口坐标（长度优先用 greenways.length 官方设计长度，为空时回退几何实测）
+    // 注：几何实测长度受矢量化影响偏大（如三山五园官方 36.09km、几何 79.7km），不可直接使用
     const geoRes = await req.pool.query(`
-      SELECT name, ST_Length(geometry::geography) / 1000 AS len_km,
+      SELECT name, COALESCE(NULLIF(length, 0), ST_Length(geometry::geography) / 1000) AS len_km,
              ST_X(ST_StartPoint(ST_LineMerge(geometry))) AS lng,
              ST_Y(ST_StartPoint(ST_LineMerge(geometry))) AS lat
       FROM greenways WHERE geometry IS NOT NULL
@@ -50,8 +52,15 @@ router.post('/recommend', async (req, res) => {  try {
     const heatMap = Object.fromEntries(heatRes.rows.map(r => [r.greenway_name, r.heat_index || 0]))
     const facMap = Object.fromEntries(facRes.rows.map(r => [r.greenway_name, r]))
     const geoMap = Object.fromEntries(geoRes.rows.map(r => [r.name, r]))
-    const maxHeat = Math.max(...Object.values(heatMap), 1)
-    const maxFac = Math.max(...Object.values(facMap).map(f => parseInt(f.cnt) || 0), 1)
+    // 排名百分位归一化：避免单个极值（如中心城滨水 heat=10.8 / fac=374）把其余绿道压到接近 0 分
+    const totalCount = profileRes.rows.length
+    const pctOf = (i) => (totalCount > 1 ? 1 - i / (totalCount - 1) : 0.5)
+    const heatPctMap = {}
+    Object.entries(heatMap).sort((a, b) => b[1] - a[1]).forEach(([name], i) => { heatPctMap[name] = pctOf(i) })
+    const facPctMap = {}
+    facRes.rows.slice()
+      .sort((a, b) => (parseInt(b.cnt) || 0) - (parseInt(a.cnt) || 0))
+      .forEach((r, i) => { facPctMap[r.greenway_name] = pctOf(i) })
 
     // 兴趣权重（'都行' = 均分）
     const balanced = interests.length === 0 || interests.includes('balanced')
@@ -95,18 +104,19 @@ router.post('/recommend', async (req, res) => {  try {
         }
         if (sel.length) {
           minP = Math.min(...sel)
-          const avgP = sel.reduce((s, v) => s + v, 0) / sel.length
-          match = 0.7 * minP + 0.3 * avgP
+          // 以「所选类型占比之和」为主（用户想要的类型覆盖了多少），「最小占比」为辅（避免某项完全缺失）
+          const selSum = sel.reduce((s, v) => s + v, 0)
+          match = 0.6 * Math.min(1, selSum) + 0.4 * minP
         }
       }
 
-      // 热度
+      // 热度（排名百分位：第 1 名 = 1.0，末位 = 0.0）
       const heat = heatMap[p.greenway_name] || 0
-      const heatScore = heat / maxHeat
+      const heatScore = heatPctMap[p.greenway_name] ?? 0
 
       // 设施完善度
       const fac = facMap[p.greenway_name] || { cnt: 0, metro: 0, parking: 0, restroom: 0 }
-      const facBase = (parseInt(fac.cnt) || 0) / maxFac
+      const facBase = facPctMap[p.greenway_name] ?? 0
       let needOk = 1
       if (needs.length > 0) {
         let satisfied = 0
@@ -118,18 +128,30 @@ router.post('/recommend', async (req, res) => {  try {
       }
       const facScore = facBase * 0.6 + needOk * 0.4
 
-      // 长度适配：骑行偏好 ~20km，步行偏好 ~8km
+      // 长度适配：绿道可分段游览，长绿道不是缺点（只在过短时扣分）
       const len = geoMap[p.greenway_name]?.len_km || 10
-      const ideal = mode === 'bicycling' ? 20 : 8
-      const lenScore = Math.max(0, 1 - Math.abs(len - ideal) / 40)
+      const minGoodLen = mode === 'bicycling' ? 8 : 2
+      const lenScore = len >= minGoodLen ? 1 : len / minGoodLen
 
-      const score = Math.round(100 * (W.match * match + W.heat * heatScore + W.fac * facScore + W.len * lenScore))
-      return { name: p.greenway_name, score, match, minP, profile, heat, len, geo: geoMap[p.greenway_name] || null }
+      const rawScore = 100 * (W.match * match + W.heat * heatScore + W.fac * facScore + W.len * lenScore)
+      return { name: p.greenway_name, rawScore, score: 0, match, minP, profile, heat, len, geo: geoMap[p.greenway_name] || null }
     })
 
     // 匹配度硬门槛：明确兴趣时，所选类型占比 < 15% 的绿道直接剔除
     const MIN_MATCH = 0.15
     const eligible = balanced ? items : items.filter(it => it.minP >= MIN_MATCH)
+
+    // 分数区间映射：把候选集内的原始加权分线性映射到 [65, 98]（推荐度语义，排序不变）。
+    // 原始加权分受各因子归一化影响绝对值偏低（20~50），直接展示会让用户误以为推荐质量差。
+    const SCORE_MIN = 65, SCORE_MAX = 98
+    const rawList = eligible.map(it => it.rawScore)
+    const rawMax = rawList.length ? Math.max(...rawList) : 0
+    const rawMin = rawList.length ? Math.min(...rawList) : 0
+    eligible.forEach(it => {
+      it.score = rawMax > rawMin
+        ? Math.round(SCORE_MIN + (SCORE_MAX - SCORE_MIN) * (it.rawScore - rawMin) / (rawMax - rawMin))
+        : Math.round((SCORE_MIN + SCORE_MAX) / 2)
+    })
 
     // 排序
     const ranked = eligible.sort((a, b) => b.score - a.score)

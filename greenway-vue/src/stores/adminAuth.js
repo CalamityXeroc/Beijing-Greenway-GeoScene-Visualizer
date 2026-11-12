@@ -30,6 +30,15 @@ function initState() {
       localStorage.setItem(KEY_USER, JSON.stringify(user))
     }
   }
+
+  // 反向同步：管理员独立会话存在、但前台会话缺失 → 补写前台会话键。
+  // 让路径规划、发表评论、收藏等市民功能对管理员同样可用（避免管理员需二次登录）。
+  // 此处仅写 localStorage，userAuth 模块随后初始化时会读取到，刷新页面即生效。
+  if (token && user?.role === 'admin' && !localStorage.getItem(USER_TOKEN_KEY)) {
+    localStorage.setItem(USER_TOKEN_KEY, token)
+    localStorage.setItem(USER_KEY, JSON.stringify(user))
+  }
+
   return { token, user }
 }
 
