@@ -288,7 +288,8 @@ const goDownloadApp = () => {
   showAboutModal.value = false
   // 在原生 App 内无法直接安装 APK，提示用浏览器打开
   if (window.Capacitor?.isNativePlatform?.()) {
-    alert('请在手机浏览器中打开 wandergreen.cn/download 下载安装包')
+    const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin
+    alert(`请在手机浏览器中打开 ${siteUrl}/download 下载安装包`)
     return
   }
   window.location.href = appDownloadUrl.value

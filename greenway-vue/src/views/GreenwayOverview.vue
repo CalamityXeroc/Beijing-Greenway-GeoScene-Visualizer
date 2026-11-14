@@ -436,10 +436,11 @@ const mapConfig = reactive({
   zoom: 9.6
 })
 
-// GeoScene Server 公网服务地址（数据源替换目标）
-const GEO_SCENE_BASE = 'https://wandergreen.cn/rest/services'
-const GEO_SCENE_CORE = `${GEO_SCENE_BASE}/%E5%9C%B0%E5%9B%BE/MapServer`
-const GEO_SCENE_FN = `${GEO_SCENE_BASE}/greenwayfunction/MapServer`
+// GeoScene Server 服务地址（可选）。通过 .env 的 VITE_GEOSCENE_BASE 配置，
+// 未配置时自动降级：绿道改用后端 /api/greenways 的 GeoJSON 图层渲染，其余功能不受影响。
+const GEO_SCENE_BASE = import.meta.env.VITE_GEOSCENE_BASE || ''
+const GEO_SCENE_CORE = GEO_SCENE_BASE ? `${GEO_SCENE_BASE}/%E5%9C%B0%E5%9B%BE/MapServer` : ''
+const GEO_SCENE_FN = GEO_SCENE_BASE ? `${GEO_SCENE_BASE}/greenwayfunction/MapServer` : ''
 
 // 图层配置
 const layerConfig = sessionRef('gw_layerConfig_v2', [
@@ -906,10 +907,13 @@ const GREENWAY_NIGHT_COLORS = {
   'zhongxincheng-greenway': '#82B1FF'
 }
 
-// 绿道数据源已替换为 GeoScene 服务：初始隐藏 17 个 geojson 绿道图层（渲染由 GeoScene FeatureLayer 承担，info 仍保留用于交互）
-layerConfig.value.forEach(l => {
-  if (l.id.endsWith('-greenway')) l.visible = false
-})
+// 配置了 GeoScene 服务时，初始隐藏 17 个 geojson 绿道图层（渲染由 GeoScene FeatureLayer 承担，info 仍保留用于交互）
+// 未配置时保留 geojson 图层可见，保证 clone 后不依赖 GeoScene Server 也能看到绿道
+if (GEO_SCENE_BASE) {
+  layerConfig.value.forEach(l => {
+    if (l.id.endsWith('-greenway')) l.visible = false
+  })
+}
 
 // 主题切换时更新绿道线颜色（白天深色/夜间亮色）
 watch(globalTheme, (t) => {
@@ -1954,7 +1958,14 @@ const toggleBeijing = (visible) => {
 // 全部绿道聚合开关（控制图上所有绿道线）
 const toggleGreenways = (visible) => {
   showGreenways.value = visible
-  // GeoScene 服务替代：现有 17 个 geojson 绿道图层始终隐藏（数据源已替换为 GeoScene 服务）
+  // 未配置 GeoScene 服务：降级用 geojson 图层（数据来自后端 /api/greenways），直接切换可见性
+  if (!GEO_SCENE_BASE) {
+    layerConfig.value.forEach((layer) => {
+      if (layer.id.endsWith('-greenway')) layer.visible = visible
+    })
+    return
+  }
+  // 配置了 GeoScene 服务：由 GeoScene FeatureLayer 渲染，geojson 图层始终隐藏
   layerConfig.value.forEach((layer) => {
     if (layer.id.endsWith('-greenway')) {
       layer.visible = false

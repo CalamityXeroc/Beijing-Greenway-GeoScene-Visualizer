@@ -684,9 +684,13 @@ app.get('/api/function-segments', async (req, res) => {
 // 前端若直连该服务的 FeatureLayer（on-demand 模式），每次平移/缩放都会按可视范围重新查询，
 // 单次响应最大约 1MB，网络较慢时图层会“清空→回填”，表现为要素时有时无。
 // 这里一次性取全量并做几何简化（约 1/10 体积），缓存后由前端只取一次。
-const GEO_SCENE_QUERY_BASE = process.env.GEO_SCENE_QUERY_BASE || 'https://wandergreen.cn/rest/services'
+const GEO_SCENE_QUERY_BASE = process.env.GEO_SCENE_QUERY_BASE || ''
 
 app.get('/api/geoscene/greenways', async (req, res) => {
+  // 未配置 GeoScene Server 时直接返回明确提示，由前端降级到本地 GeoJSON 图层
+  if (!GEO_SCENE_QUERY_BASE) {
+    return res.status(503).json({ error: '未配置 GEO_SCENE_QUERY_BASE，请参考 .env.example 或使用本地 GeoJSON 数据源' })
+  }
   try {
     const payload = await cached('geoscene:greenways', 10 * 60_000, async () => {
       const url = `${GEO_SCENE_QUERY_BASE}/${encodeURIComponent('地图')}/MapServer/2/query`

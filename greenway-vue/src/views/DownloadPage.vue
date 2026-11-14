@@ -55,6 +55,10 @@
           <div class="dl-qr-box">
             <canvas ref="qrCanvas" class="dl-qr-canvas"></canvas>
             <p class="dl-qr-tip">手机扫码下载</p>
+            <p class="dl-qr-fallback">
+              扫码提示“无法解析域名”？请改用
+              <a :href="fallbackUrl">IP 直连下载</a>
+            </p>
           </div>
           <div class="dl-install-tips">
             <h3>安装步骤</h3>
@@ -90,11 +94,15 @@ import { ref, onMounted, computed } from 'vue'
 import QRCode from 'qrcode'
 
 // 下载配置（生产环境由服务器托管 APK）
-const VERSION = '1.8'
+const VERSION = '0.1'
 const APK_SIZE = 173
-const DOWNLOAD_PATH = '/apk/greenway-v1.8.apk'
+const DOWNLOAD_PATH = '/apk/greenway-v0.1.apk'
 
 const qrCanvas = ref(null)
+
+// 备用直连地址：部分内网 DNS 间歇性无法解析域名时，可绕过 DNS 用 IP 直接下载
+// （nginx 已放行 /apk/ 走 HTTP，所以 IP 直连也不会触发证书不匹配）
+const fallbackUrl = `http://115.231.235.221${DOWNLOAD_PATH}`
 
 // 下载地址：优先用完整域名（扫码场景需要绝对地址），开发环境用相对路径
 const downloadUrl = computed(() => {
@@ -103,9 +111,10 @@ const downloadUrl = computed(() => {
 })
 
 // 二维码内容：必须是完整可访问的地址（手机扫码）
+// 站点域名优先取环境变量 VITE_SITE_URL，否则用当前访问域名（便于部署到任意域名）
 const qrContent = computed(() => {
-  if (import.meta.env.DEV) return 'https://wandergreen.cn' + DOWNLOAD_PATH
-  return `${window.location.origin}${DOWNLOAD_PATH}`
+  const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin
+  return `${siteUrl}${DOWNLOAD_PATH}`
 })
 
 const version = VERSION
@@ -173,6 +182,11 @@ const onDownload = () => {
 }
 [data-theme="night"] .dl-qr-canvas { border-color: #1e293b; }
 [data-theme="night"] .dl-qr-tip { color: #94a3b8; }
+.dl-qr-fallback { margin-top: 6px; font-size: 0.72rem; line-height: 1.5; color: #94a3b8; text-align: center; }
+.dl-qr-fallback a { color: #2fa84f; text-decoration: underline; font-weight: 600; }
+.dl-qr-fallback a:hover { color: #248a3f; }
+[data-theme="night"] .dl-qr-fallback { color: #64748b; }
+[data-theme="night"] .dl-qr-fallback a { color: #4ade80; }
 [data-theme="night"] .dl-install-tips h3 { color: #e2e8f0; }
 [data-theme="night"] .dl-steps { color: #94a3b8; }
 
