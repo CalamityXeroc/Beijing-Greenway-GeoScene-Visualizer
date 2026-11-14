@@ -139,10 +139,13 @@ Spatial query, recommendation, and route planning logic is decoupled from the da
 
 ## Competition & Intellectual Property
 
-This project is an entry to the **2026 Esri Cup China University Student GIS Software Development Competition** (Entry No. C186, College of Applied Arts and Science, Beijing Union University). Software copyright registration is in progress.
+This project is an entry to the **2026 Esri Cup China University Student GIS Software Development Competition** and was awarded the **National First Prize in the Application Development Track** (Entry No. **C186**, College of Applied Arts and Science, Beijing Union University).
 
-- Free for educational and research use
-- Commercial use or derivative works require author authorization
+- 🏆 **Award**: 2026 Esri Cup China University Student GIS Software Development Competition — Application Development Track — **First Prize**
+- 📄 **Software Copyright**: Application filed
+- 📝 **Paper**: Under review for publication
+- ⚠️ **Strictly No Commercial Use**: This project is provided for education, research, and competition demonstration only. **Any commercial use is strictly prohibited** without prior written authorization from the authors, including but not limited to commercial deployment, resale, or SaaS offerings.
+- Attribution is required for citations or derivative works.
 
 ## License
 
