@@ -55,7 +55,7 @@
           <div class="dl-qr-box">
             <canvas ref="qrCanvas" class="dl-qr-canvas"></canvas>
             <p class="dl-qr-tip">手机扫码下载</p>
-            <p class="dl-qr-fallback">
+            <p v-if="fallbackUrl" class="dl-qr-fallback">
               扫码提示“无法解析域名”？请改用
               <a :href="fallbackUrl">IP 直连下载</a>
             </p>
@@ -100,9 +100,11 @@ const DOWNLOAD_PATH = '/apk/greenway-v0.1.apk'
 
 const qrCanvas = ref(null)
 
-// 备用直连地址：部分内网 DNS 间歇性无法解析域名时，可绕过 DNS 用 IP 直接下载
-// （nginx 已放行 /apk/ 走 HTTP，所以 IP 直连也不会触发证书不匹配）
-const fallbackUrl = `http://115.231.235.221${DOWNLOAD_PATH}`
+// 备用直连地址（可选）：部分内网 DNS 无法解析域名时，可绕过 DNS 用 IP 直接下载。
+// 通过 .env 的 VITE_APK_FALLBACK_URL 配置（如 http://1.2.3.4），未配置时不展示备用入口。
+const fallbackUrl = import.meta.env.VITE_APK_FALLBACK_URL
+  ? `${import.meta.env.VITE_APK_FALLBACK_URL}${DOWNLOAD_PATH}`
+  : ''
 
 // 下载地址：优先用完整域名（扫码场景需要绝对地址），开发环境用相对路径
 const downloadUrl = computed(() => {
